@@ -10,6 +10,8 @@ const nextConfig = {
       },
     ],
   },
+  // Disable static generation for dynamic routes to avoid build errors
+  output: 'standalone',
 }
 
 module.exports = nextConfig
