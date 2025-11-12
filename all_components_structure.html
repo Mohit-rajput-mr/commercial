@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commercial RE - Premium Real Estate Marketplace</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-black: #0a0a0a;
+            --secondary-black: #1a1a1a;
+            --accent-yellow: #ffd700;
+            --white: #ffffff;
+            --gray: #888888;
+            --light-gray: #f5f5f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            background: var(--white);
+        }
+
+        /* NAVIGATION */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            animation: slideDown 0.8s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-yellow);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--primary-black);
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--white);
+            letter-spacing: 1px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .login-btn {
+            background: transparent;
+            color: var(--white);
+            border: 2px solid var(--accent-yellow);
+        }
+
+        .login-btn:hover {
+            background: var(--accent-yellow);
+            color: var(--primary-black);
+            transform: translateY(-2px);
+        }
+
+        .advertise-btn {
+            background: var(--accent-yellow);
+            color: var(--primary-black);
+        }
+
+        .advertise-btn:hover {
+            background: #ffed4e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        /* HERO SECTION */
+        #hero {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-black) 0%, var(--secondary-black) 100%);
+            padding-top: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="%230a0a0a"/><circle cx="50" cy="50" r="1" fill="%23ffd700" opacity="0.1"/></svg>');
+            animation: bgMove 20s linear infinite;
+        }
+
+        @keyframes bgMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(100px, 100px); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 50px 5%;
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 800;
+            color: var(--white);
+            margin-bottom: 20px;
+            animation: fadeInUp 1s ease;
+            line-height: 1.2;
+        }
+
+        .hero-title span {
+            color: var(--accent-yellow);
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .search-panel {
+            max-width: 1100px;
+            margin: 40px auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(255, 215, 0, 0.2);
+            animation: fadeInUp 1.2s ease;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: var(--primary-black);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--accent-yellow);
+        }
+
+        .property-types {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .property-type {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 15px 20px;
+            background: var(--white);
+            border: 2px solid var(--light-gray);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .property-type:hover {
+            border-color: var(--accent-yellow);
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .property-icon {
+            font-size: 30px;
+        }
+
+        .property-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-black);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 18px 25px;
+            border: 2px solid var(--light-gray);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-yellow);
+        }
+
+        .search-btn {
+            padding: 18px 40px;
+            background: var(--primary-black);
+            color: var(--white);
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-btn:hover {
+            background: var(--accent-yellow);
+            color: var(--primary-black);
+            transform: scale(1.05);
+        }
+
+        .stats-section {
+            max-width: 1200px;
+            margin: 60px auto 0;
+            padding: 0 5%;
+        }
+
+        .stats-intro {
+            text-align: center;
+            color: var(--white);
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            animation: fadeInUp 1.4s ease;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            animation: fadeInUp 1.6s ease;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: var(--accent-yellow);
+            transform: translateY(-10px);
+        }
+
+        .stat-number {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--accent-yellow);
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 16px;
+            color: var(--white);
+            font-weight: 500;
+        }
+
+        .companies-section {
+            padding: 60px 5%;
+            text-align: center;
+        }
+
+        .companies-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 40px;
+        }
+
+        .companies-scroll {
+            display: flex;
+            gap: 60px;
+            overflow-x: auto;
+            padding: 20px 0;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .company-logo {
+            min-width: 120px;
+            height: 60px;
+            background: var(--white);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            filter: grayscale(100%);
+            transition: all 0.3s;
+        }
+
+        .company-logo:hover {
+            filter: grayscale(0%);
+            transform: scale(1.1);
+        }
+
+        /* LISTINGS SECTION */
+        #listings {
+            padding: 100px 5%;
+            background: var(--light-gray);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--primary-black);
+        }
+
+        .listings-tabs {
+            display: flex;
+            gap: 15px;
+        }
+
+        .listings-tab {
+            padding: 10px 25px;
+            background: transparent;
+            border: 2px solid var(--primary-black);
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--primary-black);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .listings-tab.active {
+            background: var(--primary-black);
+            color: var(--accent-yellow);
+        }
+
+        .see-more {
+            color: var(--primary-black);
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 2px solid var(--accent-yellow);
+            transition: all 0.3s;
+        }
+
+        .see-more:hover {
+            color: var(--accent-yellow);
+        }
+
+        .listings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .listing-card {
+            background: var(--white);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .listing-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .listing-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .listing-tag {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: var(--white);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary-black);
+        }
+
+        .favorite-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 40px;
+            height: 40px;
+            background: var(--white);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+
+        .favorite-btn:hover {
+            background: var(--accent-yellow);
+            transform: scale(1.1);
+        }
+
+        .listing-info {
+            padding: 20px;
+        }
+
+        .listing-price {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-black);
+            margin-bottom: 10px;
+        }
+
+        .listing-address {
+            font-size: 16px;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+
+        .listing-details {
+            font-size: 14px;
+            color: var(--primary-black);
+            font-weight: 600;
+        }
+
+        /* AUCTIONS SECTION */
+        #auctions {
+            padding: 100px 5%;
+            background: var(--white);
+        }
+
+        .auctions-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .auction-image-section {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+
+        .auction-main-image {
+            width: 100%;
+            height: 500px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .auction-badge {
+            position: absolute;
+            top: 30px;
+            left: -10px;
+            background: var(--accent-yellow);
+            color: var(--primary-black);
+            padding: 15px 30px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .auction-details-card {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            background: var(--white);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .auction-details-card h4 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .auction-details-card p {
+            color: var(--gray);
+            font-size: 14px;
+        }
+
+        .auction-content {
+            padding: 40px;
+        }
+
+        .auction-content h2 {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--primary-black);
+            margin-bottom: 25px;
+            line-height: 1.2;
+        }
+
+        .auction-description {
+            font-size: 18px;
+            color: var(--gray);
+            line-height: 1.8;
+            margin-bottom: 30px;
+        }
+
+        .auction-link {
+            color: var(--primary-black);
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 2px solid var(--accent-yellow);
+            transition: all 0.3s;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+
+        .auction-link:hover {
+            color: var(--accent-yellow);
+        }
+
+        .auction-cta {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 25px;
+            background: var(--light-gray);
+            border-radius: 15px;
+            border-left: 5px solid var(--accent-yellow);
+        }
+
+        .auction-icon {
+            font-size: 40px;
+        }
+
+        .auction-cta-text h4 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .auction-cta-link {
+            color: var(--primary-black);
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 2px solid var(--accent-yellow);
+        }
+
+        /* FOOTER */
+        footer {
+            background: var(--primary-black);
+            color: var(--white);
+            padding: 60px 5%;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-logo {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .footer-logo span {
+            color: var(--accent-yellow);
+        }
+
+        .footer-text {
+            color: var(--gray);
+            margin-bottom: 30px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .footer-link {
+            color: var(--white);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .footer-link:hover {
+            color: var(--accent-yellow);
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .hero-title { font-size: 36px; }
+            .auctions-container { grid-template-columns: 1fr; }
+            .listings-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .search-box { flex-direction: column; }
+            .property-types { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVIGATION -->
+    <nav>
+        <div class="logo">
+            <div class="logo-icon">CR</div>
+            <div class="logo-text">Commercial RE</div>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn login-btn">Log In</button>
+            <button class="nav-btn advertise-btn">Advertise</button>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <div id="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+            <h1 class="hero-title">
+                The World's <span>#1</span> Commercial<br>Real Estate Marketplace
+            </h1>
+            
+            <div class="search-panel">
+                <div class="tabs">
+                    <button class="tab active">For Lease</button>
+                    <button class="tab">For Sale</button>
+                    <button class="tab">Auctions</button>
+                    <button class="tab">Businesses For Sale</button>
+                </div>
+                
+                <div class="property-types">
+                    <div class="property-type">
+                        <div class="property-icon">🏢</div>
+                        <div class="property-label">Office</div>
+                    </div>
+                    <div class="property-type">
+                        <div class="property-icon">🏪</div>
+                        <div class="property-label">Retail</div>
+                    </div>
+                    <div class="property-type">
+                        <div class="property-icon">🏭</div>
+                        <div class="property-label">Industrial</div>
+                    </div>
+                    <div class="property-type">
+                        <div class="property-icon">⚙️</div>
+                        <div class="property-label">Flex</div>
+                    </div>
+                    <div class="property-type">
+                        <div class="property-icon">👥</div>
+                        <div class="property-label">Coworking</div>
+                    </div>
+                    <div class="property-type">
+                        <div class="property-icon">🏥</div>
+                        <div class="property-label">Medical</div>
+                    </div>
+                </div>
+                
+                <div class="search-box">
+                    <input type="text" class="search-input" placeholder="Enter a location">
+                    <button class="search-btn">Search</button>
+                </div>
+            </div>
+            
+            <div class="stats-section">
+                <p class="stats-intro">For over 30 years, Commercial RE has been the trusted brand for Commercial Real Estate</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">300K+</div>
+                        <div class="stat-label">Active Listings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">13M+</div>
+                        <div class="stat-label">Monthly Visitors</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">$380B+</div>
+                        <div class="stat-label">In Transaction Value</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="companies-section">
+                <h3 class="companies-title">Companies actively searching on Commercial RE</h3>
+                <div class="companies-scroll">
+                    <div class="company-logo">Adobe</div>
+                    <div class="company-logo">Brookfield</div>
+                    <div class="company-logo">Disney</div>
+                    <div class="company-logo">Nuveen</div>
+                    <div class="company-logo">PepsiCo</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LISTINGS SECTION -->
+    <div id="listings">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Trending Properties</h2>
+                <div class="listings-tabs">
+                    <button class="listings-tab active">For Lease</button>
+                    <button class="listings-tab">For Sale</button>
+                    <button class="listings-tab">Auctions</button>
+                </div>
+            </div>
+            <a href="#" class="see-more">See More →</a>
+        </div>
+        
+        <div class="listings-grid">
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Office</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $36 SF/YR</div>
+                    <div class="listing-address">220 36th St</div>
+                    <div class="listing-address">Brooklyn, NY 11232</div>
+                    <div class="listing-details">Up to 855,500 SF</div>
+                </div>
+            </div>
+            
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Coworking</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $45 SF/YR</div>
+                    <div class="listing-address">40900 Woodward Ave</div>
+                    <div class="listing-address">Bloomfield Hills, MI 48304</div>
+                    <div class="listing-details">Up to 6,900 SF</div>
+                </div>
+            </div>
+            
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Retail</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $4.34 SF/YR</div>
+                    <div class="listing-address">152-160 Continental Ave</div>
+                    <div class="listing-address">Dallas, TX 75207</div>
+                    <div class="listing-details">Up to 21,000 SF</div>
+                </div>
+            </div>
+            
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Restaurant</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $18 SF/YR</div>
+                    <div class="listing-address">3100 N. Major Drive</div>
+                    <div class="listing-address">Beaumont, TX 77713</div>
+                    <div class="listing-details">Up to 20,700 SF</div>
+                </div>
+            </div>
+            
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Land</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $0.08 SF/YR</div>
+                    <div class="listing-address">2650 Mount Moriah Rd</div>
+                    <div class="listing-address">Memphis, TN 38115</div>
+                    <div class="listing-details">3.60 AC</div>
+                </div>
+            </div>
+            
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Medical</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $32 SF/YR</div>
+                    <div class="listing-address">1003 Main Ave</div>
+                    <div class="listing-address">Clifton, NJ 07011</div>
+                    <div class="listing-details">Up to 4,400 SF</div>
+                </div>
+            </div>
+            
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Industrial</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $16.80 SF/YR</div>
+                    <div class="listing-address">2445-2460 E 12th St</div>
+                    <div class="listing-address">Los Angeles, CA 90021</div>
+                    <div class="listing-details">Up to 63,300 SF</div>
+                </div>
+            </div>
+            
+            <div class="listing-card">
+                <div class="listing-image"></div>
+                <div class="listing-tag">Flex</div>
+                <button class="favorite-btn">♡</button>
+                <div class="listing-info">
+                    <div class="listing-price">From $7 SF/YR</div>
+                    <div class="listing-address">1 Chestnut St</div>
+                    <div class="listing-address">Nashua, NH 03060</div>
+                    <div class="listing-details">Up to 19,000 SF</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUCTIONS SECTION -->
+    <div id="auctions">
+        <div class="auctions-container">
+            <div class="auction-image-section">
+                <div class="auction-main-image"></div>
+                <div class="auction-badge">Live Auction</div>
+                <div class="auction-details-card">
+                    <h4>Hospitality</h4>
+                    <p>Waco, TX</p>
+                </div>
+            </div>
+            
+            <div class="auction-content">
+                <h2>Discover Your Next Investment at Auction</h2>
+                <p class="auction-description">
+                    Identify and bid on quality assets through our transparent and competitive platform—all online. 
+                    Join the investors worldwide who have partnered with us to successfully transact 11,000+ properties.
+                </p>
+                <a href="#" class="auction-link">Learn More About Auctions →</a>
+                
+                <div class="auction-cta">
+                    <div class="auction-icon">⚡</div>
+                    <div class="auction-cta-text">
+                        <h4>Live Auction Now</h4>
+                        <a href="#" class="auction-cta-link">See Available Listings</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">Commercial <span>RE</span></div>
+            <p class="footer-text">Premium Commercial Real Estate Marketplace</p>
+            <div class="footer-links">
+                <a href="#" class="footer-link">About</a>
+                <a href="#" class="footer-link">Contact</a>
+                <a href="#" class="footer-link">Privacy</a>
+                <a href="#" class="footer-link">Terms</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scroll animation on page load
+        window.addEventListener('load', () => {
+            document.body.style.opacity = '0';
+            setTimeout(() => {
+                document.body.style.transition = 'opacity 0.5s';
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+
+        // Intersection Observer for scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animation = 'fadeInUp 0.8s ease forwards';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.listing-card, .stat-card').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Tab functionality
+        document.querySelectorAll('.tab, .listings-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                this.parentElement.querySelectorAll('.tab, .listings-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Favorite button functionality
+        document.querySelectorAll('.favorite-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.innerHTML = this.innerHTML === '♡' ? '♥' : '♡';
+                this.style.color = this.innerHTML === '♥' ? '#ffd700' : '#000';
+            });
+        });
+    </script>
+</body>
+</html>
