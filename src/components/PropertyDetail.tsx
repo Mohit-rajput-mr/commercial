@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Heart, Share2, Download, Compare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Share2, Download, GitCompare } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Property } from '@/types/property';
@@ -138,7 +138,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
             {/* Action Toolbar */}
             <div className="flex items-center gap-4">
               <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-light-gray transition-colors">
-                <Compare size={20} />
+                <GitCompare size={20} />
                 <span className="hidden sm:inline">Compare</span>
               </button>
               <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-light-gray transition-colors">

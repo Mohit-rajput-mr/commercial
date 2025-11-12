@@ -22,7 +22,7 @@ html {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: 'Outfit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-outfit), 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow-x: hidden;
   max-width: 100vw;
   position: relative;

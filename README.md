@@ -230,6 +230,53 @@ images: {
 - Safari (latest)
 - Edge (latest)
 
+## 🚀 Vercel Deployment
+
+This project is fully configured for Vercel deployment.
+
+### Quick Deploy to Vercel
+
+1. **Connect to Vercel**:
+   - Go to [vercel.com](https://vercel.com)
+   - Import your GitHub repository: `https://github.com/Mohit-rajput-mr/commercial.git`
+   - Vercel will automatically detect Next.js and configure the project
+
+2. **Automatic Configuration**:
+   - Framework Preset: Next.js
+   - Build Command: `npm run build` (auto-detected)
+   - Output Directory: `.next` (auto-detected)
+   - Install Command: `npm install` (auto-detected)
+
+3. **Environment Variables** (if needed):
+   - Add any environment variables in Vercel dashboard
+   - Currently, no environment variables are required
+
+4. **Deploy**:
+   - Click "Deploy" and Vercel will build and deploy your project
+   - Your site will be live at `your-project.vercel.app`
+
+### Manual Deployment
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+
+# Production deployment
+vercel --prod
+```
+
+### Vercel Configuration
+
+The project includes:
+- ✅ `next.config.js` with image optimization
+- ✅ Proper `.gitignore` excluding build files
+- ✅ TypeScript configuration
+- ✅ All dependencies in `package.json`
+- ✅ Build scripts configured
+
 ## 📝 License
 
 This project is built for Commercial RE. All rights reserved.
