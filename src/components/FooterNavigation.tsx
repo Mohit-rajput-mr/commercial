@@ -31,7 +31,7 @@ export default function FooterNavigation() {
 
   return (
     <div className="bg-white py-16 px-5 border-t border-gray-200">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {/* Section Title */}
         <motion.h4
           initial={{ opacity: 0, y: 20 }}

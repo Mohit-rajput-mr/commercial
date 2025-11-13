@@ -182,7 +182,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
-          className="text-center text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-white mb-8 md:mb-12 leading-tight px-1 sm:px-2 md:px-4"
+          className="text-center text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white mb-8 md:mb-8 leading-tight px-1 sm:px-2 md:px-4"
         >
           The World&apos;s <span className="text-accent-yellow drop-shadow-[0_0_25px_rgba(255,215,0,0.5)]">#1</span> Commercial
           <br />
@@ -194,15 +194,15 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
-          className="max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-lg md:rounded-2xl p-4 md:p-8 shadow-2xl border border-white/20"
+          className="max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-lg md:rounded-xl p-4 md:p-4 shadow-2xl border border-white/20"
         >
           {/* Tabs */}
-          <div className="flex flex-wrap gap-2 md:gap-4 mb-6 md:mb-8 pb-3 md:pb-4 border-b border-white/20">
+          <div className="flex flex-wrap gap-2 md:gap-2 mb-6 md:mb-4 pb-3 md:pb-2 border-b border-white/20">
             {tabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 md:px-5 py-2 md:py-2.5 font-semibold text-xs md:text-base transition-all relative rounded-md ${
+                className={`px-3 md:px-3 py-2 md:py-1.5 font-semibold text-xs md:text-xs transition-all relative rounded-md ${
                   activeTab === tab
                     ? 'text-white bg-white/10'
                     : 'text-gray-300 hover:text-white hover:bg-white/5'
@@ -220,26 +220,24 @@ export default function Hero() {
           </div>
 
           {/* Property Types */}
-          <div className="overflow-x-auto overflow-y-hidden scrollbar-hide mb-6 md:mb-8 -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x">
-            <div className="flex md:grid md:grid-cols-6 gap-2 md:gap-4 min-w-max md:min-w-0">
+          <div className="overflow-x-auto overflow-y-hidden scrollbar-hide mb-6 md:mb-4 -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x">
+            <div className="flex md:grid md:grid-cols-6 gap-2 md:gap-2 min-w-max md:min-w-0">
               {propertyTypes.map(({ label, icon: Icon }) => (
                 <motion.button
                   key={label}
-                  whileHover={{ y: -5, scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                   onClick={() => setSelectedType(label)}
-                  className={`flex flex-col items-center gap-1.5 md:gap-2 p-2.5 md:p-4 rounded-lg border transition-all group flex-shrink-0 w-[calc(33.333%-0.5rem)] md:w-auto ${
+                  className={`flex flex-col items-center gap-1.5 md:gap-1 p-2.5 md:p-2 rounded-lg border transition-all group flex-shrink-0 w-[calc(33.333%-0.5rem)] md:w-auto ${
                     selectedType === label
                       ? 'border-accent-yellow bg-accent-yellow/20 shadow-lg shadow-accent-yellow/20'
-                      : 'border-white/20 hover:border-accent-yellow/50'
+                      : 'border-white/20'
                   }`}
                 >
-                  <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center transition-all ${
+                  <div className={`w-8 h-8 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all ${
                     selectedType === label
                       ? 'bg-accent-yellow text-primary-black'
-                      : 'bg-transparent text-accent-yellow group-hover:bg-accent-yellow group-hover:text-primary-black'
+                      : 'bg-transparent text-accent-yellow'
                   }`}>
-                    <Icon size={16} className="md:w-5 md:h-5" />
+                    <Icon size={16} className="md:w-3.5 md:h-3.5" />
                   </div>
                   <span className="text-xs md:text-sm font-semibold text-white">{label}</span>
                 </motion.button>
@@ -248,14 +246,14 @@ export default function Hero() {
           </div>
 
           {/* Search Box */}
-          <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 md:gap-2">
             <div className="flex-1 relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Enter a location (City, State, or ZIP)"
-                className="w-full px-4 md:px-6 py-3 md:py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm md:text-base text-white placeholder-gray-300 focus:outline-none focus:border-accent-yellow focus:bg-white/15 transition-all"
+                className="w-full px-4 md:px-4 py-3 md:py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm md:text-xs text-white placeholder-gray-300 focus:outline-none focus:border-accent-yellow focus:bg-white/15 transition-all"
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -266,7 +264,7 @@ export default function Hero() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleSearch}
-              className="px-6 md:px-8 py-3 md:py-4 bg-accent-yellow text-primary-black rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 hover:bg-yellow-400 transition-all shadow-lg shadow-accent-yellow/30"
+              className="px-6 md:px-5 py-3 md:py-2.5 bg-accent-yellow text-primary-black rounded-lg font-bold text-sm md:text-xs flex items-center justify-center gap-2 hover:bg-yellow-400 transition-all shadow-lg shadow-accent-yellow/30"
             >
               <Search size={18} className="md:w-5 md:h-5" />
               <span className="hidden sm:inline">Search Properties</span>
@@ -280,26 +278,25 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4 }}
-          className="mt-12 md:mt-16"
+          className="mt-12 md:mt-8"
         >
-          <p className="text-center text-white text-base md:text-xl lg:text-2xl font-semibold mb-6 md:mb-10 px-4">
+          <p className="text-center text-white text-base md:text-base lg:text-lg font-semibold mb-6 md:mb-6 px-4">
             For over 30 years, Cap Rate has been the trusted brand for Commercial Real Estate
           </p>
 
-          <div className="flex md:grid md:grid-cols-3 gap-2 md:gap-6 lg:gap-8 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x">
+          <div className="flex md:grid md:grid-cols-3 gap-2 md:gap-3 lg:gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x">
             {stats.map((stat, index) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 + index * 0.1 }}
-                whileHover={{ y: -10, scale: 1.05 }}
-                className="bg-white/5 backdrop-blur-md border border-accent-yellow/30 rounded-lg md:rounded-xl p-3 md:p-10 lg:p-12 text-center transition-all hover:bg-accent-yellow/10 hover:border-accent-yellow hover:shadow-lg hover:shadow-accent-yellow/20 flex-shrink-0 w-[calc(33.333vw-1rem)] md:min-w-0 md:w-auto"
+                className="bg-white/5 backdrop-blur-md border border-accent-yellow/30 rounded-lg md:rounded-lg p-3 md:p-4 lg:p-6 text-center transition-all flex-shrink-0 w-[calc(33.333vw-1rem)] md:min-w-0 md:w-auto"
               >
-                <div className="text-xl md:text-6xl lg:text-7xl font-extrabold text-accent-yellow mb-1 md:mb-4 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)] leading-tight">
+                <div className="text-[14px] md:text-3xl lg:text-4xl font-extrabold text-accent-yellow mb-1 md:mb-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)] leading-tight">
                   {stat.number}
                 </div>
-                <div className="text-xs md:text-lg lg:text-xl text-white font-medium">{stat.label}</div>
+                <div className="text-[8.4px] md:text-sm lg:text-base text-white font-medium">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -310,9 +307,9 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.8 }}
-          className="mt-12 md:mt-16 text-center"
+          className="mt-12 md:mt-8 text-center"
         >
-          <h3 className="text-lg md:text-2xl lg:text-3xl font-semibold text-white mb-6 md:mb-8 px-4">
+          <h3 className="text-lg md:text-lg lg:text-xl font-semibold text-white mb-6 md:mb-4 px-4">
             Trusted by Industry Leaders Worldwide
           </h3>
 
@@ -321,7 +318,7 @@ export default function Hero() {
               {[...companies, ...companies].map((company, index) => (
                 <div
                   key={`${company.name}-${index}`}
-                  className="min-w-[120px] md:min-w-[150px] h-16 md:h-20 flex items-center justify-center group hover:scale-110 transition-all duration-300"
+                  className="min-w-[120px] md:min-w-[120px] h-16 md:h-14 flex items-center justify-center group transition-all duration-300"
                 >
                   <Image
                     src={company.logo}

@@ -122,3 +122,24 @@ body {
   }
 }
 
+/* Large screen enhancements */
+@media (min-width: 1536px) {
+  /* Better spacing for large screens */
+  .container-responsive {
+    max-width: 90%;
+    margin: 0 auto;
+  }
+}
+
+@media (min-width: 1920px) {
+  .container-responsive {
+    max-width: 85%;
+  }
+}
+
+@media (min-width: 2560px) {
+  .container-responsive {
+    max-width: 80%;
+  }
+}
+

@@ -33,9 +33,9 @@ export default function FAQSection() {
   };
 
   return (
-    <div className="py-20 px-5 bg-light-gray">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+    <div className="py-20 lg:py-24 xl:py-28 2xl:py-32 px-5 bg-light-gray">
+      <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-16 xl:gap-20 2xl:gap-24">
           {/* Sidebar */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}

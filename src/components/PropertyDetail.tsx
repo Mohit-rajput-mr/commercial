@@ -53,7 +53,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
     <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
       <div className="bg-light-gray py-3 px-5">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
           <nav className="flex items-center gap-2 text-sm">
             {breadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-2">
@@ -97,8 +97,8 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-8 lg:py-12 xl:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 xl:gap-16 2xl:gap-20">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Image Gallery */}

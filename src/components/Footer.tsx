@@ -29,9 +29,9 @@ const footerColumns = [
 
 export default function Footer() {
   return (
-    <footer className="bg-primary-black text-white py-16 px-5">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-12">
+    <footer className="bg-primary-black text-white py-16 lg:py-20 xl:py-24 2xl:py-28 px-5">
+      <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-12 lg:gap-16 xl:gap-20 2xl:gap-24">
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <motion.div

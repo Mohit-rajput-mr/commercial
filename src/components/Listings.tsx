@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 import { allProperties } from '@/data/sampleProperties';
 import type { Property } from '@/types/property';
 
@@ -34,7 +35,7 @@ export default function Listings() {
 
   return (
     <div className="py-20 px-5 bg-light-gray">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <div>
@@ -70,20 +71,20 @@ export default function Listings() {
           ref={scrollContainerRef}
           className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x"
         >
-          <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8 min-w-max md:min-w-0">
+          <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8 lg:gap-10 xl:gap-12 2xl:gap-16 min-w-max md:min-w-0">
             {listings.map((listing, index) => (
-            <motion.div
+            <Link
               key={listing.id}
+              href={`/property/${listing.id}`}
+              className="block"
+            >
+            <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               whileHover={{ y: -10 }}
               className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all relative group flex-shrink-0 w-[calc(50vw-1.5rem)] md:w-auto cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                // Do nothing for now
-              }}
             >
               {/* Image */}
               <div className="relative h-52 overflow-hidden">
@@ -106,7 +107,7 @@ export default function Listings() {
                     e.stopPropagation();
                     toggleFavorite(listing.id);
                   }}
-                  className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all z-10 ${
+                  className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all z-20 ${
                     favorites.has(listing.id)
                       ? 'bg-accent-yellow text-primary-black'
                       : 'bg-white text-primary-black hover:bg-accent-yellow'
@@ -135,6 +136,7 @@ export default function Listings() {
                 </div>
               </div>
             </motion.div>
+            </Link>
           ))}
           </div>
         </div>

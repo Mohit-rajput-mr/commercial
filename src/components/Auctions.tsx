@@ -5,9 +5,9 @@ import { Gavel, ArrowRight } from 'lucide-react';
 
 export default function Auctions() {
   return (
-    <div className="py-20 px-5 bg-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+    <div className="py-20 lg:py-24 xl:py-28 2xl:py-32 px-5 bg-white">
+      <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 xl:gap-24 2xl:gap-28 items-center">
           {/* Image Section */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}

@@ -41,10 +41,10 @@ export default function Navigation() {
           : 'bg-primary-black/70 backdrop-blur-lg'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-5 py-4 flex justify-between items-center">
+      <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-[11.008px] md:py-[13.76px] lg:py-[17.2px] flex justify-between items-center">
         {/* Logo */}
         <div
-          className="relative h-12 w-auto cursor-pointer flex items-center"
+          className="relative h-[38px] w-auto cursor-pointer flex items-center"
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -54,8 +54,8 @@ export default function Navigation() {
             <Image
               src={logoRE}
               alt="Cap Rate"
-              width={180}
-              height={48}
+              width={144}
+              height={38}
               className="object-contain drop-shadow-[0_0_10px_rgba(255,215,0,0.3)]"
               priority
             />
@@ -68,7 +68,7 @@ export default function Navigation() {
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleLoginClick}
-            className="px-6 py-2.5 border-2 border-accent-yellow rounded-lg text-white font-semibold transition-all duration-300 hover:bg-accent-yellow hover:text-primary-black"
+            className="px-[19.2px] py-[8px] border-2 border-accent-yellow rounded-lg text-white font-semibold transition-all duration-300 hover:bg-accent-yellow hover:text-primary-black text-sm"
           >
             Log In
           </motion.button>
@@ -76,7 +76,7 @@ export default function Navigation() {
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => router.push('/advertise')}
-            className="px-6 py-2.5 bg-accent-yellow text-primary-black rounded-lg font-semibold transition-all duration-300 hover:bg-yellow-400 hover:shadow-lg hover:shadow-accent-yellow/40"
+            className="px-[19.2px] py-[8px] bg-accent-yellow text-primary-black rounded-lg font-semibold transition-all duration-300 hover:bg-yellow-400 hover:shadow-lg hover:shadow-accent-yellow/40 text-sm"
           >
             Advertise
           </motion.button>

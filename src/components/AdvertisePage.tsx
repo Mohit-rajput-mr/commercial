@@ -78,7 +78,7 @@ export default function AdvertisePage() {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-5 py-20 w-full">
+        <div className="relative z-10 max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-20 lg:py-24 xl:py-28 w-full">
           <div className="max-w-2xl md:max-w-xl">
             <div className="flex items-start gap-4 mb-8">
               <div className="w-1 h-24 bg-accent-yellow rounded-full" />
@@ -117,7 +117,7 @@ export default function AdvertisePage() {
 
       {/* Platform Section */}
       <div className="py-20 px-5 bg-white">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -164,7 +164,7 @@ export default function AdvertisePage() {
 
       {/* Marketing Packages */}
       <div className="py-20 px-5 bg-light-gray">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
           <h2 className="text-4xl font-bold text-primary-black mb-12 text-center">
             Choose Your Marketing Package
           </h2>
@@ -199,7 +199,7 @@ export default function AdvertisePage() {
 
       {/* Stats Section */}
       <div className="py-20 px-5 bg-primary-black text-white">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
             <div>
               <div className="text-5xl font-extrabold text-accent-yellow mb-2">300K+</div>
