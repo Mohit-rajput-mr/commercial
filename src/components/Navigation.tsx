@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import logoRE from '../../assets/logoRE.png';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -43,17 +44,16 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-5 py-4 flex justify-between items-center">
         {/* Logo */}
         <div
-          className="relative h-12 w-auto cursor-pointer"
-          style={{ transform: 'translateY(-60%)' }}
+          className="relative h-12 w-auto cursor-pointer flex items-center"
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="relative w-full h-full"
+            className="relative w-full h-full flex items-center"
           >
             <Image
-              src="/assets/logoRE.png"
-              alt="Commercial RE"
+              src={logoRE}
+              alt="Cap Rate"
               width={180}
               height={48}
               className="object-contain drop-shadow-[0_0_10px_rgba(255,215,0,0.3)]"

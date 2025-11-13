@@ -128,7 +128,7 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
               <div className="relative h-8 w-32">
                 <Image
                   src="/assets/logoRE.png"
-                  alt="Commercial RE"
+                  alt="Cap Rate"
                   fill
                   className="object-contain object-left"
                 />

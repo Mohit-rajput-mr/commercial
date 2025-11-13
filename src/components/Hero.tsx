@@ -283,7 +283,7 @@ export default function Hero() {
           className="mt-12 md:mt-16"
         >
           <p className="text-center text-white text-base md:text-xl lg:text-2xl font-semibold mb-6 md:mb-10 px-4">
-            For over 30 years, Commercial RE has been the trusted brand for Commercial Real Estate
+            For over 30 years, Cap Rate has been the trusted brand for Commercial Real Estate
           </p>
 
           <div className="flex md:grid md:grid-cols-3 gap-2 md:gap-6 lg:gap-8 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x">
@@ -552,7 +552,7 @@ export default function Hero() {
                 <div className="relative h-8 w-32">
                   <Image
                     src="/assets/logoRE.png"
-                    alt="Commercial RE"
+                    alt="Cap Rate"
                     fill
                     className="object-contain object-left"
                   />

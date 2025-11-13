@@ -44,7 +44,7 @@ export default function Footer() {
               <div className="relative h-12 w-48">
                 <Image
                   src="/assets/logoRE.png"
-                  alt="Commercial RE"
+                  alt="Cap Rate"
                   fill
                   className="object-contain object-left"
                 />

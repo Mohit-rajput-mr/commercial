@@ -7,7 +7,7 @@ const features = [
   {
     icon: Megaphone,
     title: 'Right Audience',
-    description: '96% of the Fortune 1000 search on Commercial RE',
+    description: '96% of the Fortune 1000 search on Cap Rate',
   },
   {
     icon: Lightbulb,
@@ -44,7 +44,7 @@ export default function MarketingSection() {
           transition={{ duration: 0.6 }}
           className="text-4xl md:text-6xl font-bold mb-16 leading-tight"
         >
-          Commercial RE Listings Lease or Sell{' '}
+          Cap Rate Listings Lease or Sell{' '}
           <span className="text-accent-yellow">14% Faster*</span>
         </motion.h2>
 
@@ -99,7 +99,7 @@ export default function MarketingSection() {
           transition={{ duration: 0.6, delay: 0.8 }}
           className="text-sm text-gray-400 text-center max-w-3xl mx-auto"
         >
-          *Based on internal analysis comparing properties advertised on Commercial RE to properties
+          *Based on internal analysis comparing properties advertised on Cap Rate to properties
           listed only on CoStar.
         </motion.p>
       </div>

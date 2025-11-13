@@ -81,7 +81,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
             <div className="relative h-10 w-32">
               <Image
                 src="/assets/logoRE.png"
-                alt="Commercial RE"
+                alt="Cap Rate"
                 fill
                 className="object-contain object-left"
               />

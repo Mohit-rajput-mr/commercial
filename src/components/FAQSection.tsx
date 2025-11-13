@@ -7,9 +7,9 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 const faqs = [
   {
     id: '1',
-    question: 'Is Commercial RE Available for International Property Searches?',
+    question: 'Is Cap Rate Available for International Property Searches?',
     answer:
-      'Yes, Commercial RE operates globally, with dedicated platforms for commercial real estate in the UK, Canada, France, and Spain. These country-specific versions offer localized commercial property listings and search capabilities.',
+      'Yes, Cap Rate operates globally, with dedicated platforms for commercial real estate in the UK, Canada, France, and Spain. These country-specific versions offer localized commercial property listings and search capabilities.',
   },
   {
     id: '2',

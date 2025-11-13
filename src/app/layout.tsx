@@ -10,12 +10,17 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Commercial RE - Premium Real Estate Marketplace",
+  title: "Cap Rate - Premium Real Estate Marketplace",
   description: "The World's #1 Commercial Real Estate Marketplace. Find office, retail, industrial, and flex spaces for lease or sale. Over 300K+ active listings.",
   keywords: "commercial real estate, office space, retail space, industrial property, coworking, property for lease, property for sale",
-  authors: [{ name: "Commercial RE" }],
+  authors: [{ name: "Cap Rate" }],
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
   openGraph: {
-    title: "Commercial RE - Premium Real Estate Marketplace",
+    title: "Cap Rate - Premium Real Estate Marketplace",
     description: "The World's #1 Commercial Real Estate Marketplace",
     type: "website",
   },

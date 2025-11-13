@@ -10,7 +10,7 @@ export default function AdvertisePage() {
       name: 'Basic',
       price: '$299/month',
       features: [
-        'Property listing on Commercial RE',
+        'Property listing on Cap Rate',
         'Up to 10 photos',
         'Basic property details',
         'Contact form',
@@ -125,7 +125,7 @@ export default function AdvertisePage() {
             transition={{ duration: 0.6 }}
             className="text-4xl md:text-5xl font-bold text-primary-black mb-4 text-center"
           >
-            GET TO KNOW THE COMMERCIAL RE PLATFORM
+            GET TO KNOW THE CAP RATE PLATFORM
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
