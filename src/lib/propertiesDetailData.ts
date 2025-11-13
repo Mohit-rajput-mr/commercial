@@ -7,12 +7,13 @@ export function getPropertyDetailById(id: string): PropertyDetail | undefined {
   if (!property) return undefined;
 
   // Generate extended property detail data
+  const has3DTour = Math.random() > 0.5; // Random for demo
   const propertyDetail: PropertyDetail = {
     ...property,
     title: `${property.address} - ${property.agent.company}`,
     subtitle: `${property.type} Available in ${property.city}, ${property.state} ${property.zipCode}`,
-    has3DTour: Math.random() > 0.5, // Random for demo
-    tourUrl: property.has3DTour ? `https://matterport.com/tour/${id}` : undefined,
+    has3DTour: has3DTour,
+    tourUrl: has3DTour ? `https://matterport.com/tour/${id}` : undefined,
     
     imageGallery: [
       ...property.images.map((url, index) => ({
