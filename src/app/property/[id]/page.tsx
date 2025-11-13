@@ -97,7 +97,7 @@ export default function PropertyDetailPage() {
       <Navigation />
       
       {/* Breadcrumb */}
-      <div className="bg-light-gray py-4 px-5">
+      <div className="bg-light-gray py-[0.4px] md:py-4 px-[0.5px] md:px-5">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-2 text-sm text-custom-gray">
             <Link href="/" className="hover:text-accent-yellow">Home</Link>
@@ -114,11 +114,11 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* Header Section */}
-      <div className="bg-white border-b border-gray-200 py-6 px-5">
+      <div className="bg-white border-b border-gray-200 py-[0.6px] md:py-6 px-[0.5px] md:px-5">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl font-bold text-primary-black mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-primary-black mb-[0.2px] md:mb-2">
                 {property.title}
               </h1>
               <p className="text-lg text-custom-gray">{property.subtitle}</p>
@@ -191,7 +191,7 @@ export default function PropertyDetailPage() {
             </div>
 
             {/* Thumbnail Navigation */}
-            <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-4 overflow-x-auto">
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-[0.4px] md:p-4 overflow-x-auto">
               <div className="flex gap-2 max-w-7xl mx-auto">
                 {property.imageGallery.map((img, index) => (
                   <button
@@ -216,7 +216,7 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* Action Buttons Bar */}
-      <div className="bg-white border-b border-gray-200 px-5 py-4">
+      <div className="bg-white border-b border-gray-200 px-[0.5px] md:px-5 py-[0.4px] md:py-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
             <button
@@ -244,13 +244,13 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-5 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-[0.5px] md:px-5 py-[0.8px] md:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[0.8px] md:gap-8">
           {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-[0.8px] md:space-y-8">
             {/* Highlights Section */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-4">HIGHLIGHTS</h2>
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">HIGHLIGHTS</h2>
               <ul className="space-y-3">
                 {property.highlights.map((highlight, index) => (
                   <li key={index} className="flex items-start gap-3">
@@ -263,7 +263,7 @@ export default function PropertyDetailPage() {
 
             {/* Available Spaces Table */}
             <section>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-[0.4px] md:gap-4 mb-[0.4px] md:mb-4">
                 <h2 className="text-2xl font-bold text-primary-black">
                   ALL AVAILABLE SPACES ({property.spaceAvailability.length})
                 </h2>
@@ -329,9 +329,9 @@ export default function PropertyDetailPage() {
 
             {/* About the Property */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-4">ABOUT THE PROPERTY</h2>
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">ABOUT THE PROPERTY</h2>
               <div className="prose max-w-none">
-                <p className="text-custom-gray leading-relaxed mb-4">{property.description}</p>
+                <p className="text-custom-gray leading-relaxed mb-[0.4px] md:mb-4">{property.description}</p>
                 <p className="text-custom-gray leading-relaxed">
                   This exceptional property offers prime location benefits with excellent access to transportation, 
                   dining, and entertainment. The building features modern amenities and flexible lease terms to 
@@ -343,8 +343,8 @@ export default function PropertyDetailPage() {
 
             {/* Features & Amenities */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-4">FEATURES AND AMENITIES</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">FEATURES AND AMENITIES</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-[0.4px] md:gap-4">
                 {property.amenities.map((amenity, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <Check size={18} className="text-accent-yellow flex-shrink-0" />
@@ -356,15 +356,15 @@ export default function PropertyDetailPage() {
 
             {/* Transportation Section */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-4">TRANSPORTATION</h2>
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">TRANSPORTATION</h2>
               
-              <div className="space-y-6">
+              <div className="space-y-[0.6px] md:space-y-6">
                 {/* Transit/Subway */}
                 <div>
-                  <h3 className="text-lg font-semibold text-primary-black mb-3">TRANSIT/SUBWAY</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-primary-black mb-[0.3px] md:mb-3">TRANSIT/SUBWAY</h3>
+                  <div className="space-y-[0.3px] md:space-y-3">
                     {property.transportation.transit.map((station, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-light-gray rounded">
+                      <div key={index} className="flex items-center justify-between p-[0.3px] md:p-3 bg-light-gray rounded">
                         <div className="flex items-center gap-3">
                           <div className="flex gap-1">
                             {station.lines.map((line, lineIndex) => (
@@ -388,10 +388,10 @@ export default function PropertyDetailPage() {
 
                 {/* Commuter Rail */}
                 <div>
-                  <h3 className="text-lg font-semibold text-primary-black mb-3">COMMUTER RAIL</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-primary-black mb-[0.3px] md:mb-3">COMMUTER RAIL</h3>
+                  <div className="space-y-[0.3px] md:space-y-3">
                     {property.transportation.commuterRail.map((station, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-light-gray rounded">
+                      <div key={index} className="flex items-center justify-between p-[0.3px] md:p-3 bg-light-gray rounded">
                         <div className="flex items-center gap-3">
                           <span className="px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded">Amtrak</span>
                           <span className="font-medium">{station.name}</span>
@@ -406,8 +406,8 @@ export default function PropertyDetailPage() {
 
                 {/* Airport */}
                 <div>
-                  <h3 className="text-lg font-semibold text-primary-black mb-3">AIRPORT</h3>
-                  <div className="flex items-center justify-between p-3 bg-light-gray rounded">
+                  <h3 className="text-lg font-semibold text-primary-black mb-[0.3px] md:mb-3">AIRPORT</h3>
+                  <div className="flex items-center justify-between p-[0.3px] md:p-3 bg-light-gray rounded">
                     <div className="flex items-center gap-3">
                       <span className="px-2 py-1 bg-gray-800 text-white text-xs font-semibold rounded">
                         {property.transportation.airport.name.split(' ')[0]}
@@ -424,9 +424,9 @@ export default function PropertyDetailPage() {
 
             {/* Nearby Amenities */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-4">NEARBY AMENITIES</h2>
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">NEARBY AMENITIES</h2>
               <div>
-                <h3 className="text-lg font-semibold text-primary-black mb-3">RESTAURANTS</h3>
+                <h3 className="text-lg font-semibold text-primary-black mb-[0.3px] md:mb-3">RESTAURANTS</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
@@ -454,8 +454,8 @@ export default function PropertyDetailPage() {
 
             {/* Location Section */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-4">LINKS</h2>
-              <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">LINKS</h2>
+              <div className="space-y-[0.4px] md:space-y-4">
                 <div className="flex gap-2 border-b border-gray-300">
                   <button className="px-4 py-2 font-semibold text-primary-black border-b-2 border-accent-yellow">AERIAL</button>
                   <button className="px-4 py-2 font-semibold text-custom-gray hover:text-primary-black">MAP</button>
@@ -486,8 +486,8 @@ export default function PropertyDetailPage() {
 
             {/* About the Owner */}
             <section>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="bg-black/30 p-3 rounded">
+              <div className="flex items-center gap-[0.4px] md:gap-4 mb-[0.4px] md:mb-4">
+                <div className="bg-black/30 p-[0.3px] md:p-3 rounded">
                   <Image
                     src={property.owner.logo}
                     alt={property.owner.name}
@@ -508,14 +508,14 @@ export default function PropertyDetailPage() {
                   </a>
                 </div>
               </div>
-              <p className="text-custom-gray mb-6">{property.owner.description}</p>
+              <p className="text-custom-gray mb-[0.6px] md:mb-6">{property.owner.description}</p>
 
               {property.relatedProperties.length > 0 && (
                 <div>
-                  <h3 className="text-xl font-bold text-primary-black mb-4">
+                  <h3 className="text-xl font-bold text-primary-black mb-[0.4px] md:mb-4">
                     OTHER PROPERTIES IN THE {property.owner.name.toUpperCase()} PORTFOLIO
                   </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-[0.4px] md:gap-4">
                     {property.relatedProperties.map((relatedId) => {
                       const relatedProperty = allProperties.find(p => p.id === relatedId);
                       if (!relatedProperty) return null;
@@ -525,7 +525,7 @@ export default function PropertyDetailPage() {
                           href={`/property/${relatedId}`}
                           className="group"
                         >
-                          <div className="relative h-48 rounded overflow-hidden mb-2">
+                          <div className="relative h-48 rounded overflow-hidden mb-[0.2px] md:mb-2">
                             <Image
                               src={relatedProperty.imageUrl}
                               alt={relatedProperty.address}
@@ -544,8 +544,8 @@ export default function PropertyDetailPage() {
             </section>
 
             {/* Metadata */}
-            <section className="border-t border-gray-300 pt-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <section className="border-t border-gray-300 pt-[0.6px] md:pt-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-[0.4px] md:gap-4 text-sm">
                 <div>
                   <span className="text-custom-gray">Listing ID:</span>
                   <p className="font-semibold text-primary-black">{property.metadata.listingId}</p>
@@ -571,12 +571,12 @@ export default function PropertyDetailPage() {
           {/* Right Column - Contact Sidebar */}
           <div className="lg:col-span-1">
             <div className="lg:sticky lg:top-4">
-              <div className="bg-light-gray rounded-lg p-6 space-y-6">
+              <div className="bg-light-gray rounded-lg p-[0.6px] md:p-6 space-y-[0.6px] md:space-y-6">
                 {/* Phone */}
                 <div>
                   <a
                     href={`tel:${property.agent.phone.replace(/\s+/g, '')}`}
-                    className="flex items-center gap-2 text-primary-black font-semibold text-lg hover:text-accent-yellow transition-colors"
+                    className="flex items-center gap-[0.2px] md:gap-2 text-primary-black font-semibold text-lg hover:text-accent-yellow transition-colors"
                   >
                     <Phone size={20} />
                     {property.agent.phone}
@@ -584,14 +584,14 @@ export default function PropertyDetailPage() {
                 </div>
 
                 {/* Message Button */}
-                <button className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
+                <button className="w-full bg-red-600 text-white py-[0.3px] md:py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
                   Message
                 </button>
 
                 {/* Contact Section */}
-                <div className="border-t border-gray-300 pt-6">
-                  <h3 className="text-lg font-semibold text-primary-black mb-4">CONTACT</h3>
-                  <div className="flex items-center gap-3 mb-4">
+                <div className="border-t border-gray-300 pt-[0.6px] md:pt-6">
+                  <h3 className="text-lg font-semibold text-primary-black mb-[0.4px] md:mb-4">CONTACT</h3>
+                  <div className="flex items-center gap-[0.3px] md:gap-3 mb-[0.4px] md:mb-4">
                     <Image
                       src={property.agent.photo}
                       alt={property.agent.name}
@@ -604,8 +604,8 @@ export default function PropertyDetailPage() {
                       <p className="text-sm text-custom-gray">{property.agent.company}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="bg-black/30 p-3 rounded">
+                  <div className="flex items-center gap-[0.4px] md:gap-4 mb-[0.4px] md:mb-4">
+                    <div className="bg-black/30 p-[0.3px] md:p-3 rounded">
                       <Image
                         src={property.agent.companyLogo}
                         alt={property.agent.company}
@@ -615,7 +615,7 @@ export default function PropertyDetailPage() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-[0.4px] md:gap-4">
                     <button className="p-2 rounded-full bg-white hover:bg-gray-100 transition-colors">
                       <Share2 size={18} className="text-primary-black" />
                     </button>
