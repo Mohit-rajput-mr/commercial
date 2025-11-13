@@ -335,7 +335,7 @@ export default function PropertyDetailPage() {
                 <p className="text-custom-gray leading-relaxed">
                   This exceptional property offers prime location benefits with excellent access to transportation, 
                   dining, and entertainment. The building features modern amenities and flexible lease terms to 
-                  accommodate various business needs. Whether you're looking for office space, retail location, 
+                  accommodate various business needs. Whether you&apos;re looking for office space, retail location, 
                   or industrial facilities, this property provides the perfect foundation for your business success.
                 </p>
               </div>
