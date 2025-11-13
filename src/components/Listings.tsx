@@ -21,7 +21,6 @@ export default function Listings() {
     }
   }, []);
 
-
   const toggleFavorite = (id: string) => {
     const newFavorites = new Set(favorites);
     if (newFavorites.has(id)) {
