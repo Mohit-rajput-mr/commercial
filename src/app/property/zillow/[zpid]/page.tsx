@@ -23,12 +23,12 @@ import {
   Calendar,
   Copy,
 } from 'lucide-react';
-import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/zillow-test-api';
+import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import PropertyMap from '@/components/PropertyMap';
 
-export default function ZillowPropertyDetailPage() {
+export default function APIPropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [property, setProperty] = useState<PropertyDetailsResponse | null>(null);
@@ -66,7 +66,7 @@ export default function ZillowPropertyDetailPage() {
       setProperty(details);
       
       // Load favorite status
-      const favorites = JSON.parse(localStorage.getItem('zillow-favorites') || '[]');
+      const favorites = JSON.parse(localStorage.getItem('api-favorites') || '[]');
       setIsFavorite(favorites.includes(params.zpid));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load property');
@@ -114,11 +114,11 @@ export default function ZillowPropertyDetailPage() {
   const zipcode = getZipcode(property);
 
   const toggleFavorite = () => {
-    const favorites = JSON.parse(localStorage.getItem('zillow-favorites') || '[]');
+    const favorites = JSON.parse(localStorage.getItem('api-favorites') || '[]');
     const newFavorites = isFavorite
       ? favorites.filter((id: string) => id !== property.zpid)
       : [...favorites, property.zpid];
-    localStorage.setItem('zillow-favorites', JSON.stringify(newFavorites));
+    localStorage.setItem('api-favorites', JSON.stringify(newFavorites));
     setIsFavorite(!isFavorite);
   };
 
@@ -329,10 +329,10 @@ export default function ZillowPropertyDetailPage() {
             </button>
             <button
               onClick={() => {
-                const comparisons = JSON.parse(localStorage.getItem('zillow-comparisons') || '[]');
+                const comparisons = JSON.parse(localStorage.getItem('api-comparisons') || '[]');
                 if (!comparisons.includes(property.zpid)) {
                   comparisons.push(property.zpid);
-                  localStorage.setItem('zillow-comparisons', JSON.stringify(comparisons));
+                  localStorage.setItem('api-comparisons', JSON.stringify(comparisons));
                   alert('Property added to comparison!');
                 } else {
                   alert('Property already in comparison!');
@@ -557,15 +557,13 @@ export default function ZillowPropertyDetailPage() {
                 </div>
               )}
 
-              {/* View on Zillow Button */}
+              {/* View Property Details Button */}
               <a
-                href={`https://www.zillow.com/homedetails/${property.zpid}/`}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/property/cr/${property.zpid}`}
                 className="w-full bg-accent-yellow text-primary-black px-6 py-3 rounded-lg font-bold hover:bg-yellow-400 transition-colors flex items-center justify-center gap-2"
               >
                 <ExternalLink size={20} />
-                View on Zillow
+                View Full Details
               </a>
 
               {/* Back to API Test */}

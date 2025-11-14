@@ -25,7 +25,7 @@ import {
   Mail,
   Phone,
 } from 'lucide-react';
-import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/zillow-test-api';
+import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
@@ -96,7 +96,7 @@ export default function CRPropertyDetailPage() {
       setProperty(details);
       
       // Load favorite status
-      const favorites = JSON.parse(localStorage.getItem('zillow-favorites') || '[]');
+      const favorites = JSON.parse(localStorage.getItem('api-favorites') || '[]');
       setIsFavorite(favorites.includes(params.zpid));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load property');
@@ -144,11 +144,11 @@ export default function CRPropertyDetailPage() {
   const zipcode = getZipcode(property);
 
   const toggleFavorite = () => {
-    const favorites = JSON.parse(localStorage.getItem('zillow-favorites') || '[]');
+    const favorites = JSON.parse(localStorage.getItem('api-favorites') || '[]');
     const newFavorites = isFavorite
       ? favorites.filter((id: string) => id !== property.zpid)
       : [...favorites, property.zpid];
-    localStorage.setItem('zillow-favorites', JSON.stringify(newFavorites));
+    localStorage.setItem('api-favorites', JSON.stringify(newFavorites));
     setIsFavorite(!isFavorite);
   };
 
@@ -359,10 +359,10 @@ export default function CRPropertyDetailPage() {
             </button>
             <button
               onClick={() => {
-                const comparisons = JSON.parse(localStorage.getItem('zillow-comparisons') || '[]');
+                const comparisons = JSON.parse(localStorage.getItem('api-comparisons') || '[]');
                 if (!comparisons.includes(property.zpid)) {
                   comparisons.push(property.zpid);
-                  localStorage.setItem('zillow-comparisons', JSON.stringify(comparisons));
+                  localStorage.setItem('api-comparisons', JSON.stringify(comparisons));
                   alert('Property added to comparison!');
                 } else {
                   alert('Property already in comparison!');

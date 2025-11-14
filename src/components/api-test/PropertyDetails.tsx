@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, MapPin, Bed, Bath, Square, Calendar, ExternalLink, Copy } from 'lucide-react';
-import { PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/zillow-test-api';
+import { PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 
 interface PropertyDetailsProps {
   property: PropertyDetailsResponse | null;
@@ -233,15 +233,13 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
           </div>
         )}
 
-        {/* View on Zillow Button */}
+        {/* View Property Details Button */}
         <a
-          href={`https://www.zillow.com/homedetails/${property.zpid}/`}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/property/cr/${property.zpid}`}
           className="w-full bg-accent-yellow text-primary-black px-6 py-3 rounded-lg font-bold hover:bg-yellow-400 transition-colors flex items-center justify-center gap-2"
         >
           <ExternalLink size={20} />
-          View on Zillow
+          View Full Details
         </a>
       </div>
     </div>

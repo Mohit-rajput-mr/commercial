@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { searchProperties, getPropertyDetails, getPropertyImages, ZillowProperty, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/zillow-test-api';
+import { searchProperties, getPropertyDetails, getPropertyImages, APIProperty, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 import SearchBar from '@/components/api-test/SearchBar';
 import PropertyCard from '@/components/api-test/PropertyCard';
 
@@ -38,8 +38,8 @@ function PropertyLocationMap({ lat, lng, address }: { lat: number; lng: number; 
 export default function ApiTestPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [properties, setProperties] = useState<ZillowProperty[]>([]);
-  const [selectedProperty, setSelectedProperty] = useState<ZillowProperty | null>(null);
+  const [properties, setProperties] = useState<APIProperty[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<APIProperty | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'ForSale' | 'ForRent'>('ForSale');
@@ -74,7 +74,7 @@ export default function ApiTestPage() {
     }
   };
 
-  const handlePropertySelect = (property: ZillowProperty) => {
+  const handlePropertySelect = (property: APIProperty) => {
     // Set selected property to show on map
     setSelectedProperty(property);
     // Scroll to map section on mobile
@@ -94,10 +94,10 @@ export default function ApiTestPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-0">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary-black mb-1 md:mb-2">
-                Zillow API Test Page
+                Application Programming Interface Test Page
               </h1>
               <p className="text-xs sm:text-sm md:text-base text-custom-gray">
-                Test Zillow API integration with real property data
+                Test Application Programming Interface integration with real property data
               </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">

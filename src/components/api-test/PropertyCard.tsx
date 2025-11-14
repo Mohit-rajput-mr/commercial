@@ -3,10 +3,10 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { MapPin, Bed, Bath, Square } from 'lucide-react';
-import { ZillowProperty, getAddressString, getCity, getState, getZipcode } from '@/lib/zillow-test-api';
+import { APIProperty, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 
 interface PropertyCardProps {
-  property: ZillowProperty;
+  property: APIProperty;
   isSelected: boolean;
   onClick?: () => void;
 }
