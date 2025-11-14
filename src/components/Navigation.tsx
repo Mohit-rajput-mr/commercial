@@ -90,13 +90,23 @@ export default function Navigation() {
           </motion.button>
         </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          onClick={handleSidebarClick}
-          className="md:hidden text-white p-2"
-        >
-          <Menu size={24} />
-        </button>
+        {/* Mobile Menu - API Test Button + Hamburger */}
+        <div className="md:hidden flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => router.push('/api-test')}
+            className="px-3 py-1.5 border-2 border-blue-500 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-blue-500 text-xs"
+          >
+            API Test
+          </motion.button>
+          <button
+            onClick={handleSidebarClick}
+            className="text-white p-2"
+          >
+            <Menu size={24} />
+          </button>
+        </div>
       </div>
     </motion.nav>
   );

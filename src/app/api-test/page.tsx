@@ -147,16 +147,16 @@ export default function ApiTestPage() {
         )}
 
         {/* Property Listings Grid - Mobile First */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-8">
           {loading && properties.length === 0 ? (
-            <div className="col-span-full bg-white rounded-lg shadow-md p-8 md:p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-b-2 border-accent-yellow mb-4"></div>
-              <p className="text-base md:text-lg text-custom-gray">Searching properties...</p>
+            <div className="col-span-full bg-white rounded-lg shadow-md p-6 sm:p-8 md:p-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 border-b-2 border-accent-yellow mb-3 sm:mb-4"></div>
+              <p className="text-sm sm:text-base md:text-lg text-custom-gray">Searching properties...</p>
             </div>
           ) : properties.length === 0 && !loading ? (
-            <div className="col-span-full bg-white rounded-lg shadow-md p-8 md:p-12 text-center">
-              <p className="text-base md:text-lg text-custom-gray mb-2">No properties found</p>
-              <p className="text-xs md:text-sm text-custom-gray">Try a different search location</p>
+            <div className="col-span-full bg-white rounded-lg shadow-md p-6 sm:p-8 md:p-12 text-center">
+              <p className="text-sm sm:text-base md:text-lg text-custom-gray mb-2">No properties found</p>
+              <p className="text-xs sm:text-sm text-custom-gray">Try a different search location</p>
             </div>
           ) : (
             properties.map((property) => (
@@ -172,38 +172,38 @@ export default function ApiTestPage() {
 
         {/* Property Location Map Section - Mobile First */}
         {selectedProperty && selectedProperty.latitude && selectedProperty.longitude && (
-          <div id="property-map-section" className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6 md:mb-8">
-            <h2 className="text-lg md:text-xl font-bold text-primary-black mb-3 md:mb-4">
+          <div id="property-map-section" className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 md:mb-8">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-primary-black mb-2 sm:mb-3 md:mb-4">
               Selected Property Location
             </h2>
-            <div className="mb-3 md:mb-4">
-              <p className="text-sm md:text-base font-semibold text-primary-black">
+            <div className="mb-2 sm:mb-3 md:mb-4">
+              <p className="text-xs sm:text-sm md:text-base font-semibold text-primary-black break-words">
                 {getAddressString(selectedProperty.address)}
               </p>
-              <p className="text-xs md:text-sm text-custom-gray">
+              <p className="text-xs sm:text-sm text-custom-gray">
                 {getCity(selectedProperty)}, {getState(selectedProperty)} {getZipcode(selectedProperty)}
               </p>
             </div>
-            <div className="relative w-full h-[250px] sm:h-[300px] md:h-[400px] bg-gray-200 rounded-lg overflow-hidden">
+            <div className="relative w-full h-[200px] sm:h-[250px] md:h-[300px] lg:h-[400px] bg-gray-200 rounded-lg overflow-hidden mb-3 sm:mb-4">
               <PropertyLocationMap
                 lat={selectedProperty.latitude}
                 lng={selectedProperty.longitude}
                 address={getAddressString(selectedProperty.address)}
               />
             </div>
-            <div className="mt-3 md:mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   const zpid = selectedProperty.zpid;
                   router.push(`/property/cr/${zpid}`);
                 }}
-                className="flex-1 bg-accent-yellow text-primary-black px-4 py-2.5 md:py-3 rounded-lg font-bold hover:bg-yellow-400 transition-colors text-sm md:text-base"
+                className="flex-1 bg-accent-yellow text-primary-black px-4 py-2.5 sm:py-3 rounded-lg font-bold hover:bg-yellow-400 transition-colors text-xs sm:text-sm md:text-base"
               >
                 View Full Details
               </button>
               <button
                 onClick={() => setSelectedProperty(null)}
-                className="px-4 py-2.5 md:py-3 border-2 border-gray-300 text-primary-black rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm md:text-base"
+                className="px-4 py-2.5 sm:py-3 border-2 border-gray-300 text-primary-black rounded-lg font-semibold hover:bg-gray-50 transition-colors text-xs sm:text-sm md:text-base"
               >
                 Clear Selection
               </button>
@@ -211,26 +211,26 @@ export default function ApiTestPage() {
           </div>
         )}
 
-        {/* Debug Section */}
+        {/* Debug Section - Mobile First */}
         {debugInfo && (
-          <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="mt-4 sm:mt-6 md:mt-8 bg-white rounded-lg shadow-md overflow-hidden">
             <button
               onClick={() => setShowDebug(!showDebug)}
-              className="w-full px-6 py-4 flex items-center justify-between bg-light-gray hover:bg-gray-200 transition-colors"
+              className="w-full px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between bg-light-gray hover:bg-gray-200 transition-colors"
             >
-              <span className="font-semibold text-primary-black">Debug Information</span>
-              {showDebug ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              <span className="font-semibold text-sm sm:text-base text-primary-black">Debug Information</span>
+              {showDebug ? <ChevronUp size={18} className="sm:w-5 sm:h-5" /> : <ChevronDown size={18} className="sm:w-5 sm:h-5" />}
             </button>
             {showDebug && (
-              <div className="p-6 space-y-4 border-t border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 border-t border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <div className="text-custom-gray mb-1">Endpoint</div>
-                    <div className="font-mono text-primary-black break-all">{debugInfo.endpoint}</div>
+                    <div className="font-mono text-primary-black break-all text-[10px] sm:text-xs">{debugInfo.endpoint}</div>
                   </div>
                   <div>
                     <div className="text-custom-gray mb-1">Parameters</div>
-                    <div className="font-mono text-primary-black break-all">{debugInfo.params}</div>
+                    <div className="font-mono text-primary-black break-all text-[10px] sm:text-xs">{debugInfo.params}</div>
                   </div>
                   <div>
                     <div className="text-custom-gray mb-1">Response Time</div>
@@ -245,13 +245,13 @@ export default function ApiTestPage() {
                   {debugInfo.zpid && (
                     <div>
                       <div className="text-custom-gray mb-1">ZPID</div>
-                      <div className="font-mono text-primary-black">{debugInfo.zpid}</div>
+                      <div className="font-mono text-primary-black text-[10px] sm:text-xs break-all">{debugInfo.zpid}</div>
                     </div>
                   )}
                 </div>
                 <div>
-                  <div className="text-custom-gray mb-2">Raw JSON Response</div>
-                  <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto text-xs">
+                  <div className="text-custom-gray mb-2 text-xs sm:text-sm">Raw JSON Response</div>
+                  <pre className="bg-gray-50 p-2 sm:p-4 rounded-lg overflow-x-auto text-[9px] sm:text-xs">
                     {JSON.stringify(debugInfo.rawResponse, null, 2)}
                   </pre>
                 </div>
