@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, Store, Factory, Wrench, Users, Hospital, Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle } from 'lucide-react';
 import Image from 'next/image';
 import type { TabType, PropertyType } from '@/types';
+import { allProperties } from '@/data/sampleProperties';
+import AddressAutocomplete from './AddressAutocomplete';
+import { AddressSuggestion } from '@/lib/addressAutocomplete';
 
 const tabs: TabType[] = ['For Lease', 'For Sale', 'Auctions', 'Businesses For Sale'];
 
@@ -153,11 +156,35 @@ export default function Hero() {
   };
 
   const handleSearch = () => {
-    console.log('Searching for:', searchQuery, 'in', selectedType, 'for', activeTab);
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    // Navigate to search results
+    const params = new URLSearchParams();
+    params.set('location', query);
+    if (selectedType) {
+      params.set('type', selectedType);
+    }
+    window.location.href = `/search-results?${params.toString()}`;
+  };
+
+  const handleAddressSelect = (suggestion: AddressSuggestion) => {
+    // If it's a property ID (not a Google Places result), navigate to property detail
+    if (suggestion.id && !suggestion.id.startsWith('place-')) {
+      window.location.href = `/property/${suggestion.id}`;
+    } else {
+      // Navigate to search results with the selected address
+      const params = new URLSearchParams();
+      params.set('location', suggestion.fullAddress);
+      if (selectedType) {
+        params.set('type', selectedType);
+      }
+      window.location.href = `/search-results?${params.toString()}`;
+    }
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-16 relative overflow-hidden">
+    <div className="min-h-screen pt-[40px] md:pt-24 pb-16 relative overflow-hidden">
       {/* Background Image with Overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center hero-bg-image"
@@ -248,17 +275,13 @@ export default function Hero() {
           {/* Search Box */}
           <div className="flex flex-col sm:flex-row gap-2 md:gap-2">
             <div className="flex-1 relative">
-              <input
-                type="text"
+              <AddressAutocomplete
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={setSearchQuery}
+                onSelect={handleAddressSelect}
                 placeholder="Enter a location (City, State, or ZIP)"
-                className="w-full px-4 md:px-4 py-3 md:py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm md:text-xs text-white placeholder-gray-300 focus:outline-none focus:border-accent-yellow focus:bg-white/15 transition-all"
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="w-full"
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <Search size={18} className="md:w-5 md:h-5" />
-              </div>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}

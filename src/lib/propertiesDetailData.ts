@@ -119,6 +119,49 @@ export function getPropertyDetailById(id: string): PropertyDetail | undefined {
       lng: property.coordinates?.lng || -104.9903,
       mapUrl: `https://www.google.com/maps?q=${property.coordinates?.lat || 39.7392},${property.coordinates?.lng || -104.9903}`,
     },
+    
+    // Add schools data
+    schools: [
+      {
+        name: 'Lincoln Elementary School',
+        rating: 9,
+        type: 'Public',
+        grades: 'K-5',
+        distance: '0.5 mi',
+      },
+      {
+        name: 'Roosevelt Middle School',
+        rating: 7,
+        type: 'Public',
+        grades: '6-8',
+        distance: '1.2 mi',
+      },
+      {
+        name: 'Washington High School',
+        rating: 8,
+        type: 'Public',
+        grades: '9-12',
+        distance: '2.1 mi',
+      },
+      {
+        name: 'Jefferson Elementary School',
+        rating: 6,
+        type: 'Public',
+        grades: 'K-5',
+        distance: '1.8 mi',
+      },
+    ],
+    
+    // Add property stats
+    beds: property.type === 'Office' ? Math.floor(Math.random() * 20) + 5 : 0,
+    baths: property.type === 'Office' ? Math.floor(Math.random() * 15) + 5 : 0,
+    priceValue: property.pricePerSF * (property.sizeRange?.max || 1000),
+    status: 'Coming Soon',
+    daysOnMarket: Math.floor(Math.random() * 90),
+    taxes: property.pricePerSF * 0.1,
+    hoaFees: property.type === 'Office' ? 500 : 0,
+    lotSize: property.sizeRange ? `${(property.sizeRange.max / 43560).toFixed(2)} AC / ${property.sizeRange.max.toLocaleString()} SF` : 'N/A',
+    county: `${property.state} County`,
   };
 
   return propertyDetail;

@@ -25,6 +25,8 @@ import { PropertyDetail } from '@/types/propertyDetail';
 import { allProperties } from '@/data/sampleProperties';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import PropertyMap from '@/components/PropertyMap';
+import { getWeatherData, WeatherData } from '@/lib/weatherApi';
 
 export default function PropertyDetailPage() {
   const params = useParams();
@@ -34,6 +36,14 @@ export default function PropertyDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
   const [currency, setCurrency] = useState<'USD' | 'EUR' | 'GBP'>('USD');
+  const [activeTab, setActiveTab] = useState<'overview' | 'location' | 'property-info' | 'schools' | 'similar-homes'>('overview');
+  const [loanAmount, setLoanAmount] = useState(0);
+  const [interestRate, setInterestRate] = useState(6.5);
+  const [downPayment, setDownPayment] = useState(20);
+  const [loanTerm, setLoanTerm] = useState(30);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: 'I am interested in this property. Please contact me.', financing: false });
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [mapView, setMapView] = useState<'aerial' | 'map' | 'commute'>('aerial');
 
   useEffect(() => {
     if (params.id && typeof params.id === 'string') {
@@ -43,6 +53,17 @@ export default function PropertyDetailPage() {
         // Load favorite status from localStorage
         const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
         setIsFavorite(favorites.includes(params.id));
+        // Initialize loan amount
+        if (propertyData.priceValue) {
+          setLoanAmount(propertyData.priceValue);
+        }
+        // Fetch weather data
+        if (propertyData.location) {
+          const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+          getWeatherData(propertyData.location.lat, propertyData.location.lng, apiKey)
+            .then(setWeather)
+            .catch(() => setWeather(null));
+        }
       }
     }
   }, [params.id]);
@@ -97,7 +118,7 @@ export default function PropertyDetailPage() {
       <Navigation />
       
       {/* Breadcrumb */}
-      <div className="bg-light-gray py-[0.4px] md:py-4 px-[0.5px] md:px-5">
+      <div className="bg-light-gray py-[0.4px] md:py-4 px-[0.5px] md:px-5 pt-[40px] md:pt-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-2 text-sm text-custom-gray">
             <Link href="/" className="hover:text-accent-yellow">Home</Link>
@@ -215,6 +236,74 @@ export default function PropertyDetailPage() {
         )}
       </div>
 
+      {/* Header Stats Bar */}
+      <div className="bg-white border-b border-gray-200 px-[0.5px] md:px-5 py-[0.6px] md:py-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-wrap items-center gap-6">
+              <div>
+                <p className="text-3xl md:text-4xl font-bold text-primary-black">
+                  ${property.priceValue ? property.priceValue.toLocaleString() : 'Contact for Price'}
+                </p>
+                {property.pricePerSF && (
+                  <p className="text-sm text-custom-gray">${property.pricePerSF.toFixed(2)} / Sq. Ft.</p>
+                )}
+              </div>
+              {property.beds !== undefined && property.beds > 0 && (
+                <div>
+                  <p className="text-lg font-semibold text-primary-black">{property.beds}</p>
+                  <p className="text-sm text-custom-gray">Beds</p>
+                </div>
+              )}
+              {property.baths !== undefined && property.baths > 0 && (
+                <div>
+                  <p className="text-lg font-semibold text-primary-black">{property.baths}</p>
+                  <p className="text-sm text-custom-gray">Baths</p>
+                </div>
+              )}
+              <div>
+                <p className="text-lg font-semibold text-primary-black">{property.size}</p>
+                <p className="text-sm text-custom-gray">Size</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleFavorite}
+                className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors ${
+                  isFavorite
+                    ? 'bg-accent-yellow text-primary-black hover:bg-yellow-400'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+                {isFavorite ? 'Saved' : 'Save'}
+              </button>
+              <button
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: property.title,
+                      text: property.subtitle,
+                      url: window.location.href,
+                    }).catch(() => {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert('Link copied to clipboard!');
+                    });
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('Link copied to clipboard!');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Share2 size={18} />
+                Share
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Action Buttons Bar */}
       <div className="bg-white border-b border-gray-200 px-[0.5px] md:px-5 py-[0.4px] md:py-4">
         <div className="max-w-7xl mx-auto">
@@ -227,18 +316,93 @@ export default function PropertyDetailPage() {
             >
               <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
             </button>
-            <button className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors">
+            <button
+              onClick={() => {
+                const comparisons = JSON.parse(localStorage.getItem('comparisons') || '[]');
+                if (!comparisons.includes(property.id)) {
+                  comparisons.push(property.id);
+                  localStorage.setItem('comparisons', JSON.stringify(comparisons));
+                  alert('Property added to comparison!');
+                } else {
+                  alert('Property already in comparison!');
+                }
+              }}
+              className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors"
+              title="Compare Properties"
+            >
               <GitCompare size={20} />
             </button>
-            <button className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors">
+            <button
+              onClick={() => {
+                const propertyText = `Property Details\n================\n${property.title}\n${property.subtitle}\n\nAddress: ${property.address}, ${property.city}, ${property.state} ${property.zipCode}\nPrice: ${property.priceValue ? `$${property.priceValue.toLocaleString()}` : 'Contact for Price'}\nSize: ${property.size}\nType: ${property.type}\n\n${property.description}`.trim();
+                const blob = new Blob([propertyText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${property.address.replace(/\s+/g, '_')}_details.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors"
+              title="Download Details"
+            >
               <Download size={20} />
             </button>
-            <button className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors">
+            <button
+              onClick={() => window.print()}
+              className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors"
+              title="Print"
+            >
               <Printer size={20} />
             </button>
-            <button className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors">
+            <button
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: property.title,
+                    text: property.subtitle,
+                    url: window.location.href,
+                  }).catch(() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('Link copied to clipboard!');
+                  });
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert('Link copied to clipboard!');
+                }
+              }}
+              className="p-2 rounded-full bg-gray-100 text-primary-black hover:bg-gray-200 transition-colors"
+              title="Share"
+            >
               <Share2 size={20} />
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="bg-white border-b border-gray-200 sticky top-[40px] md:top-[68px] z-20">
+        <div className="max-w-7xl mx-auto px-[0.5px] md:px-5">
+          <div className="flex gap-1 overflow-x-auto">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'location', label: 'Location' },
+              { id: 'property-info', label: 'Property Info' },
+              { id: 'schools', label: 'Schools' },
+              { id: 'similar-homes', label: 'Similar Homes' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-6 py-4 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'border-accent-yellow text-primary-black'
+                    : 'border-transparent text-custom-gray hover:text-primary-black'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -248,6 +412,9 @@ export default function PropertyDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[0.8px] md:gap-8">
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-[0.8px] md:space-y-8">
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <div className="space-y-[0.8px] md:space-y-8">
             {/* Highlights Section */}
             <section>
               <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">HIGHLIGHTS</h2>
@@ -454,33 +621,66 @@ export default function PropertyDetailPage() {
 
             {/* Location Section */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">LINKS</h2>
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">LOCATION & MAP</h2>
+              
+              {/* Weather Info */}
+              {weather && (
+                <div className="mb-4 p-4 bg-light-gray rounded-lg flex items-center gap-4">
+                  <img src={weather.icon} alt={weather.condition} className="w-16 h-16" />
+                  <div>
+                    <div className="text-2xl font-bold text-primary-black">{weather.temperature}°F</div>
+                    <div className="text-sm text-custom-gray capitalize">{weather.description}</div>
+                    <div className="text-xs text-custom-gray mt-1">
+                      Humidity: {weather.humidity}% • Wind: {weather.windSpeed} mph
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-[0.4px] md:space-y-4">
                 <div className="flex gap-2 border-b border-gray-300">
-                  <button className="px-4 py-2 font-semibold text-primary-black border-b-2 border-accent-yellow">AERIAL</button>
-                  <button className="px-4 py-2 font-semibold text-custom-gray hover:text-primary-black">MAP</button>
-                  <button className="px-4 py-2 font-semibold text-custom-gray hover:text-primary-black">COMMUTE</button>
+                  <button
+                    onClick={() => setMapView('aerial')}
+                    className={`px-4 py-2 font-semibold transition-colors ${
+                      mapView === 'aerial'
+                        ? 'text-primary-black border-b-2 border-accent-yellow'
+                        : 'text-custom-gray hover:text-primary-black'
+                    }`}
+                  >
+                    AERIAL
+                  </button>
+                  <button
+                    onClick={() => setMapView('map')}
+                    className={`px-4 py-2 font-semibold transition-colors ${
+                      mapView === 'map'
+                        ? 'text-primary-black border-b-2 border-accent-yellow'
+                        : 'text-custom-gray hover:text-primary-black'
+                    }`}
+                  >
+                    MAP
+                  </button>
+                  <button
+                    onClick={() => setMapView('commute')}
+                    className={`px-4 py-2 font-semibold transition-colors ${
+                      mapView === 'commute'
+                        ? 'text-primary-black border-b-2 border-accent-yellow'
+                        : 'text-custom-gray hover:text-primary-black'
+                    }`}
+                  >
+                    COMMUTE
+                  </button>
                 </div>
                 <div className="relative w-full h-96 bg-gray-200 rounded overflow-hidden">
-                  <iframe
-                    src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024!2d${property.location.lng}!3d${property.location.lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzDCsDQ0JzIxLjEiTiAxMDTCsDU5JzI1LjEiVw!5e0!3m2!1sen!2sus!4v1234567890`}
-                    width="100%"
+                  <PropertyMap
+                    address={property.address}
+                    city={property.city}
+                    state={property.state}
+                    zipCode={property.zipCode}
+                    coordinates={property.location}
                     height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
+                    showControls={true}
                   />
                 </div>
-                <a
-                  href={property.location.mapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-accent-yellow hover:underline"
-                >
-                  <MapPin size={18} />
-                  View on Google Maps
-                </a>
               </div>
             </section>
 
@@ -566,69 +766,361 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
             </section>
+              </div>
+            )}
+
+            {/* Location Tab */}
+            {activeTab === 'location' && (
+              <div className="space-y-[0.8px] md:space-y-8">
+                <section>
+                  <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">LOCATION</h2>
+                  <div className="relative w-full h-96 bg-gray-200 rounded overflow-hidden mb-4">
+                    <iframe
+                      src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024!2d${property.location.lng}!3d${property.location.lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzDCsDQ0JzIxLjEiTiAxMDTCsDU5JzI1LjEiVw!5e0!3m2!1sen!2sus!4v1234567890`}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                  <a
+                    href={property.location.mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-accent-yellow hover:underline mb-4"
+                  >
+                    <MapPin size={18} />
+                    View on Google Maps
+                  </a>
+                  <a href="#" className="text-blue-600 hover:underline block mb-6">Add your commute</a>
+                  
+                  <h3 className="text-xl font-bold text-primary-black mb-4">Building Information</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        <tr className="border-b border-gray-200">
+                          <td className="px-4 py-3 font-semibold text-primary-black">Year Built</td>
+                          <td className="px-4 py-3 text-custom-gray">{property.yearBuilt || 'N/A'}</td>
+                        </tr>
+                        <tr className="border-b border-gray-200">
+                          <td className="px-4 py-3 font-semibold text-primary-black">Lot Size</td>
+                          <td className="px-4 py-3 text-custom-gray">{property.lotSize || 'N/A'}</td>
+                        </tr>
+                        <tr className="border-b border-gray-200">
+                          <td className="px-4 py-3 font-semibold text-primary-black">Property Type</td>
+                          <td className="px-4 py-3 text-custom-gray">{property.type}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {/* Property Info Tab */}
+            {activeTab === 'property-info' && (
+              <div className="space-y-[0.8px] md:space-y-8">
+                <section>
+                  <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">PROPERTY INFORMATION</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-primary-black mb-2">Location Information</h3>
+                      <p className="text-custom-gray">{property.address}, {property.city}, {property.state} {property.zipCode}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-primary-black mb-2">Municipal Code</h3>
+                      <p className="text-custom-gray">Available upon request</p>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-primary-black mb-2">Section</h3>
+                      <p className="text-custom-gray">Available upon request</p>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {/* Schools Tab */}
+            {activeTab === 'schools' && (
+              <div className="space-y-[0.8px] md:space-y-8">
+                <section>
+                  <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">SCHOOLS</h2>
+                  {property.schools && property.schools.length > 0 ? (
+                    <>
+                      <div className="overflow-x-auto mb-4">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="bg-light-gray">
+                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-primary-black">Rating</th>
+                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-primary-black">School Name</th>
+                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-primary-black">Type</th>
+                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-primary-black">Grades</th>
+                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-primary-black">Distance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {property.schools.map((school, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="border border-gray-300 px-4 py-3 text-sm font-semibold">{school.rating}/10</td>
+                                <td className="border border-gray-300 px-4 py-3 text-sm">
+                                  <a href="#" className="text-blue-600 hover:underline">{school.name}</a>
+                                </td>
+                                <td className="border border-gray-300 px-4 py-3 text-sm">{school.type}</td>
+                                <td className="border border-gray-300 px-4 py-3 text-sm">{school.grades}</td>
+                                <td className="border border-gray-300 px-4 py-3 text-sm">{school.distance}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <button className="text-blue-600 hover:underline mb-4">View more</button>
+                      <p className="text-sm text-custom-gray">Data source: GreatSchools.org</p>
+                    </>
+                  ) : (
+                    <p className="text-custom-gray">No school data available</p>
+                  )}
+                </section>
+              </div>
+            )}
+
+            {/* Similar Homes Tab */}
+            {activeTab === 'similar-homes' && (
+              <div className="space-y-[0.8px] md:space-y-8">
+                <section>
+                  <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">SIMILAR HOMES</h2>
+                  {property.relatedProperties && property.relatedProperties.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {property.relatedProperties.map((relatedId) => {
+                        const relatedProperty = allProperties.find(p => p.id === relatedId);
+                        if (!relatedProperty) return null;
+                        return (
+                          <Link
+                            key={relatedId}
+                            href={`/property/${relatedId}`}
+                            className="group"
+                          >
+                            <div className="relative h-48 rounded overflow-hidden mb-2">
+                              <Image
+                                src={relatedProperty.imageUrl}
+                                alt={relatedProperty.address}
+                                fill
+                                className="object-cover group-hover:scale-110 transition-transform"
+                              />
+                            </div>
+                            <h4 className="font-semibold text-primary-black">{relatedProperty.address}</h4>
+                            <p className="text-sm text-custom-gray">{relatedProperty.city}, {relatedProperty.state}</p>
+                            <p className="text-sm font-semibold text-primary-black mt-1">{relatedProperty.price}</p>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-custom-gray">Sorry, we can&apos;t find any similar homes at this time.</p>
+                  )}
+                  
+                  <div className="mt-8">
+                    <h3 className="text-xl font-bold text-primary-black mb-4">Similar Sold Homes</h3>
+                    <p className="text-custom-gray">No sold homes data available at this time.</p>
+                  </div>
+                </section>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Contact Sidebar */}
           <div className="lg:col-span-1">
-            <div className="lg:sticky lg:top-4">
-              <div className="bg-light-gray rounded-lg p-[0.6px] md:p-6 space-y-[0.6px] md:space-y-6">
-                {/* Phone */}
-                <div>
-                  <a
-                    href={`tel:${property.agent.phone.replace(/\s+/g, '')}`}
-                    className="flex items-center gap-[0.2px] md:gap-2 text-primary-black font-semibold text-lg hover:text-accent-yellow transition-colors"
-                  >
-                    <Phone size={20} />
-                    {property.agent.phone}
-                  </a>
-                </div>
-
-                {/* Message Button */}
-                <button className="w-full bg-red-600 text-white py-[0.3px] md:py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
-                  Message
-                </button>
-
-                {/* Contact Section */}
-                <div className="border-t border-gray-300 pt-[0.6px] md:pt-6">
-                  <h3 className="text-lg font-semibold text-primary-black mb-[0.4px] md:mb-4">CONTACT</h3>
-                  <div className="flex items-center gap-[0.3px] md:gap-3 mb-[0.4px] md:mb-4">
-                    <Image
-                      src={property.agent.photo}
-                      alt={property.agent.name}
-                      width={60}
-                      height={60}
-                      className="rounded-full object-cover"
-                    />
-                    <div>
-                      <p className="font-semibold text-primary-black">{property.agent.name}</p>
-                      <p className="text-sm text-custom-gray">{property.agent.company}</p>
-                    </div>
+            <div className="lg:sticky lg:top-4 space-y-6">
+              {/* Listing Details Box */}
+              <div className="bg-light-gray rounded-lg p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-primary-black mb-4">LISTING DETAILS</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">Status:</span>
+                    <span className="font-semibold text-primary-black">{property.status || 'Active'}</span>
                   </div>
-                  <div className="flex items-center gap-[0.4px] md:gap-4 mb-[0.4px] md:mb-4">
-                    <div className="bg-black/30 p-[0.3px] md:p-3 rounded">
-                      <Image
-                        src={property.agent.companyLogo}
-                        alt={property.agent.company}
-                        width={100}
-                        height={50}
-                        className="object-contain"
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">Days on Market:</span>
+                    <span className="font-semibold text-primary-black">{property.daysOnMarket !== undefined ? property.daysOnMarket : '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">Taxes:</span>
+                    <span className="font-semibold text-primary-black">{property.taxes ? `$${property.taxes.toFixed(2)}` : '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">HOA Fees:</span>
+                    <span className="font-semibold text-primary-black">{property.hoaFees ? `$${property.hoaFees}/mo` : '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">Compass Type:</span>
+                    <span className="font-semibold text-primary-black">{property.type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">Year Built:</span>
+                    <span className="font-semibold text-primary-black">{property.yearBuilt || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">Lot Size:</span>
+                    <span className="font-semibold text-primary-black">{property.lotSize || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-custom-gray">County:</span>
+                    <a href="#" className="font-semibold text-blue-600 hover:underline">{property.county || 'N/A'}</a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Calculator - Only show in Location tab */}
+              {activeTab === 'location' && (
+                <div className="bg-light-gray rounded-lg p-6 space-y-4">
+                  <h3 className="text-lg font-semibold text-primary-black mb-4">PAYMENT CALCULATOR</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-primary-black mb-2">Loan Amount</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max={property.priceValue || 1000000}
+                        value={loanAmount || property.priceValue || 0}
+                        onChange={(e) => setLoanAmount(parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                      <p className="text-sm text-custom-gray mt-1">${(loanAmount || property.priceValue || 0).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-primary-black mb-2">Interest Rate (%)</label>
+                      <input
+                        type="number"
+                        value={interestRate}
+                        onChange={(e) => setInterestRate(parseFloat(e.target.value))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded"
+                        step="0.1"
                       />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-[0.4px] md:gap-4">
-                    <button className="p-2 rounded-full bg-white hover:bg-gray-100 transition-colors">
-                      <Share2 size={18} className="text-primary-black" />
-                    </button>
-                    <button
-                      onClick={toggleFavorite}
-                      className={`p-2 rounded-full transition-colors ${
-                        isFavorite ? 'bg-accent-yellow text-primary-black' : 'bg-white hover:bg-gray-100 text-primary-black'
-                      }`}
-                    >
-                      <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
-                    </button>
+                    <div>
+                      <label className="block text-sm font-semibold text-primary-black mb-2">Down Payment (%)</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={downPayment}
+                        onChange={(e) => setDownPayment(parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                      <p className="text-sm text-custom-gray mt-1">{downPayment}%</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-primary-black mb-2">Term</label>
+                      <select
+                        value={loanTerm}
+                        onChange={(e) => setLoanTerm(parseFloat(e.target.value))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded"
+                      >
+                        <option value="15">15 Years Fixed</option>
+                        <option value="30">30 Years Fixed</option>
+                      </select>
+                    </div>
+                    <div className="pt-4 border-t border-gray-300 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-custom-gray">Principal & Interest:</span>
+                        <span className="font-semibold text-primary-black">
+                          ${((loanAmount || property.priceValue || 0) * (1 - downPayment / 100) * (interestRate / 100 / 12) / (1 - Math.pow(1 + interestRate / 100 / 12, -loanTerm * 12))).toFixed(2)}/mo
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-custom-gray">Property Taxes:</span>
+                        <span className="font-semibold text-primary-black">
+                          ${property.taxes ? (property.taxes / 12).toFixed(2) : '0.00'}/mo
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-custom-gray">HOA Dues:</span>
+                        <span className="font-semibold text-primary-black">
+                          ${property.hoaFees ? property.hoaFees.toFixed(2) : '0.00'}/mo
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
+              )}
+
+              {/* Listing Agent Card */}
+              <div className="bg-light-gray rounded-lg p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-primary-black mb-4">LISTING AGENT</h3>
+                <div className="flex items-center gap-3 mb-4">
+                  <Image
+                    src={property.agent.photo}
+                    alt={property.agent.name}
+                    width={60}
+                    height={60}
+                    className="rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-semibold text-primary-black">{property.agent.name}</p>
+                    <p className="text-sm text-custom-gray">{property.agent.company}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p className="text-custom-gray">Email: <a href={`mailto:${property.agent.email}`} className="text-blue-600 hover:underline">{property.agent.email}</a></p>
+                  <p className="text-custom-gray">Phone: <a href={`tel:${property.agent.phone.replace(/\s+/g, '')}`} className="text-blue-600 hover:underline">{property.agent.phone}</a></p>
+                </div>
+              </div>
+
+              {/* Contact Form */}
+              <div className="bg-light-gray rounded-lg p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-primary-black mb-4">CONTACT</h3>
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); console.log('Form submitted:', contactForm); }}>
+                  <input
+                    type="text"
+                    placeholder="Name"
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent-yellow"
+                    required
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent-yellow"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone"
+                    value={contactForm.phone}
+                    onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent-yellow"
+                  />
+                  <textarea
+                    placeholder="Message"
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent-yellow"
+                    required
+                  />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={contactForm.financing}
+                      onChange={(e) => setContactForm({ ...contactForm, financing: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-custom-gray">I want financing information</span>
+                  </label>
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Send Message
+                  </button>
+                  <p className="text-xs text-custom-gray text-center">
+                    By submitting this form, you agree to be contacted by Cap Rate and its agents.
+                  </p>
+                </form>
               </div>
             </div>
           </div>

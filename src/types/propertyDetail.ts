@@ -71,5 +71,25 @@ export interface PropertyDetail extends Property {
     lng: number;
     mapUrl: string;
   };
+  
+  // Schools data
+  schools?: {
+    name: string;
+    rating: number;
+    type: string;
+    grades: string;
+    distance: string;
+  }[];
+  
+  // Property stats for display
+  beds?: number;
+  baths?: number;
+  priceValue?: number;
+  status?: string;
+  daysOnMarket?: number;
+  taxes?: number;
+  hoaFees?: number;
+  lotSize?: string;
+  county?: string;
 }
 
