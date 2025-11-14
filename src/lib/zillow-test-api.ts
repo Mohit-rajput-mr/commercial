@@ -5,12 +5,7 @@
 
 const API_BASE_URL = 'https://zillow-com1.p.rapidapi.com';
 
-interface ApiHeaders {
-  'x-rapidapi-key': string;
-  'x-rapidapi-host': string;
-}
-
-function getHeaders(): ApiHeaders {
+function getHeaders(): Record<string, string> {
   return {
     'x-rapidapi-key': process.env.NEXT_PUBLIC_RAPIDAPI_KEY || '',
     'x-rapidapi-host': process.env.NEXT_PUBLIC_RAPIDAPI_HOST || 'zillow-com1.p.rapidapi.com',
