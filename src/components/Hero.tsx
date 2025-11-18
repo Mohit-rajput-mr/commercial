@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Store, Factory, Wrench, Users, Hospital, Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle } from 'lucide-react';
+import { Building2, Store, Factory, Wrench, Users, Hospital, Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import type { TabType, PropertyType } from '@/types';
 import { allProperties } from '@/data/sampleProperties';
-import AddressAutocomplete from './AddressAutocomplete';
-import { AddressSuggestion } from '@/lib/addressAutocomplete';
+import { useLocationAutocomplete, LocationSuggestion } from '@/hooks/useLocationAutocomplete';
+import WhatsAppButton from './WhatsAppButton';
+import ChatGPTAssistant from './ChatGPTAssistant';
+import BrokerChat from './BrokerChat';
+import SearchDropdown from './SearchDropdown';
 
 const tabs: TabType[] = ['For Lease', 'For Sale', 'Auctions', 'Businesses For Sale'];
 
@@ -41,12 +44,17 @@ export default function Hero() {
   const [activeTab, setActiveTab] = useState<TabType>('For Lease');
   const [selectedType, setSelectedType] = useState<PropertyType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { suggestions, loading, error } = useLocationAutocomplete(searchQuery);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginStep, setLoginStep] = useState<'email' | 'password'>('email');
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [errors, setErrors] = useState<{ email?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   // Listen for login trigger from Navigation
   useEffect(() => {
@@ -77,6 +85,16 @@ export default function Hero() {
       document.body.style.overflow = 'unset';
     };
   }, [isSidebarOpen]);
+
+  // Reset login step when modal closes
+  useEffect(() => {
+    if (!isLoginOpen) {
+      setLoginStep('email');
+      setEmail('');
+      setPassword('');
+      setErrors({});
+    }
+  }, [isLoginOpen]);
 
   // Auto-rotate carousel
   useEffect(() => {
@@ -133,7 +151,7 @@ export default function Hero() {
     return emailRegex.test(email);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { email?: string } = {};
 
@@ -147,8 +165,37 @@ export default function Hero() {
 
     if (Object.keys(newErrors).length === 0) {
       console.log('Email submitted:', email);
-      setIsLoginOpen(false);
+      setLoginStep('password');
+      setErrors({});
     }
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: { password?: string } = {};
+
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      console.log('Login successful:', { email, password });
+      setIsLoginOpen(false);
+      setLoginStep('email');
+      setEmail('');
+      setPassword('');
+      setErrors({});
+    }
+  };
+
+  const handleBackToEmail = () => {
+    setLoginStep('email');
+    setPassword('');
+    setErrors({});
   };
 
   const handleSocialLogin = (provider: 'google' | 'linkedin' | 'apple') => {
@@ -158,33 +205,52 @@ export default function Hero() {
   const handleSearch = () => {
     const query = searchQuery.trim();
     if (!query) return;
-
-    // Navigate to search results
     const params = new URLSearchParams();
     params.set('location', query);
+    // Pass activeTab (For Lease/For Sale) to search
+    const status = activeTab === 'For Sale' ? 'ForSale' : 'ForRent';
+    params.set('status', status);
     if (selectedType) {
       params.set('type', selectedType);
     }
-    window.location.href = `/search-results?${params.toString()}`;
+    window.location.href = `/unified-search?${params.toString()}`;
   };
 
-  const handleAddressSelect = (suggestion: AddressSuggestion) => {
-    // If it's a property ID (not a Google Places result), navigate to property detail
-    if (suggestion.id && !suggestion.id.startsWith('place-')) {
-      window.location.href = `/property/${suggestion.id}`;
-    } else {
-      // Navigate to search results with the selected address
-      const params = new URLSearchParams();
-      params.set('location', suggestion.fullAddress);
-      if (selectedType) {
-        params.set('type', selectedType);
-      }
-      window.location.href = `/search-results?${params.toString()}`;
+  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
+    setDropdownOpen(false);
+    setSearchQuery('');
+    let params = new URLSearchParams();
+    switch (suggestion.area_type) {
+      case 'city':
+        params.set('location', `${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        break;
+      case 'neighborhood':
+        params.set('location', `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        break;
+      case 'school':
+        params.set('location', `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        break;
+      case 'postal_code':
+        params.set('location', `${suggestion.postal_code || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        break;
+      case 'address':
+        params.set('location', suggestion.full_address || '');
+        break;
+      case 'county':
+        params.set('location', `${suggestion.county || ''}, ${suggestion.state_code || ''}`.trim());
+        break;
     }
+    // Pass activeTab (For Lease/For Sale) to search
+    const status = activeTab === 'For Sale' ? 'ForSale' : activeTab === 'For Lease' ? 'ForRent' : 'ForSale';
+    params.set('status', status);
+    if (selectedType) {
+      params.set('type', selectedType);
+    }
+    window.location.href = `/unified-search?${params.toString()}`;
   };
 
   return (
-    <div className="min-h-screen pt-[40px] md:pt-24 pb-16 relative overflow-hidden">
+    <div className="min-h-screen pb-16 relative overflow-hidden">
       {/* Background Image with Overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center hero-bg-image"
@@ -203,7 +269,7 @@ export default function Hero() {
         }} />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-5">
+      <div className="relative z-10 max-w-7xl mx-auto px-5 pt-[70px]">
         {/* Hero Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
@@ -275,12 +341,49 @@ export default function Hero() {
           {/* Search Box */}
           <div className="flex flex-col sm:flex-row gap-2 md:gap-2">
             <div className="flex-1 relative">
-              <AddressAutocomplete
-                value={searchQuery}
-                onChange={setSearchQuery}
-                onSelect={handleAddressSelect}
+              <input
+                ref={inputRef}
+                className="w-full px-4 md:px-4 py-3 md:py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm md:text-xs text-white placeholder-gray-300 focus:outline-none focus:border-accent-yellow focus:bg-white/15 transition-all pr-10"
                 placeholder="Enter a location (City, State, or ZIP)"
-                className="w-full"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value.length >= 2) setDropdownOpen(true);
+                  else setDropdownOpen(false);
+                }}
+                onFocus={() => searchQuery.length >= 2 && setDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setDropdownOpen(false), 100)}
+                autoComplete="off"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    inputRef.current?.focus();
+                  }}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors z-10"
+                  tabIndex={-1}
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              )}
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-yellow"></div>
+                ) : (
+                  <Search size={18} className="md:w-5 md:h-5" />
+                )}
+              </span>
+              {/* Autocomplete Dropdown - Separate component using Portal */}
+              <SearchDropdown
+                isOpen={dropdownOpen}
+                onClose={() => setDropdownOpen(false)}
+                suggestions={suggestions}
+                loading={loading}
+                error={error}
+                onSelect={handleSelectSuggestion}
+                triggerElement={inputRef.current}
               />
             </div>
             <motion.button
@@ -301,7 +404,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4 }}
-          className="mt-12 md:mt-8"
+          className="mt-12 md:mt-8 relative z-[1]"
         >
           <p className="text-center text-white text-base md:text-base lg:text-lg font-semibold mb-6 md:mb-6 px-4">
             For over 30 years, Cap Rate has been the trusted brand for Commercial Real Estate
@@ -463,74 +566,149 @@ export default function Hero() {
 
                   {/* Right Column - Form */}
                   <div className="w-full md:w-1/2 p-4 md:p-6 flex flex-col justify-center">
-                    <p className="text-sm text-custom-gray mb-4 md:mb-6">
-                      Enter your email to login or create a free account
-                    </p>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div>
-                        <label htmlFor="email" className="block text-sm font-semibold text-primary-black mb-2">
-                          Email*
-                        </label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
-                          <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => {
-                              setEmail(e.target.value);
-                              if (errors.email) setErrors({});
-                            }}
-                            placeholder="Enter email address"
-                            className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
-                              errors.email
-                                ? 'border-red-500'
-                                : 'border-gray-300 focus:border-accent-yellow'
-                            }`}
-                          />
-                        </div>
-                        {errors.email && (
-                          <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                        )}
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="w-full px-6 py-3 md:py-4 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all min-h-[48px] text-base"
-                      >
-                        Continue
-                      </button>
-                    </form>
-
-                    <div className="mt-4 md:mt-6">
-                      <p className="text-center text-sm text-custom-gray mb-4">or continue with</p>
-                      <div className="flex gap-3 justify-center">
-                        <button
-                          onClick={() => handleSocialLogin('google')}
-                          className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition-all font-bold text-lg min-w-[48px] min-h-[48px]"
-                          aria-label="Login with Google"
+                    <AnimatePresence mode="wait">
+                      {loginStep === 'email' ? (
+                        <motion.div
+                          key="email-step"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ duration: 0.3 }}
                         >
-                          G
-                        </button>
-                        <button
-                          onClick={() => handleSocialLogin('linkedin')}
-                          className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-all font-bold text-sm min-w-[48px] min-h-[48px]"
-                          aria-label="Login with LinkedIn"
+                          <p className="text-sm text-custom-gray mb-4 md:mb-6">
+                            Enter your email to login or create a free account
+                          </p>
+
+                          <form onSubmit={handleEmailSubmit} className="space-y-4">
+                            <div>
+                              <label htmlFor="email" className="block text-sm font-semibold text-primary-black mb-2">
+                                Email*
+                              </label>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
+                                <input
+                                  type="email"
+                                  id="email"
+                                  value={email}
+                                  onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    if (errors.email) setErrors({});
+                                  }}
+                                  placeholder="Enter email address"
+                                  className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
+                                    errors.email
+                                      ? 'border-red-500'
+                                      : 'border-gray-300 focus:border-accent-yellow'
+                                  }`}
+                                />
+                              </div>
+                              {errors.email && (
+                                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                              )}
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="w-full px-6 py-3 md:py-4 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all min-h-[48px] text-base"
+                            >
+                              Continue
+                            </button>
+                          </form>
+
+                          <div className="mt-4 md:mt-6">
+                            <p className="text-center text-sm text-custom-gray mb-4">or continue with</p>
+                            <div className="flex gap-3 justify-center">
+                              <button
+                                onClick={() => handleSocialLogin('google')}
+                                className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition-all font-bold text-lg min-w-[48px] min-h-[48px]"
+                                aria-label="Login with Google"
+                              >
+                                G
+                              </button>
+                              <button
+                                onClick={() => handleSocialLogin('linkedin')}
+                                className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-all font-bold text-sm min-w-[48px] min-h-[48px]"
+                                aria-label="Login with LinkedIn"
+                              >
+                                in
+                              </button>
+                              <button
+                                onClick={() => handleSocialLogin('apple')}
+                                className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800 transition-all min-w-[48px] min-h-[48px]"
+                                aria-label="Login with Apple"
+                              >
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="password-step"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ duration: 0.3 }}
                         >
-                          in
-                        </button>
-                        <button
-                          onClick={() => handleSocialLogin('apple')}
-                          className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800 transition-all min-w-[48px] min-h-[48px]"
-                          aria-label="Login with Apple"
-                        >
-                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                          <div className="mb-4">
+                            <button
+                              onClick={handleBackToEmail}
+                              className="flex items-center gap-2 text-sm text-custom-gray hover:text-primary-black transition-colors mb-2"
+                            >
+                              <ArrowLeft size={16} />
+                              Back to email
+                            </button>
+                            <p className="text-sm text-custom-gray">
+                              Enter password for <span className="font-semibold text-primary-black">{email}</span>
+                            </p>
+                          </div>
+
+                          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                            <div>
+                              <label htmlFor="password" className="block text-sm font-semibold text-primary-black mb-2">
+                                Password*
+                              </label>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
+                                <input
+                                  type="password"
+                                  id="password"
+                                  value={password}
+                                  onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    if (errors.password) setErrors({});
+                                  }}
+                                  placeholder="Enter password"
+                                  className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
+                                    errors.password
+                                      ? 'border-red-500'
+                                      : 'border-gray-300 focus:border-accent-yellow'
+                                  }`}
+                                />
+                              </div>
+                              {errors.password && (
+                                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+                              )}
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="w-full px-6 py-3 md:py-4 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all min-h-[48px] text-base"
+                            >
+                              Log In
+                            </button>
+                          </form>
+
+                          <div className="mt-4 text-center">
+                            <a href="#" className="text-sm text-custom-gray hover:text-primary-black transition-colors">
+                              Forgot password?
+                            </a>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </motion.div>
@@ -712,6 +890,15 @@ export default function Hero() {
           </>
         )}
       </AnimatePresence>
+
+      {/* WhatsApp Button */}
+      <WhatsAppButton phoneNumber="+1 (917) 209-6200" message="Hello! I'm interested in your properties." />
+
+      {/* Talk with Broker - Person Icon Chat */}
+      <BrokerChat />
+
+      {/* ChatGPT Assistant */}
+      <ChatGPTAssistant />
     </div>
   );
 }

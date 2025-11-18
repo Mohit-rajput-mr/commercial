@@ -117,8 +117,11 @@ export default function PropertyDetailPage() {
     <div className="min-h-screen bg-white">
       <Navigation />
       
+      {/* Navbar Spacer - Prevents content overlap */}
+      <div className="h-[50px] w-full"></div>
+      
       {/* Breadcrumb */}
-      <div className="bg-light-gray py-[0.4px] md:py-4 px-[0.5px] md:px-5 pt-[40px] md:pt-4">
+      <div className="bg-light-gray py-[0.4px] md:py-4 px-[0.5px] md:px-5">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-2 text-sm text-custom-gray">
             <Link href="/" className="hover:text-accent-yellow">Home</Link>
@@ -381,7 +384,7 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="bg-white border-b border-gray-200 sticky top-[40px] md:top-[68px] z-20">
+      <div className="bg-white border-b border-gray-200 sticky top-[50px] z-20">
         <div className="max-w-7xl mx-auto px-[0.5px] md:px-5">
           <div className="flex gap-1 overflow-x-auto">
             {[
@@ -626,7 +629,7 @@ export default function PropertyDetailPage() {
               {/* Weather Info */}
               {weather && (
                 <div className="mb-4 p-4 bg-light-gray rounded-lg flex items-center gap-4">
-                  <img src={weather.icon} alt={weather.condition} className="w-16 h-16" />
+                  <Image src={weather.icon} alt={weather.condition} width={64} height={64} className="w-16 h-16" unoptimized />
                   <div>
                     <div className="text-2xl font-bold text-primary-black">{weather.temperature}°F</div>
                     <div className="text-sm text-custom-gray capitalize">{weather.description}</div>

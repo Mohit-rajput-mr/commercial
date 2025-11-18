@@ -5,11 +5,18 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useNavbarScroll } from '@/hooks/useNavbarScroll';
 import logoRE from '../../assets/logoRE.png';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();
+  const isVisible = useNavbarScroll({
+    hideOnScrollDown: true,
+    showOnScrollUp: true,
+    scrollUpDelay: 3000, // 3 seconds
+    threshold: 100,
+  });
 
   const handleLoginClick = () => {
     // Dispatch custom event to trigger login modal in Hero
@@ -26,20 +33,29 @@ export default function Navigation() {
       setIsScrolled(window.scrollY > 50);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
     <motion.nav
       initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.8 }}
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+      animate={{ 
+        y: isVisible ? 0 : -100,
+        opacity: isVisible ? 1 : 0,
+      }}
+      transition={{ 
+        duration: 0.4,
+        ease: [0.4, 0, 0.2, 1], // Custom ease for smooth fly up animation
+      }}
+      className={`fixed top-0 left-0 right-0 w-full z-[9999] ${
         isScrolled 
-          ? 'bg-primary-black/80 backdrop-blur-xl shadow-2xl border-b border-accent-yellow/20' 
-          : 'bg-primary-black/70 backdrop-blur-lg'
-      }`}
+          ? 'shadow-xl' 
+          : ''
+      } ${!isVisible ? 'pointer-events-none' : ''}`}
+      style={{
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      }}
     >
       <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20 h-[40px] md:h-[68px] flex justify-between items-center">
         {/* Logo */}
@@ -67,14 +83,6 @@ export default function Navigation() {
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => router.push('/api-test')}
-            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-blue-500 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-blue-500 text-xs md:text-sm"
-          >
-            API Test
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
             onClick={handleLoginClick}
             className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-accent-yellow rounded-lg text-white font-semibold transition-all duration-300 hover:bg-accent-yellow hover:text-primary-black text-xs md:text-sm"
           >
@@ -90,16 +98,8 @@ export default function Navigation() {
           </motion.button>
         </div>
 
-        {/* Mobile Menu - API Test Button + Hamburger */}
+        {/* Mobile Menu - Hamburger */}
         <div className="md:hidden flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => router.push('/api-test')}
-            className="px-3 py-1.5 border-2 border-blue-500 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-blue-500 text-xs"
-          >
-            API Test
-          </motion.button>
           <button
             onClick={handleSidebarClick}
             className="text-white p-2"

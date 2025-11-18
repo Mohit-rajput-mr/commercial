@@ -265,8 +265,11 @@ export default function SearchResultsPage() {
     <div className="min-h-screen bg-white">
       <Navigation />
       
+      {/* Navbar Spacer - Prevents content overlap */}
+      <div className="h-[50px] w-full"></div>
+      
       {/* Top Header Bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-[-20px] md:top-[68px] z-30 pt-[40px] md:pt-0">
+      <div className="bg-white border-b border-gray-200 sticky top-[50px] z-30">
         <div className="max-w-7xl mx-auto px-4 md:px-5 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
             {/* Search Input */}
@@ -347,7 +350,7 @@ export default function SearchResultsPage() {
           {/* Results Count and Sort */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
             <p className="text-sm text-custom-gray">
-              {filteredProperties.length > 0 ? `1-${Math.min(41, filteredProperties.length)}` : '0'} of {filteredProperties.length} Properties
+              {filteredProperties.length > 0 ? `1-${filteredProperties.length}` : '0'} of {filteredProperties.length} Properties
             </p>
             <div className="flex items-center gap-4">
               <select
