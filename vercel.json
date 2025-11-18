@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "app/api/**/*.ts": {
-      "regions": ["iad1", "sfo1", "hnd1", "syd1", "fra1"]
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
