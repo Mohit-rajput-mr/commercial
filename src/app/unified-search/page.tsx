@@ -9,6 +9,7 @@ import CommercialPropertyCard from '@/components/CommercialPropertyCard';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Search, Loader2 } from 'lucide-react';
+import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 
 export default function UnifiedSearchPage() {
   const searchParams = useSearchParams();
@@ -106,9 +107,23 @@ export default function UnifiedSearchPage() {
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="animate-spin text-accent-yellow mr-2" size={24} />
-            <span className="text-custom-gray">Searching properties...</span>
+          <div className="space-y-8">
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="animate-spin text-accent-yellow mr-2" size={24} />
+              <span className="text-custom-gray">Searching properties...</span>
+            </div>
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4">
+                Residential Properties
+              </h2>
+              <PropertyGridSkeleton count={3} />
+            </div>
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4">
+                Commercial Properties
+              </h2>
+              <PropertyGridSkeleton count={3} />
+            </div>
           </div>
         )}
 

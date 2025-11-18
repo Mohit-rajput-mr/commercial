@@ -23,6 +23,8 @@ import {
 import { getCommercialDetails, getCommercialImages, CommercialProperty, getAddressString, getCity, getState, getZipcode } from '@/lib/us-real-estate-api';
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import ChatWidget from '@/components/ChatWidget';
+import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
 
 // Free OpenStreetMap component
 function FreeMap({ lat, lng, address }: { lat: number; lng: number; address: string }) {
@@ -110,12 +112,7 @@ export default function CommercialPropertyDetailPage() {
     return (
       <div className="min-h-screen bg-white">
         <Nav />
-        <div className="flex items-center justify-center min-h-[60vh] pt-20">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mb-4"></div>
-            <p className="text-lg text-custom-gray">Loading property details...</p>
-          </div>
-        </div>
+        <PropertyDetailSkeleton />
       </div>
     );
   }
@@ -597,6 +594,16 @@ export default function CommercialPropertyDetailPage() {
       </div>
 
       <Footer />
+
+      {/* Chat Widget */}
+      {property && (
+        <ChatWidget
+          propertyId={property.zpid || id}
+          propertyAddress={addressString}
+          userId={`user-${Math.random().toString(36).substr(2, 9)}`}
+          userName="Guest User"
+        />
+      )}
     </div>
   );
 }

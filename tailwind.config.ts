@@ -56,6 +56,11 @@ const config: Config = {
             boxShadow: '0 0 30px rgba(255, 215, 0, 0.5)'
           },
         },
+        loading: {
+          '0%': { transform: 'translateX(-100%)' },
+          '50%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
     },
   },

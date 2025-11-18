@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { searchPropertiesByLocation, ZillowProperty } from "@/lib/us-real-estate-api";
 import { Search, MapPin } from "lucide-react";
+import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -45,8 +46,11 @@ export default function SearchPage() {
         Properties {locationQuery && `for ${locationQuery}`}
       </h1>
       {loading && (
-        <div className="flex items-center justify-center py-12 text-custom-gray">
-          <Search className="mr-2 animate-spin" /> Loading properties…
+        <div className="space-y-6">
+          <div className="flex items-center justify-center py-4 text-custom-gray">
+            <Search className="mr-2 animate-spin" /> Loading properties…
+          </div>
+          <PropertyGridSkeleton count={8} />
         </div>
       )}
       {error && (

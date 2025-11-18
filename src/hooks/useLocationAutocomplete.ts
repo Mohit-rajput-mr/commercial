@@ -84,3 +84,4 @@ export function useLocationAutocomplete(input: string) : UseLocationAutocomplete
 
   return { suggestions, loading, error, fetchCount };
 }
+

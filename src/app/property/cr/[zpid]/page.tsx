@@ -28,6 +28,7 @@ import {
 import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
 
 // Free OpenStreetMap component using Leaflet (no API key needed)
 function FreeMap({ lat, lng, address }: { lat: number; lng: number; address: string }) {
@@ -110,12 +111,7 @@ export default function CRPropertyDetailPage() {
     return (
       <div className="min-h-screen bg-white">
         <Nav />
-        <div className="flex items-center justify-center min-h-[60vh] pt-20">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent-yellow mb-4"></div>
-            <p className="text-lg text-custom-gray">Loading property details...</p>
-          </div>
-        </div>
+        <PropertyDetailSkeleton />
       </div>
     );
   }

@@ -9,6 +9,7 @@ import { getPropertyDetailsByZpid, ZillowProperty } from '@/lib/us-real-estate-a
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { MapPin, Bed, Bath, Square } from 'lucide-react';
+import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
 
 export default function ZillowPropertyDetailPage() {
   const params = useParams();
@@ -43,14 +44,7 @@ export default function ZillowPropertyDetailPage() {
     return (
       <div className="min-h-screen bg-white">
         <Nav />
-        {/* Navbar Spacer - Prevents content overlap */}
-        <div className="h-[50px] w-full"></div>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent-yellow mb-4"></div>
-            <p className="text-lg text-custom-gray">Loading property details...</p>
-          </div>
-        </div>
+        <PropertyDetailSkeleton />
       </div>
     );
   }

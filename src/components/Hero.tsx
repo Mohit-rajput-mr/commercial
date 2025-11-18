@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, Store, Factory, Wrench, Users, Hospital, Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import type { TabType, PropertyType } from '@/types';
 import { allProperties } from '@/data/sampleProperties';
 import { useLocationAutocomplete, LocationSuggestion } from '@/hooks/useLocationAutocomplete';
 import WhatsAppButton from './WhatsAppButton';
-import ChatGPTAssistant from './ChatGPTAssistant';
-import BrokerChat from './BrokerChat';
 import SearchDropdown from './SearchDropdown';
+import AIAssistantIcon from './AIAssistantIcon';
+import { setAdminAuthenticated } from '@/lib/admin-storage';
 
 const tabs: TabType[] = ['For Lease', 'For Sale', 'Auctions', 'Businesses For Sale'];
 
@@ -41,6 +42,7 @@ const companies = [
 ];
 
 export default function Hero() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('For Lease');
   const [selectedType, setSelectedType] = useState<PropertyType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -153,6 +155,15 @@ export default function Hero() {
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedEmail = email.trim().toLowerCase();
+    
+    // If email is "admin", skip validation and go to password step
+    if (trimmedEmail === 'admin') {
+      setLoginStep('password');
+      setErrors({});
+      return;
+    }
+
     const newErrors: { email?: string } = {};
 
     if (!email) {
@@ -172,6 +183,22 @@ export default function Hero() {
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+
+    // Check if admin login
+    if (trimmedEmail === 'admin' && trimmedPassword === 'admin') {
+      // Set admin authentication and redirect to admin panel
+      setAdminAuthenticated(true);
+      setIsLoginOpen(false);
+      setLoginStep('email');
+      setEmail('');
+      setPassword('');
+      setErrors({});
+      router.push('/admin/dashboard');
+      return;
+    }
+
     const newErrors: { password?: string } = {};
 
     if (!password) {
@@ -255,7 +282,7 @@ export default function Hero() {
       <div 
         className="absolute inset-0 bg-cover bg-center hero-bg-image"
         style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&q=80)',
+          backgroundImage: 'url(https://media.timeout.com/images/103782812/image.jpg)',
         }}
       />
       <div className="absolute inset-0 bg-gradient-to-br from-primary-black/70 via-primary-black/60 to-secondary-black/70" />
@@ -399,30 +426,30 @@ export default function Hero() {
           </div>
         </motion.div>
 
-        {/* Stats Section */}
+        {/* Stats Section - Mobile First */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4 }}
-          className="mt-12 md:mt-8 relative z-[1]"
+          className="mt-8 md:mt-12 relative z-[1]"
         >
-          <p className="text-center text-white text-base md:text-base lg:text-lg font-semibold mb-6 md:mb-6 px-4">
+          <p className="text-center text-white text-sm md:text-base lg:text-lg font-semibold mb-4 md:mb-6 px-3 md:px-4">
             For over 30 years, Cap Rate has been the trusted brand for Commercial Real Estate
           </p>
 
-          <div className="flex md:grid md:grid-cols-3 gap-2 md:gap-3 lg:gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-3 lg:gap-4 px-3 md:px-0">
             {stats.map((stat, index) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 + index * 0.1 }}
-                className="bg-white/5 backdrop-blur-md border border-accent-yellow/30 rounded-lg md:rounded-lg p-3 md:p-4 lg:p-6 text-center transition-all flex-shrink-0 w-[calc(33.333vw-1rem)] md:min-w-0 md:w-auto"
+                className="bg-white/5 backdrop-blur-md border border-accent-yellow/30 rounded-lg p-4 md:p-4 lg:p-6 text-center transition-all hover:bg-white/10"
               >
-                <div className="text-[14px] md:text-3xl lg:text-4xl font-extrabold text-accent-yellow mb-1 md:mb-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)] leading-tight">
+                <div className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-extrabold text-accent-yellow mb-1 md:mb-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)] leading-tight">
                   {stat.number}
                 </div>
-                <div className="text-[8.4px] md:text-sm lg:text-base text-white font-medium">{stat.label}</div>
+                <div className="text-xs sm:text-sm md:text-sm lg:text-base text-white font-medium">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -587,14 +614,22 @@ export default function Hero() {
                               <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
                                 <input
-                                  type="email"
+                                  type="text"
                                   id="email"
                                   value={email}
                                   onChange={(e) => {
-                                    setEmail(e.target.value);
+                                    const value = e.target.value;
+                                    setEmail(value);
                                     if (errors.email) setErrors({});
+                                    // Auto-continue if user types "admin"
+                                    if (value.trim().toLowerCase() === 'admin') {
+                                      setTimeout(() => {
+                                        setLoginStep('password');
+                                        setErrors({});
+                                      }, 300);
+                                    }
                                   }}
-                                  placeholder="Enter email address"
+                                  placeholder="text"
                                   className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
                                     errors.email
                                       ? 'border-red-500'
@@ -894,11 +929,8 @@ export default function Hero() {
       {/* WhatsApp Button */}
       <WhatsAppButton phoneNumber="+1 (917) 209-6200" message="Hello! I'm interested in your properties." />
 
-      {/* Talk with Broker - Person Icon Chat */}
-      <BrokerChat />
-
-      {/* ChatGPT Assistant */}
-      <ChatGPTAssistant />
+      {/* AI Assistant Icon - Above WhatsApp */}
+      <AIAssistantIcon />
     </div>
   );
 }

@@ -5,3 +5,4 @@ export const ZILLOW_API_CONFIG = {
     'x-rapidapi-host': 'zillow-working-api.p.rapidapi.com',
   },
 };
+
