@@ -189,6 +189,7 @@ export default function AIAssistantIcon() {
   const eyeLeftRef = useRef<HTMLDivElement>(null);
   const eyeRightRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLDivElement>(null);
+  const [letterSpacing, setLetterSpacing] = useState(0.5);
 
   const propertyKeywords = ['property', 'properties', 'listing', 'listings', 'space', 'spaces', 'lease', 'rent', 'sale', 'buy', 'auction', 'invest', 'building', 'office', 'retail', 'industrial'];
 
@@ -261,18 +262,16 @@ export default function AIAssistantIcon() {
     scrollToBottom();
   }, [messages]);
 
-  // Random blink animation
+  // Random blink animation - only the 'A' eye
   useEffect(() => {
     const blink = () => {
-      if (eyeLeftRef.current && eyeRightRef.current) {
+      if (eyeLeftRef.current) {
         eyeLeftRef.current.style.transform = 'scaleY(0.1)';
         setTimeout(() => {
-          if (eyeLeftRef.current && eyeRightRef.current) {
+          if (eyeLeftRef.current) {
             eyeLeftRef.current.style.transform = 'scaleY(1)';
-            eyeRightRef.current.style.transform = 'scaleY(1)';
           }
         }, 150);
-        eyeRightRef.current.style.transform = 'scaleY(0.1)';
       }
     };
 
@@ -285,6 +284,28 @@ export default function AIAssistantIcon() {
     };
 
     scheduleBlink();
+  }, []);
+
+  // Random letter spacing animation - simulating real smiling with smooth transitions
+  useEffect(() => {
+    const animateSmile = () => {
+      // Smoothly expand (larger spacing) - bigger smile - over 0.8 seconds
+      setLetterSpacing(2.5);
+      setTimeout(() => {
+        // Smoothly return to compressed (default smile) - over 1.2 seconds
+        setLetterSpacing(0.5);
+        const normalDuration = 3000 + Math.random() * 2000; // 3-5 seconds
+        setTimeout(() => {
+          // Schedule next big smile at random time (2-6 seconds)
+          const nextSmile = 2000 + Math.random() * 4000;
+          setTimeout(animateSmile, nextSmile);
+        }, normalDuration);
+      }, 800); // Hold expanded for 0.8 seconds
+    };
+
+    // Start first big smile after initial delay
+    const initialDelay = 2000 + Math.random() * 3000;
+    setTimeout(animateSmile, initialDelay);
   }, []);
 
   useEffect(() => {
@@ -545,7 +566,7 @@ export default function AIAssistantIcon() {
         />
 
         {/* Eyes Container */}
-        <div className="absolute inset-0 flex items-start justify-center gap-1.5 text-primary-black z-10 pointer-events-none" style={{ top: '10%' }}>
+        <div className="absolute inset-0 flex items-start justify-center gap-2 text-primary-black z-10 pointer-events-none" style={{ top: '10%', letterSpacing: '3px' }}>
           <motion.div
             ref={eyeLeftRef}
             className="text-lg font-bold transition-transform duration-100 origin-center"
@@ -584,16 +605,25 @@ export default function AIAssistantIcon() {
           </motion.div>
         </div>
 
-        {/* Smile SVG */}
+        {/* Assistant Text as Curved Smile - Extra Bold and More Curved */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible" viewBox="0 0 56 56">
           <defs>
-            <path id="curve-assistant" d="M 3.9,38 Q 28,58 52.1,38" fill="transparent" />
+            <path id="curve-assistant-smile" d="M 3,35 Q 28,61 53,35" fill="transparent" />
           </defs>
           <text
-            className="text-[6px] font-bold fill-primary-black"
-            style={{ letterSpacing: '1px' }}
+            className="text-primary-black"
+            style={{ 
+              fontSize: '7px', 
+              letterSpacing: `${letterSpacing}px`,
+              textTransform: 'uppercase',
+              fontWeight: '900',
+              stroke: 'currentColor',
+              strokeWidth: '0.3px',
+              fill: 'currentColor',
+              transition: 'letter-spacing 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
           >
-            <textPath href="#curve-assistant" startOffset="50%" textAnchor="middle">
+            <textPath href="#curve-assistant-smile" startOffset="50%" textAnchor="middle">
               assistant
             </textPath>
           </text>
