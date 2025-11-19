@@ -4,11 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, User } from 'lucide-react';
 
-const RAPIDAPI_KEY = 'faf657766emsha74fedf2f6947fdp14c2b1jsn61fd3e532c38';
-const RAPIDAPI_HOST = 'cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com';
-const CHATGPT_API_URL = `https://${RAPIDAPI_HOST}/v1/chat/completions`;
+const DEEPSEEK_API_KEY = 'sk-a8605ba2f76f44a2aaf690037a2d3189';
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-const SYSTEM_PROMPT = `You are an intelligent AI assistant for Cap Rate, the world's #1 commercial real estate marketplace. You have comprehensive knowledge about the entire platform, all its features, components, and how everything works. Your role is to help users navigate the platform, find properties, understand features, and answer any questions about the marketplace.
+const SYSTEM_PROMPT = `You are an intelligent AI assistant for Cap Rate, the world's #1 commercial real estate marketplace. You have comprehensive knowledge about the entire platform, all its features, components, and how everything works. You also have direct access to Cap Rate's commercial datasets (commercial_dataset_17nov2025.json and commercial_dataset2.json) which include verified property listings for sale, lease, and auction across the U.S. Use these datasets to surface relevant listings whenever users ask for properties.
 
 === PLATFORM OVERVIEW ===
 Cap Rate is a leading commercial and residential real estate marketplace with:
@@ -156,6 +155,22 @@ You can help users with:
 
 Remember: You have complete knowledge of the platform. Help users understand and navigate Cap Rate effectively!`;
 
+interface CommercialDatasetProperty {
+  propertyId: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  price?: string;
+  priceNumeric?: number;
+  propertyType?: string;
+  propertyTypeDetailed?: string;
+  listingType?: string;
+  listingUrl?: string;
+  images?: string[];
+  description?: string;
+}
+
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -168,12 +183,75 @@ export default function AIAssistantIcon() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showBrokerMessage, setShowBrokerMessage] = useState(false);
-  const brokerMessageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [commercialData, setCommercialData] = useState<CommercialDatasetProperty[]>([]);
+  const [isDatasetLoading, setIsDatasetLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const eyeLeftRef = useRef<HTMLDivElement>(null);
   const eyeRightRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLDivElement>(null);
+
+  const propertyKeywords = ['property', 'properties', 'listing', 'listings', 'space', 'spaces', 'lease', 'rent', 'sale', 'buy', 'auction', 'invest', 'building', 'office', 'retail', 'industrial'];
+
+  const shouldSuggestProperties = (content: string) => {
+    const normalized = content.toLowerCase();
+    return propertyKeywords.some((keyword) => normalized.includes(keyword));
+  };
+
+  const findRelevantProperties = (query: string): CommercialDatasetProperty[] => {
+    if (!commercialData.length) return [];
+
+    const tokens = query
+      .toLowerCase()
+      .split(/[\s,]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length > 2);
+
+    const scored = commercialData
+      .map((property) => {
+        const haystack = [
+          property.address,
+          property.city,
+          property.state,
+          property.propertyType,
+          property.propertyTypeDetailed,
+          property.listingType,
+        ]
+          .join(' ')
+          .toLowerCase();
+
+        const score = tokens.reduce((acc, token) => (haystack.includes(token) ? acc + 1 : acc), 0);
+        return { property, score };
+      })
+      .filter((entry) => entry.score > 0);
+
+    const ranked = (scored.length > 0 ? scored : commercialData.map((property) => ({ property, score: 0 }))).sort(
+      (a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return (b.property.priceNumeric || 0) - (a.property.priceNumeric || 0);
+      }
+    );
+
+    return ranked.slice(0, 3).map((entry) => entry.property);
+  };
+
+  const buildPropertyContext = (query: string): string | null => {
+    const properties = findRelevantProperties(query);
+    if (!properties.length) return null;
+
+    const formatted = properties
+      .map((property, index) => {
+        const location = [property.city, property.state, property.zip].filter(Boolean).join(', ');
+        const label = property.propertyTypeDetailed || property.propertyType || 'Commercial Property';
+        const price = property.price || (property.priceNumeric ? `$${property.priceNumeric.toLocaleString()}` : 'Price upon request');
+        const details = property.listingUrl ? `Details: ${property.listingUrl}` : 'Listing link available on request';
+        return `${index + 1}. ${property.address || 'Address TBD'} (${location}) — ${label} — ${price}. ${details}`;
+      })
+      .join('\n');
+
+    return `Relevant Cap Rate dataset matches:\n${formatted}`;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -209,86 +287,115 @@ export default function AIAssistantIcon() {
     scheduleBlink();
   }, []);
 
-  // Show "broker will be available shortly" when user types
   useEffect(() => {
-    if (input.trim().length > 0 && !showBrokerMessage) {
-      setShowBrokerMessage(true);
-      if (brokerMessageTimeoutRef.current) {
-        clearTimeout(brokerMessageTimeoutRef.current);
-      }
-      brokerMessageTimeoutRef.current = setTimeout(() => {
-        setShowBrokerMessage(false);
-      }, 3000);
-    } else if (input.trim().length === 0) {
-      setShowBrokerMessage(false);
-      if (brokerMessageTimeoutRef.current) {
-        clearTimeout(brokerMessageTimeoutRef.current);
-      }
-    }
+    let isMounted = true;
 
-    return () => {
-      if (brokerMessageTimeoutRef.current) {
-        clearTimeout(brokerMessageTimeoutRef.current);
+    const loadCommercialDatasets = async () => {
+      setIsDatasetLoading(true);
+      try {
+        const datasetUrls = ['/commercial_dataset_17nov2025.json', '/commercial_dataset2.json'];
+        const results = await Promise.allSettled(
+          datasetUrls.map(async (url) => {
+            const response = await fetch(url);
+            if (!response.ok) {
+              throw new Error(`Failed to load ${url}`);
+            }
+            return response.json();
+          })
+        );
+
+        const parsedData: CommercialDatasetProperty[] = results
+          .filter((result): result is PromiseFulfilledResult<any[]> => result.status === 'fulfilled' && Array.isArray(result.value))
+          .flatMap((result) => result.value);
+
+        if (isMounted) {
+          setCommercialData(parsedData);
+        }
+      } catch (error) {
+        console.error('Failed to load commercial datasets:', error);
+      } finally {
+        if (isMounted) {
+          setIsDatasetLoading(false);
+        }
       }
     };
-  }, [input, showBrokerMessage]);
+
+    loadCommercialDatasets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMessage: Message = { role: 'user', content: input.trim() };
-    const userContent = input.trim().toLowerCase();
+    const trimmedInput = input.trim();
+    const userMessage: Message = { role: 'user', content: trimmedInput };
+    const userContent = trimmedInput.toLowerCase();
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
-    setShowBrokerMessage(false);
-    if (brokerMessageTimeoutRef.current) {
-      clearTimeout(brokerMessageTimeoutRef.current);
-    }
     setLoading(true);
 
-    // Quick responses for common queries
-    if (userContent.includes('schedule') || userContent.includes('viewing') || userContent.includes('appointment')) {
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: 'I\'d be happy to help you schedule a property viewing! Here are your options:\n\n1. **Call us directly**: +1 (917) 209-6200\n2. **WhatsApp**: Click the green WhatsApp button in the bottom-right corner\n3. **Tell me the property**: Share the property address or listing ID, and I can help coordinate a viewing\n\nYou can also browse properties in the "Trending Properties" section on the homepage, or use the search in the Hero section to find specific properties. Once you find one you like, click on it to see full details and contact options.' }
-        ]);
-        setLoading(false);
-      }, 500);
-      return;
-    }
+    // Quick responses for common queries - use streaming for consistency
+    const quickResponseText = 
+      userContent.includes('schedule') || userContent.includes('viewing') || userContent.includes('appointment')
+        ? 'I\'d be happy to help you schedule a property viewing! Here are your options:\n\n1. **Call us directly**: +1 (917) 209-6200\n2. **WhatsApp**: Click the green WhatsApp button in the bottom-right corner\n3. **Tell me the property**: Share the property address or listing ID, and I can help coordinate a viewing\n\nYou can also browse properties in the "Trending Properties" section on the homepage, or use the search in the Hero section to find specific properties. Once you find one you like, click on it to see full details and contact options.'
+        : userContent.includes('contact') || userContent.includes('phone') || userContent.includes('call') || userContent.includes('reach')
+        ? 'You can reach Cap Rate through multiple channels:\n\n📞 **Phone**: +1 (917) 209-6200\n💬 **WhatsApp**: Click the WhatsApp button (bottom-right corner)\n💬 **AI Assistant**: You\'re using it right now! (me)\n\nFor property inquiries, viewings, listing questions, or general support, feel free to contact us anytime. Our team is here to help with all your commercial and residential real estate needs!'
+        : null;
 
-    if (userContent.includes('contact') || userContent.includes('phone') || userContent.includes('call') || userContent.includes('reach')) {
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: 'You can reach Cap Rate through multiple channels:\n\n📞 **Phone**: +1 (917) 209-6200\n💬 **WhatsApp**: Click the WhatsApp button (bottom-right corner)\n💬 **AI Assistant**: You\'re using it right now! (me)\n\nFor property inquiries, viewings, listing questions, or general support, feel free to contact us anytime. Our team is here to help with all your commercial and residential real estate needs!' }
-        ]);
-        setLoading(false);
-      }, 500);
+    if (quickResponseText) {
+      // Add empty assistant message for streaming effect
+      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+      
+      // Simulate streaming for quick responses
+      let index = 0;
+      const streamInterval = setInterval(() => {
+        if (index < quickResponseText.length) {
+          const chunk = quickResponseText.slice(0, index + 1);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIndex = updated.length - 1;
+            if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+              updated[lastIndex] = { ...updated[lastIndex], content: chunk };
+            }
+            return updated;
+          });
+          index += 2; // Speed up typing effect
+        } else {
+          clearInterval(streamInterval);
+          setLoading(false);
+        }
+      }, 20); // Fast typing speed for quick responses
       return;
     }
 
     try {
-      const conversationMessages = messages.filter(m => m.role !== 'system');
-      const allMessagesForAPI = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...conversationMessages,
-        userMessage
-      ].map(m => ({ role: m.role, content: m.content }));
+      const includeProperties = !isDatasetLoading && shouldSuggestProperties(userContent);
+      const datasetContext = includeProperties ? buildPropertyContext(trimmedInput) : null;
+      const conversationMessages = [...messages, userMessage].filter((m) => m.role !== 'system');
 
-      const response = await fetch(CHATGPT_API_URL, {
+      const allMessagesForAPI = [
+        { role: 'system', content: datasetContext ? `${SYSTEM_PROMPT}\n\n${datasetContext}` : SYSTEM_PROMPT },
+        ...conversationMessages,
+      ].map((m) => ({ role: m.role, content: m.content }));
+
+      // Add streaming assistant message placeholder
+      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+
+      const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-rapidapi-key': RAPIDAPI_KEY,
-          'x-rapidapi-host': RAPIDAPI_HOST,
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'deepseek-chat',
           messages: allMessagesForAPI,
           max_tokens: 500,
           temperature: 0.7,
+          stream: true,
         }),
       });
 
@@ -296,16 +403,85 @@ export default function AIAssistantIcon() {
         throw new Error(`API Error: ${response.status}`);
       }
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || data.content || data.message || 'I apologize, I encountered an error. Please try again or contact us at +1 (917) 209-6200.';
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = '';
+      let buffer = '';
 
-      setMessages((prev) => [...prev, { role: 'assistant', content }]);
+      if (!reader) {
+        throw new Error('No response body reader available');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+
+          if (trimmedLine.startsWith('data: ')) {
+            const data = trimmedLine.slice(6).trim();
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content;
+              
+              if (delta) {
+                accumulatedContent += delta;
+                // Update the last message (assistant message) with accumulated content
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const lastIndex = updated.length - 1;
+                  if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                    updated[lastIndex] = { ...updated[lastIndex], content: accumulatedContent };
+                  }
+                  return updated;
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+              continue;
+            }
+          } else if (trimmedLine.startsWith('{')) {
+            // Handle non-SSE format (direct JSON)
+            try {
+              const parsed = JSON.parse(trimmedLine);
+              const content = parsed.choices?.[0]?.message?.content || parsed.content;
+              if (content) {
+                accumulatedContent = content;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const lastIndex = updated.length - 1;
+                  if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                    updated[lastIndex] = { ...updated[lastIndex], content: accumulatedContent };
+                  }
+                  return updated;
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON
+              continue;
+            }
+          }
+        }
+      }
     } catch (error: any) {
       console.error('AI Assistant error:', error);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'I apologize, I encountered an error. Please feel free to call us at +1 (917) 209-6200 or use the WhatsApp button for immediate assistance. I can also help with property searches, viewing schedules, and answering questions about our listings!' }
-      ]);
+      // Remove the empty assistant message and add error message
+      setMessages((prev) => {
+        const updated = prev.slice(0, -1);
+        updated.push({
+          role: 'assistant',
+          content: 'I apologize, I encountered an error. Please feel free to call us at +1 (917) 209-6200 or use the WhatsApp button for immediate assistance. I can also help with property searches, viewing schedules, and answering questions about our listings!'
+        });
+        return updated;
+      });
     } finally {
       setLoading(false);
     }
@@ -490,15 +666,6 @@ export default function AIAssistantIcon() {
                   </div>
                 </div>
               ))}
-              {showBrokerMessage && !loading && (
-                <div className="flex justify-start">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 max-w-[80%]">
-                    <p className="text-sm text-blue-700">
-                      💬 A broker will be available shortly to assist you with your inquiry...
-                    </p>
-                  </div>
-                </div>
-              )}
               {loading && (
                 <div className="flex justify-start">
                   <div className="bg-gray-100 rounded-lg px-4 py-2">
