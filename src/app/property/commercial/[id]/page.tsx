@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -58,6 +60,7 @@ function FreeMap({ lat, lng, address }: { lat: number; lng: number; address: str
 export default function CommercialPropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const id = typeof params.id === 'string' ? params.id : '';
   const [property, setProperty] = useState<CommercialProperty | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);

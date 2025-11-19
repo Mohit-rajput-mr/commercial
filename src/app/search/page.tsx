@@ -1,12 +1,15 @@
-"use client";
-import { useEffect, useState } from "react";
+'use client';
+
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { searchPropertiesByLocation, ZillowProperty } from "@/lib/us-real-estate-api";
 import { Search, MapPin } from "lucide-react";
 import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [properties, setProperties] = useState<ZillowProperty[]>([]);
@@ -92,5 +95,17 @@ export default function SearchPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white py-8 px-4 md:px-8 max-w-7xl mx-auto flex items-center justify-center">
+        <PropertyGridSkeleton count={8} />
+      </div>
+    }>
+      <SearchPageContent />
+    </Suspense>
   );
 }

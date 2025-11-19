@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import Navigation from '@/components/Navigation';
 import Hero from '@/components/Hero';
 import Listings from '@/components/Listings';

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -25,6 +27,7 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { AddressSuggestion } from '@/lib/addressAutocomplete';
+import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 
 // Simple map component (using iframe for now, can be upgraded to Google Maps API later)
 function MapView({ 
@@ -180,7 +183,7 @@ function PropertyCard({
   );
 }
 
-export default function SearchResultsPage() {
+function SearchResultsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
@@ -572,6 +575,23 @@ export default function SearchResultsPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function SearchResultsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white">
+        <Navigation />
+        <div className="h-[50px] w-full"></div>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <PropertyGridSkeleton count={6} />
+        </div>
+        <Footer />
+      </div>
+    }>
+      <SearchResultsPageContent />
+    </Suspense>
   );
 }
 

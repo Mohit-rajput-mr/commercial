@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { searchProperties, APIProperty } from '@/lib/property-api';
 import { searchCommercial, CommercialProperty } from '@/lib/us-real-estate-api';
@@ -11,7 +13,7 @@ import Footer from '@/components/Footer';
 import { Search, Loader2 } from 'lucide-react';
 import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 
-export default function UnifiedSearchPage() {
+function UnifiedSearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const location = searchParams.get('location') || '';
@@ -190,6 +192,23 @@ export default function UnifiedSearchPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function UnifiedSearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="h-[50px] w-full"></div>
+        <div className="max-w-7xl mx-auto px-4 py-8 md:px-6 md:py-10">
+          <PropertyGridSkeleton count={6} />
+        </div>
+        <Footer />
+      </div>
+    }>
+      <UnifiedSearchPageContent />
+    </Suspense>
   );
 }
 
