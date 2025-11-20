@@ -5,18 +5,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import WhatsAppButton from './WhatsAppButton';
-import AIAssistantIcon from './AIAssistantIcon';
 import TrustedPartners from './TrustedPartners';
 import { setAdminAuthenticated } from '@/lib/admin-storage';
 import { useLocationAutocomplete, LocationSuggestion } from '@/hooks/useLocationAutocomplete';
 
-// Only Lease and Sale tabs
-const tabs = ['Lease', 'Sale'] as const;
+// Sale and Lease tabs (Sale first, Lease second)
+const tabs = ['Sale', 'Lease'] as const;
 
 export default function Hero() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'Lease' | 'Sale'>('Lease');
+  const [activeTab, setActiveTab] = useState<'Lease' | 'Sale'>('Sale');
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -863,12 +861,6 @@ export default function Hero() {
           </>
         )}
       </AnimatePresence>
-
-      {/* WhatsApp Button */}
-      <WhatsAppButton phoneNumber="+1 (917) 209-6200" message="Hello! I'm interested in your properties." />
-
-      {/* AI Assistant Icon - Above WhatsApp */}
-      <AIAssistantIcon />
     </div>
   );
 }

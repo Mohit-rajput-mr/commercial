@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
+import BackToHomeButton from "@/components/BackToHomeButton";
+import AIAssistantIcon from "@/components/AIAssistantIcon";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -36,6 +39,9 @@ export default function RootLayout({
     <html lang="en" className={outfit.variable}>
       <body className="overflow-x-hidden max-w-full">
         <LayoutWrapper>{children}</LayoutWrapper>
+        <BackToHomeButton />
+        <AIAssistantIcon />
+        <WhatsAppButton />
       </body>
     </html>
   );

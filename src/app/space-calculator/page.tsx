@@ -460,159 +460,7 @@ export default function SpaceCalculatorPage() {
       ctx.stroke();
     }
     
-    // Helper function to draw furniture
-    const drawFurniture = (x: number, y: number, w: number, h: number, roomType: string) => {
-      ctx.strokeStyle = '#666666';
-      ctx.fillStyle = '#CCCCCC';
-      ctx.lineWidth = 1;
-      
-      if (roomType === 'private-office') {
-        // Draw desk
-        const deskW = Math.min(w * 0.4, 40);
-        const deskH = Math.min(h * 0.25, 20);
-        ctx.fillRect(x + w * 0.3, y + h * 0.3, deskW, deskH);
-        ctx.strokeRect(x + w * 0.3, y + h * 0.3, deskW, deskH);
-        
-        // Draw chair
-        const chairSize = 8;
-        ctx.beginPath();
-        ctx.arc(x + w * 0.3 + deskW / 2, y + h * 0.3 + deskH + 12, chairSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw filing cabinet
-        ctx.fillRect(x + w * 0.7, y + h * 0.7, 15, 10);
-        ctx.strokeRect(x + w * 0.7, y + h * 0.7, 15, 10);
-      } else if (roomType === 'conference-room') {
-        // Draw conference table
-        const tableW = w * 0.6;
-        const tableH = h * 0.4;
-        ctx.fillRect(x + w * 0.2, y + h * 0.3, tableW, tableH);
-        ctx.strokeRect(x + w * 0.2, y + h * 0.3, tableW, tableH);
-        
-        // Draw chairs around table
-        const chairSize = 6;
-        const numChairs = Math.min(Math.floor(tableW / 20), 8);
-        for (let i = 0; i < numChairs; i++) {
-          const chairX = x + w * 0.2 + (tableW / (numChairs + 1)) * (i + 1);
-          // Top chairs
-          ctx.beginPath();
-          ctx.arc(chairX, y + h * 0.3 - 10, chairSize, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          // Bottom chairs
-          ctx.beginPath();
-          ctx.arc(chairX, y + h * 0.3 + tableH + 10, chairSize, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        }
-      } else if (roomType === 'meeting-room') {
-        // Draw small table
-        const tableSize = Math.min(w, h) * 0.35;
-        ctx.fillRect(x + w / 2 - tableSize / 2, y + h / 2 - tableSize / 2, tableSize, tableSize);
-        ctx.strokeRect(x + w / 2 - tableSize / 2, y + h / 2 - tableSize / 2, tableSize, tableSize);
-        
-        // Draw 4 chairs
-        const chairSize = 6;
-        const positions = [
-          {x: x + w / 2, y: y + h / 2 - tableSize / 2 - 10}, // Top
-          {x: x + w / 2, y: y + h / 2 + tableSize / 2 + 10}, // Bottom
-          {x: x + w / 2 - tableSize / 2 - 10, y: y + h / 2}, // Left
-          {x: x + w / 2 + tableSize / 2 + 10, y: y + h / 2}, // Right
-        ];
-        positions.forEach(pos => {
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, chairSize, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        });
-      } else if (roomType === 'kitchen' || roomType === 'break-room') {
-        // Draw counter
-        const counterW = w * 0.7;
-        ctx.fillRect(x + w * 0.15, y + 10, counterW, 12);
-        ctx.strokeRect(x + w * 0.15, y + 10, counterW, 12);
-        
-        // Draw refrigerator
-        ctx.fillRect(x + 10, y + 10, 18, 25);
-        ctx.strokeRect(x + 10, y + 10, 18, 25);
-        ctx.strokeRect(x + 10, y + 10, 18, 12); // Top door
-        
-        // Draw sink (circles)
-        ctx.beginPath();
-        ctx.arc(x + w * 0.5, y + 16, 6, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Draw table
-        const tableW = w * 0.4;
-        const tableH = h * 0.3;
-        ctx.fillRect(x + w * 0.3, y + h * 0.5, tableW, tableH);
-        ctx.strokeRect(x + w * 0.3, y + h * 0.5, tableW, tableH);
-      } else if (roomType === 'restroom') {
-        // Draw toilet
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(x + w * 0.3, y + h * 0.5, 10, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw sink
-        ctx.beginPath();
-        ctx.arc(x + w * 0.7, y + h * 0.3, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Accessibility symbol
-        ctx.font = 'bold 20px Arial';
-        ctx.fillStyle = '#0066CC';
-        ctx.fillText('♿', x + w * 0.7, y + h * 0.7);
-      } else if (roomType === 'reception') {
-        // Draw reception desk
-        const deskW = w * 0.6;
-        const deskH = h * 0.2;
-        ctx.fillRect(x + w * 0.2, y + h * 0.4, deskW, deskH);
-        ctx.strokeRect(x + w * 0.2, y + h * 0.4, deskW, deskH);
-        
-        // Draw waiting chairs
-        const chairSize = 8;
-        for (let i = 0; i < 3; i++) {
-          ctx.beginPath();
-          ctx.arc(x + w * 0.3 + i * 25, y + h * 0.75, chairSize, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        }
-      } else if (roomType === 'open-workspace') {
-        // Draw cubicles/desks in grid
-        const deskW = 25;
-        const deskH = 20;
-        const rows = Math.floor(h / 40);
-        const cols = Math.floor(w / 40);
-        
-        ctx.fillStyle = '#DDDDDD';
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            const deskX = x + 15 + c * 40;
-            const deskY = y + 15 + r * 40;
-            if (deskX + deskW < x + w - 10 && deskY + deskH < y + h - 10) {
-              ctx.fillRect(deskX, deskY, deskW, deskH);
-              ctx.strokeRect(deskX, deskY, deskW, deskH);
-            }
-          }
-        }
-      } else if (roomType === 'storage' || roomType === 'server-room') {
-        // Draw shelving units
-        const shelfW = w * 0.8;
-        const shelfH = 8;
-        const numShelves = Math.floor(h / 25);
-        
-        for (let i = 0; i < numShelves; i++) {
-          const shelfY = y + 15 + i * 25;
-          if (shelfY + shelfH < y + h - 10) {
-            ctx.fillRect(x + w * 0.1, shelfY, shelfW, shelfH);
-            ctx.strokeRect(x + w * 0.1, shelfY, shelfW, shelfH);
-          }
-        }
-      }
-    };
+    // Furniture drawing removed for clean floor plan - only architectural elements shown
     
     // Draw rooms with walls, doors, labels, and furniture
     scaledRooms.forEach(({room, x, y, w, h}, index) => {
@@ -674,70 +522,37 @@ export default function SpaceCalculatorPage() {
       ctx.fillText(`${roomHeightFt}'`, 0, 0);
       ctx.restore();
       
-      // Room label with background
+      // Room label (no background box)
       const centerX = x + w / 2;
       const centerY = y + h / 2;
       
-      // Label background
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-      const labelPadding = 8;
-      const labelWidth = Math.max(w * 0.8, 80);
-      const labelHeight = 45;
-      ctx.fillRect(
-        centerX - labelWidth / 2,
-        centerY - labelHeight / 2,
-        labelWidth,
-        labelHeight
-      );
-      
-      // Border around label
-      ctx.strokeStyle = room.color;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        centerX - labelWidth / 2,
-        centerY - labelHeight / 2,
-        labelWidth,
-        labelHeight
-      );
-      
-      // Room name
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 13px Arial, sans-serif';
+      // Room name with white outline for visibility
+      ctx.font = 'bold 14px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      
+      // White outline/stroke for better visibility
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      ctx.strokeText(room.name, centerX, centerY - 10);
+      
+      // Black text on top
+      ctx.fillStyle = '#000000';
       ctx.fillText(room.name, centerX, centerY - 10);
       
-      // Room square footage
-      ctx.font = '11px Arial, sans-serif';
-      ctx.fillStyle = '#666666';
+      // Room square footage with outline
+      ctx.font = 'bold 11px Arial, sans-serif';
+      
+      // White outline
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      ctx.strokeText(`${roomSqft} sq ft`, centerX, centerY + 8);
+      
+      // Dark text on top
+      ctx.fillStyle = '#333333';
       ctx.fillText(`${roomSqft} sq ft`, centerX, centerY + 8);
       
-      // Draw furniture and fixtures
-      drawFurniture(x, y, w, h, room.type);
-      
-      // Add electrical outlets (small circles on walls)
-      ctx.fillStyle = '#FF6B6B';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 0.5;
-      const outletSize = 3;
-      // Bottom wall outlets
-      for (let i = 1; i <= 2; i++) {
-        ctx.beginPath();
-        ctx.arc(x + (w / 3) * i, y + h - 5, outletSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      }
-      
-      // Add light fixture symbol (X in ceiling)
-      ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 2;
-      const lightSize = 10;
-      ctx.beginPath();
-      ctx.moveTo(centerX - lightSize, centerY - h * 0.35 - lightSize);
-      ctx.lineTo(centerX + lightSize, centerY - h * 0.35 + lightSize);
-      ctx.moveTo(centerX + lightSize, centerY - h * 0.35 - lightSize);
-      ctx.lineTo(centerX - lightSize, centerY - h * 0.35 + lightSize);
-      ctx.stroke();
+      // Furniture, outlets, and light fixtures removed for clean floor plan
     });
     
     // Draw building entrance (main door)

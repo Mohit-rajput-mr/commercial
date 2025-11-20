@@ -25,7 +25,6 @@ import {
 import { getCommercialDetails, getCommercialImages, CommercialProperty, getAddressString, getCity, getState, getZipcode } from '@/lib/us-real-estate-api';
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
-import ChatWidget from '@/components/ChatWidget';
 import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
 
 // Free OpenStreetMap component
@@ -598,16 +597,6 @@ export default function CommercialPropertyDetailPage() {
       </div>
 
       <Footer />
-
-      {/* Chat Widget */}
-      {property && (
-        <ChatWidget
-          propertyId={property.zpid || id}
-          propertyAddress={addressString}
-          userId={`user-${Math.random().toString(36).substr(2, 9)}`}
-          userName="Guest User"
-        />
-      )}
     </div>
   );
 }

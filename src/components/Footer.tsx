@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Linkedin, Facebook, Instagram, Youtube, Smartphone } from 'lucide-react';
+import { Linkedin, Facebook, Instagram, Youtube } from 'lucide-react';
 
 const footerColumns = [
   {
@@ -65,26 +65,6 @@ export default function Footer() {
                     </motion.a>
                   ))}
                 </div>
-              </div>
-
-              {/* App Downloads */}
-              <div className="space-y-3">
-                <motion.a
-                  href="#"
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center gap-3 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
-                >
-                  <Smartphone size={20} />
-                  <span className="font-semibold">Download on App Store</span>
-                </motion.a>
-                <motion.a
-                  href="#"
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center gap-3 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
-                >
-                  <Smartphone size={20} />
-                  <span className="font-semibold">Get it on Google Play</span>
-                </motion.a>
               </div>
 
               {/* Copyright */}

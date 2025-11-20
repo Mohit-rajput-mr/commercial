@@ -532,7 +532,7 @@ export default function AIAssistantIcon() {
       {/* AI Assistant Icon Button */}
       <motion.div
         ref={iconRef}
-        className="fixed bottom-[5.5rem] sm:bottom-[5.5rem] md:bottom-24 right-3 sm:right-4 md:right-6 w-12 h-12 sm:w-12 sm:h-12 md:w-14 md:h-14 z-50 cursor-pointer"
+        className="fixed bottom-[9.5rem] sm:bottom-[11rem] md:bottom-[12rem] right-4 sm:right-5 md:right-6 w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 z-50 cursor-pointer"
         onClick={handleIconClick}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -672,43 +672,43 @@ export default function AIAssistantIcon() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:inset-auto md:top-auto md:left-auto md:translate-x-0 md:translate-y-0 md:bottom-20 md:right-6 w-[calc(100%-2rem)] max-w-[350px] h-[70vh] max-h-[500px] md:w-96 md:h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col border border-gray-200 mx-4 md:mx-0"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:inset-auto md:top-auto md:left-auto md:translate-x-0 md:translate-y-0 md:bottom-20 md:right-6 w-[90%] max-w-[400px] h-[75vh] max-h-[550px] md:w-96 md:h-[500px] bg-white rounded-2xl shadow-2xl z-50 flex flex-col border border-gray-200"
             >
-            <div className="bg-accent-yellow px-3 md:px-4 py-2.5 md:py-3 rounded-t-lg flex items-center justify-between">
+            <div className="bg-accent-yellow px-4 py-3 rounded-t-2xl flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <User size={18} className="sm:w-5 sm:h-5 text-primary-black" />
-                <h3 className="font-bold text-sm sm:text-base text-primary-black">AI Assistant</h3>
+                <User size={20} className="text-primary-black" />
+                <h3 className="font-bold text-base text-primary-black">AI Assistant</h3>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-primary-black hover:bg-yellow-400 rounded p-1 transition-colors touch-manipulation"
+                className="text-primary-black hover:bg-yellow-400 rounded-full p-1.5 transition-colors touch-manipulation"
                 aria-label="Close chat"
               >
-                <X size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
               {messages.map((message, index) => (
                 <div
                   key={index}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 py-2 sm:px-4 ${
+                    className={`max-w-[80%] rounded-xl px-3 py-2.5 shadow-sm ${
                       message.role === 'user'
                         ? 'bg-accent-yellow text-primary-black'
                         : 'bg-gray-100 text-primary-black'
                     }`}
                   >
-                    <p className="text-xs sm:text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
                   </div>
                 </div>
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-lg px-4 py-2">
-                    <div className="flex gap-1">
+                  <div className="bg-gray-100 rounded-xl px-4 py-3 shadow-sm">
+                    <div className="flex gap-1.5">
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -719,7 +719,7 @@ export default function AIAssistantIcon() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="border-t border-gray-200 p-3 md:p-4">
+            <div className="border-t border-gray-200 p-3 md:p-4 bg-gray-50">
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -727,15 +727,15 @@ export default function AIAssistantIcon() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Ask about properties..."
-                  className="flex-1 px-3 py-2 sm:px-4 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:border-accent-yellow"
+                  className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:border-accent-yellow focus:ring-2 focus:ring-accent-yellow/20 transition-all"
                   disabled={loading}
                 />
                 <button
                   onClick={sendMessage}
                   disabled={loading || !input.trim()}
-                  className="px-3 py-2 sm:px-4 bg-accent-yellow text-primary-black rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[40px] sm:min-w-[48px]"
+                  className="px-4 py-2.5 bg-accent-yellow text-primary-black rounded-xl hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[48px] shadow-sm"
                 >
-                  <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <Send size={18} />
                 </button>
               </div>
             </div>
