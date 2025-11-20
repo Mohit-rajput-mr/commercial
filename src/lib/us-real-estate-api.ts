@@ -203,6 +203,7 @@ export async function searchCommercial(
   
   try {
     const data = await loadCommercialData();
+    console.log('Commercial search - Data loaded:', data.length, 'properties, Query:', searchQuery);
     
     const filtered = (data as RawCommercialData[])
       .filter((item) => {
@@ -222,9 +223,13 @@ export async function searchCommercial(
         const zip = String(item.zip || '').toLowerCase().trim();
         const address = String(item.address || '').toLowerCase().trim();
         
+        // If no search query, show all properties (after type filters)
         if (!searchQuery || searchQuery.trim() === '') {
           return true;
         }
+        
+        // Create a full address string for matching (normalize spaces)
+        const fullAddress = `${address} ${city} ${state} ${zip}`.toLowerCase().replace(/\s+/g, ' ').trim();
         
         const stateAbbreviations: { [key: string]: string } = {
           'alabama': 'al', 'alaska': 'ak', 'arizona': 'az', 'arkansas': 'ar',
@@ -242,16 +247,80 @@ export async function searchCommercial(
           'wisconsin': 'wi', 'wyoming': 'wy'
         };
         
-        if (city.includes(searchQuery) || state.includes(searchQuery) || zip.includes(searchQuery) || address.includes(searchQuery)) {
+        // Normalize search query - remove commas and normalize spaces
+        const normalizedQuery = searchQuery.replace(/,/g, '').replace(/\s+/g, ' ').trim();
+        const searchWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+        
+        // Filter out very short words (1 char) but keep 2+ char words
+        const meaningfulWords = searchWords.filter(w => w.length >= 2);
+        
+        // If no meaningful words after filtering, use original query
+        if (meaningfulWords.length === 0 && searchWords.length > 0) {
+          meaningfulWords.push(normalizedQuery);
+        }
+        
+        // VERY LENIENT MATCHING - match if ANY word appears in ANY field
+        
+        // 1. Check if full address contains the entire query
+        if (fullAddress.includes(normalizedQuery)) {
           return true;
         }
         
+        // 2. Check individual components with full query
+        if (city.includes(normalizedQuery) || 
+            state.includes(normalizedQuery) || 
+            zip.includes(normalizedQuery) || 
+            address.includes(normalizedQuery)) {
+          return true;
+        }
+        
+        // 3. STATE MATCHING - Check state abbreviations and full names
         for (const [stateName, abbrev] of Object.entries(stateAbbreviations)) {
-          if (searchQuery === stateName && state === abbrev) {
+          // If query is a state name/abbrev and property is in that state
+          if ((normalizedQuery === stateName || normalizedQuery === abbrev) && state === abbrev) {
             return true;
           }
-          if (searchQuery === abbrev && state === abbrev) {
+          // If query contains state name/abbrev and property is in that state
+          if ((normalizedQuery.includes(stateName) || normalizedQuery.includes(abbrev)) && state === abbrev) {
             return true;
+          }
+        }
+        
+        // 4. SINGLE KEYWORD MATCHING - If ANY word matches ANY field, include it
+        // This is the most lenient - works for single keywords like "New", "York", "Main", etc.
+        for (const word of meaningfulWords) {
+          // Skip single character words
+          if (word.length < 2) continue;
+          
+          // Check if word appears in any field
+          if (city.includes(word) || 
+              state.includes(word) || 
+              zip.includes(word) || 
+              address.includes(word) ||
+              fullAddress.includes(word)) {
+            return true;
+          }
+          
+          // Also check state abbreviations for single words
+          for (const [stateName, abbrev] of Object.entries(stateAbbreviations)) {
+            if ((word === stateName || word === abbrev) && state === abbrev) {
+              return true;
+            }
+          }
+        }
+        
+        // 5. PARTIAL MATCHING - Check if any part of the query appears anywhere
+        // Split query into smaller chunks for partial matching
+        if (normalizedQuery.length >= 3) {
+          // Check if any 3+ character substring matches
+          for (let i = 0; i <= normalizedQuery.length - 3; i++) {
+            const substring = normalizedQuery.substring(i, i + 3);
+            if (fullAddress.includes(substring) ||
+                city.includes(substring) ||
+                state.includes(substring) ||
+                address.includes(substring)) {
+              return true;
+            }
           }
         }
         
@@ -260,6 +329,7 @@ export async function searchCommercial(
       .map(normalizeProperty);
     
     const responseTime = Date.now() - startTime;
+    console.log('Commercial search - Results:', filtered.length, 'properties found in', responseTime, 'ms');
     
     return {
       props: filtered,
@@ -358,23 +428,34 @@ const ZILLOW_API_BASE_URL = 'https://zillow-com1.p.rapidapi.com';
 
 function getZillowHeaders(): Record<string, string> {
   return {
-    'x-rapidapi-key': process.env.NEXT_PUBLIC_RAPIDAPI_KEY || 'faf657766emsha74fedf2f6947fdp14c2b1jsn61fd3e532c38',
+    'x-rapidapi-key': process.env.NEXT_PUBLIC_RAPIDAPI_KEY || '1a7e203e13msh15e124fc4fe90ddp1f1544jsneca3781dffe8',
     'x-rapidapi-host': process.env.NEXT_PUBLIC_RAPIDAPI_HOST || 'zillow-com1.p.rapidapi.com',
   };
 }
 
 /**
  * Search properties by location using Zillow API
+ * Supports: city, state, zip code, address, or combinations like "City, State"
  */
 export async function searchPropertiesByLocation(
   location: string,
   statusType: 'ForSale' | 'ForRent' = 'ForSale'
 ): Promise<ZillowProperty[]> {
   try {
+    // Normalize location string - trim and ensure proper format
+    const normalizedLocation = location.trim();
+    
+    if (!normalizedLocation) {
+      console.warn('Empty location provided to searchPropertiesByLocation');
+      return [];
+    }
+
     const params = new URLSearchParams({
-      location,
+      location: normalizedLocation,
       status_type: statusType,
     });
+
+    console.log(`🔍 Zillow API Search: location="${normalizedLocation}", status="${statusType}"`);
 
     const response = await fetch(`${ZILLOW_API_BASE_URL}/propertyExtendedSearch?${params.toString()}`, {
       method: 'GET',
@@ -383,12 +464,14 @@ export async function searchPropertiesByLocation(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Zillow API Error (${response.status}): ${errorText || response.statusText}`);
+      console.error(`❌ Zillow API Error (${response.status}): ${errorText || response.statusText}`);
       return [];
     }
 
     const data = await response.json();
     const props = data.props || data || [];
+    
+    console.log(`✅ Zillow API Results: ${props.length} properties found for "${normalizedLocation}"`);
     
     // Normalize properties to ZillowProperty format
     return props.map((item: any): ZillowProperty => {

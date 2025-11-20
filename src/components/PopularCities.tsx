@@ -3,35 +3,55 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
+// Top 7 US cities for real estate
 const cities = [
   {
     name: 'New York City',
+    state: 'NY',
     imageUrl: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80',
   },
   {
-    name: 'London',
-    imageUrl: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80',
-  },
-  {
-    name: 'Paris',
-    imageUrl: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80',
-  },
-  {
-    name: 'Madrid',
-    imageUrl: 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=800&q=80',
-  },
-  {
-    name: 'Toronto',
-    imageUrl: 'https://images.unsplash.com/photo-1517935706615-2717063c2225?w=800&q=80',
-  },
-  {
     name: 'Los Angeles',
-    imageUrl: 'https://images.unsplash.com/photo-1534190239940-9ba8944ea261?w=800&q=80',
+    state: 'CA',
+    imageUrl: 'https://images.pexels.com/photos/15516367/pexels-photo-15516367.jpeg?cs=srgb&dl=pexels-solyartphotos-15516367.jpg&fm=jpg',
+  },
+  {
+    name: 'Chicago',
+    state: 'IL',
+    imageUrl: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80',
+  },
+  {
+    name: 'Houston',
+    state: 'TX',
+    imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
+  },
+  {
+    name: 'Phoenix',
+    state: 'AZ',
+    imageUrl: 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=800&q=80',
+  },
+  {
+    name: 'Philadelphia',
+    state: 'PA',
+    imageUrl: 'https://wallpapers.com/images/hd/philly-ssjhnbdr9wp0rg4f.jpg',
+  },
+  {
+    name: 'San Antonio',
+    state: 'TX',
+    imageUrl: 'https://images.unsplash.com/photo-1599410110298-56ab00841c11?w=800&q=80',
+  },
+  {
+    name: 'Miami',
+    state: 'FL',
+    imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
   },
 ];
 
 export default function PopularCities() {
+  const router = useRouter();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -68,6 +88,28 @@ export default function PopularCities() {
     }
   };
 
+  const handleCityClick = (city: typeof cities[0]) => {
+    // Map city names to slugs for market pages
+    const citySlugMap: Record<string, string> = {
+      'New York City': 'new-york',
+      'Los Angeles': 'los-angeles',
+      'Chicago': 'chicago',
+      'Houston': 'houston',
+      'Phoenix': 'phoenix',
+      'Philadelphia': 'philadelphia',
+      'San Antonio': 'san-antonio',
+      'Miami': 'miami',
+    };
+    
+    const slug = citySlugMap[city.name];
+    if (slug) {
+      router.push(`/markets/${slug}`);
+    } else {
+      // Fallback to unified search if no market page exists
+      const location = `${city.name}, ${city.state}`;
+      router.push(`/unified-search?location=${encodeURIComponent(location)}&status=ForSale`);
+    }
+  };
 
   return (
     <div className="py-20 px-5 bg-white">
@@ -79,7 +121,7 @@ export default function PopularCities() {
           transition={{ duration: 0.6 }}
           className="text-4xl md:text-5xl font-bold text-primary-black mb-12 text-center"
         >
-          Explore Popular Cities
+          Explore Cities
         </motion.h2>
 
         <div className="relative">
@@ -121,15 +163,26 @@ export default function PopularCities() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   whileHover={{ y: -10, scale: 1.02 }}
+                  onClick={() => handleCityClick(city)}
                   className="relative w-[calc(50vw-1.5rem)] md:w-80 h-48 md:h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer group flex-shrink-0"
                 >
-                  <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${city.imageUrl})` }}
-                  />
+                  <div className="absolute inset-0">
+                    <Image
+                      src={city.imageUrl}
+                      alt={city.name}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                      onError={(e) => {
+                        // Fallback to a placeholder if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=800&q=80';
+                      }}
+                    />
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-6">
                     <h3 className="text-2xl font-bold text-white">{city.name}</h3>
+                    <p className="text-white/80 text-sm mt-1">{city.state}</p>
                   </div>
                 </motion.div>
               ))}
@@ -140,4 +193,3 @@ export default function PopularCities() {
     </div>
   );
 }
-

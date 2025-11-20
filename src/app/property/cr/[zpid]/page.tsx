@@ -74,6 +74,7 @@ export default function CRPropertyDetailPage() {
     if (params.zpid && typeof params.zpid === 'string') {
       loadProperty();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.zpid]);
 
   const loadProperty = async () => {

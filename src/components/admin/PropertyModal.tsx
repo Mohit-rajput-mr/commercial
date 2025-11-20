@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2 } from 'lucide-react';
+import Image from 'next/image';
 import type { AdminProperty } from '@/types/admin';
 import {
   getAdminProperties,
@@ -572,9 +573,11 @@ export default function PropertyModal({ isOpen, onClose, property, onSave }: Pro
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {(formData.images || []).map((image, index) => (
                       <div key={index} className="relative group">
-                        <img
+                        <Image
                           src={image}
                           alt={`Property ${index + 1}`}
+                          width={200}
+                          height={128}
                           className="w-full h-32 object-cover rounded-lg"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;

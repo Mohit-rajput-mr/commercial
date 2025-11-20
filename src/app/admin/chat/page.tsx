@@ -27,6 +27,7 @@ export default function LiveChatPage() {
     loadChats();
     const interval = setInterval(loadChats, 2000); // Poll every 2 seconds
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function LiveChatPage() {
       markChatAsRead(selectedChat.id);
       loadChats();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat]);
 
   useEffect(() => {

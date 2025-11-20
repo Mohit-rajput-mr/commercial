@@ -2,53 +2,27 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Store, Factory, Wrench, Users, Hospital, Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft } from 'lucide-react';
+import { Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import type { TabType, PropertyType } from '@/types';
-import { allProperties } from '@/data/sampleProperties';
-import { useLocationAutocomplete, LocationSuggestion } from '@/hooks/useLocationAutocomplete';
 import WhatsAppButton from './WhatsAppButton';
-import SearchDropdown from './SearchDropdown';
 import AIAssistantIcon from './AIAssistantIcon';
+import TrustedPartners from './TrustedPartners';
 import { setAdminAuthenticated } from '@/lib/admin-storage';
+import { useLocationAutocomplete, LocationSuggestion } from '@/hooks/useLocationAutocomplete';
 
-const tabs: TabType[] = ['For Lease', 'For Sale', 'Auctions', 'Businesses For Sale'];
-
-const propertyTypes: { icon: any; label: PropertyType }[] = [
-  { icon: Building2, label: 'Office' },
-  { icon: Store, label: 'Retail' },
-  { icon: Factory, label: 'Industrial' },
-  { icon: Wrench, label: 'Flex' },
-  { icon: Users, label: 'Coworking' },
-  { icon: Hospital, label: 'Medical' },
-];
-
-const stats = [
-  { number: '300K+', label: 'Active Listings' },
-  { number: '13M+', label: 'Monthly Visitors' },
-  { number: '$380B+', label: 'In Transaction Value' },
-];
-
-const companies = [
-  { name: 'Adobe', logo: '/assets/adobe.png' },
-  { name: 'Brookfield', logo: '/assets/brookfield.png' },
-  { name: 'Disney', logo: '/assets/disney.png' },
-  { name: 'eBay', logo: '/assets/ebay.png' },
-  { name: 'FedEx', logo: '/assets/fedex.png' },
-  { name: 'Nuveen', logo: '/assets/Nuveen.png' },
-  { name: 'PepsiCo', logo: '/assets/pepsico.png' },
-  { name: 'Walmart', logo: '/assets/walmart.png' },
-];
+// Only Lease and Sale tabs
+const tabs = ['Lease', 'Sale'] as const;
 
 export default function Hero() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>('For Lease');
-  const [selectedType, setSelectedType] = useState<PropertyType | null>(null);
+  const [activeTab, setActiveTab] = useState<'Lease' | 'Sale'>('Lease');
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { suggestions, loading, error } = useLocationAutocomplete(searchQuery);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { suggestions, loading: suggestionsLoading } = useLocationAutocomplete(searchQuery);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -229,51 +203,88 @@ export default function Hero() {
     console.log(`Login with ${provider}`);
   };
 
-  const handleSearch = () => {
-    const query = searchQuery.trim();
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+        setSelectedIndex(-1);
+      }
+    };
+
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [dropdownOpen]);
+
+  const handleSearch = (location?: string) => {
+    const query = (location || searchQuery.trim());
     if (!query) return;
     const params = new URLSearchParams();
     params.set('location', query);
-    // Pass activeTab (For Lease/For Sale) to search
-    const status = activeTab === 'For Sale' ? 'ForSale' : 'ForRent';
+    // Pass activeTab (Lease/Sale) to search
+    const status = activeTab === 'Sale' ? 'ForSale' : 'ForRent';
     params.set('status', status);
-    if (selectedType) {
-      params.set('type', selectedType);
-    }
+    setDropdownOpen(false);
+    setSelectedIndex(-1);
     window.location.href = `/unified-search?${params.toString()}`;
   };
 
   const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
-    setDropdownOpen(false);
-    setSearchQuery('');
-    let params = new URLSearchParams();
+    let location = '';
     switch (suggestion.area_type) {
       case 'city':
-        params.set('location', `${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        location = `${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
         break;
       case 'neighborhood':
-        params.set('location', `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        location = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
         break;
       case 'school':
-        params.set('location', `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        location = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
         break;
       case 'postal_code':
-        params.set('location', `${suggestion.postal_code || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim());
+        location = `${suggestion.postal_code || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
         break;
       case 'address':
-        params.set('location', suggestion.full_address || '');
+        location = suggestion.full_address || '';
         break;
       case 'county':
-        params.set('location', `${suggestion.county || ''}, ${suggestion.state_code || ''}`.trim());
+        location = `${suggestion.county || ''}, ${suggestion.state_code || ''}`.trim();
         break;
+      default:
+        location = suggestion.full_address || suggestion.name || '';
     }
-    // Pass activeTab (For Lease/For Sale) to search
-    const status = activeTab === 'For Sale' ? 'ForSale' : activeTab === 'For Lease' ? 'ForRent' : 'ForSale';
-    params.set('status', status);
-    if (selectedType) {
-      params.set('type', selectedType);
+    setSearchQuery(location);
+    handleSearch(location);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+        handleSelectSuggestion(suggestions[selectedIndex]);
+      } else if (suggestions.length > 0) {
+        handleSelectSuggestion(suggestions[0]);
+      } else {
+        handleSearch();
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setDropdownOpen(true);
+      setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+    } else if (e.key === 'Escape') {
+      setDropdownOpen(false);
+      setSelectedIndex(-1);
     }
-    window.location.href = `/unified-search?${params.toString()}`;
   };
 
   return (
@@ -296,17 +307,15 @@ export default function Hero() {
         }} />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-5 pt-[70px]">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-5 md:px-6 pt-[70px] flex flex-col justify-center items-center min-h-[calc(100vh-70px)]">
         {/* Hero Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
-          className="text-center text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white mb-8 md:mb-8 leading-tight px-1 sm:px-2 md:px-4"
+          className="text-center text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white mb-6 sm:mb-8 md:mb-8 leading-tight w-full max-w-4xl mx-auto"
         >
-          The World&apos;s <span className="text-accent-yellow drop-shadow-[0_0_25px_rgba(255,215,0,0.5)]">#1</span> Commercial
-          <br />
-          Real Estate Marketplace
+          Trusted Commercial <span className="text-accent-yellow">Real Estate</span> Deal Management Professional.
         </motion.h1>
 
         {/* Search Panel */}
@@ -314,190 +323,151 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
-          className="max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-lg md:rounded-xl p-4 md:p-4 shadow-2xl border border-white/20"
+          className="w-full max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-lg md:rounded-xl p-4 sm:p-5 md:p-6 shadow-2xl border border-white/20"
         >
-          {/* Tabs */}
-          <div className="flex flex-wrap gap-2 md:gap-2 mb-6 md:mb-4 pb-3 md:pb-2 border-b border-white/20">
+          {/* Tabs - Only Lease and Sale, centered */}
+          <div className="flex gap-2 mb-6 sm:mb-6 md:mb-4 pb-3 sm:pb-3 md:pb-2 border-b border-white/20 justify-center">
             {tabs.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 md:px-3 py-2 md:py-1.5 font-semibold text-xs md:text-xs transition-all relative rounded-md ${
+                onClick={() => setActiveTab(tab as 'Lease' | 'Sale')}
+                className={`px-6 sm:px-8 md:px-10 py-2 sm:py-2.5 md:py-2 font-semibold text-sm sm:text-base md:text-base transition-all relative rounded-md ${
                   activeTab === tab
-                    ? 'text-white bg-white/10'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    ? 'text-primary-black bg-accent-yellow'
+                    : 'text-white bg-white/10 hover:bg-white/20'
                 }`}
               >
                 {tab}
                 {activeTab === tab && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-[-13px] md:bottom-[-17px] left-0 right-0 h-0.5 md:h-1 bg-accent-yellow shadow-[0_0_10px_rgba(255,215,0,0.5)]"
+                    className="absolute bottom-[-13px] sm:bottom-[-13px] md:bottom-[-17px] left-0 right-0 h-0.5 sm:h-0.5 md:h-1 bg-accent-yellow shadow-[0_0_10px_rgba(255,215,0,0.5)]"
                   />
                 )}
               </button>
             ))}
           </div>
 
-          {/* Property Types */}
-          <div className="overflow-x-auto overflow-y-hidden scrollbar-hide mb-6 md:mb-4 -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x">
-            <div className="flex md:grid md:grid-cols-6 gap-2 md:gap-2 min-w-max md:min-w-0">
-              {propertyTypes.map(({ label, icon: Icon }) => (
-                <motion.button
-                  key={label}
-                  onClick={() => setSelectedType(label)}
-                  className={`flex flex-col items-center gap-1.5 md:gap-1 p-2.5 md:p-2 rounded-lg border transition-all group flex-shrink-0 w-[calc(33.333%-0.5rem)] md:w-auto ${
-                    selectedType === label
-                      ? 'border-accent-yellow bg-accent-yellow/20 shadow-lg shadow-accent-yellow/20'
-                      : 'border-white/20'
-                  }`}
-                >
-                  <div className={`w-8 h-8 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all ${
-                    selectedType === label
-                      ? 'bg-accent-yellow text-primary-black'
-                      : 'bg-transparent text-accent-yellow'
-                  }`}>
-                    <Icon size={16} className="md:w-3.5 md:h-3.5" />
-                  </div>
-                  <span className="text-xs md:text-sm font-semibold text-white">{label}</span>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
           {/* Search Box */}
-          <div className="flex flex-col sm:flex-row gap-2 md:gap-2">
-            <div className="flex-1 relative">
+          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex flex-col sm:flex-row gap-3 sm:gap-2 md:gap-2 w-full">
+            <div className="flex-1 relative w-full">
               <input
                 ref={inputRef}
-                className="w-full px-4 md:px-4 py-3 md:py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm md:text-xs text-white placeholder-gray-300 focus:outline-none focus:border-accent-yellow focus:bg-white/15 transition-all pr-10"
+                className="w-full px-4 sm:px-4 md:px-4 py-3 sm:py-3 md:py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm sm:text-sm md:text-base text-white placeholder-gray-300 focus:outline-none focus:border-accent-yellow focus:bg-white/15 transition-all pr-10"
                 placeholder="Enter a location (City, State, or ZIP)"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  if (e.target.value.length >= 2) setDropdownOpen(true);
-                  else setDropdownOpen(false);
+                  setDropdownOpen(e.target.value.length >= 2);
+                  setSelectedIndex(-1);
                 }}
-                onFocus={() => searchQuery.length >= 2 && setDropdownOpen(true)}
-                onBlur={() => setTimeout(() => setDropdownOpen(false), 100)}
+                onFocus={() => {
+                  if (searchQuery.length >= 2 && suggestions.length > 0) {
+                    setDropdownOpen(true);
+                  }
+                }}
+                onKeyDown={handleKeyPress}
                 autoComplete="off"
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => {
                     setSearchQuery('');
+                    setDropdownOpen(false);
+                    setSelectedIndex(-1);
                     inputRef.current?.focus();
                   }}
-                  className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors z-10"
+                  className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors z-20"
                   tabIndex={-1}
-                  type="button"
                 >
                   <X size={16} />
                 </button>
               )}
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                {loading ? (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10">
+                {suggestionsLoading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-yellow"></div>
                 ) : (
-                  <Search size={18} className="md:w-5 md:h-5" />
+                  <Search size={18} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
                 )}
               </span>
-              {/* Autocomplete Dropdown - Separate component using Portal */}
-              <SearchDropdown
-                isOpen={dropdownOpen}
-                onClose={() => setDropdownOpen(false)}
-                suggestions={suggestions}
-                loading={loading}
-                error={error}
-                onSelect={handleSelectSuggestion}
-                triggerElement={inputRef.current}
-              />
+              
+              {/* Autocomplete Dropdown */}
+              {dropdownOpen && suggestions.length > 0 && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute z-50 w-full mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-80 overflow-y-auto"
+                >
+                  {suggestions.map((suggestion, index) => {
+                    let displayText = '';
+                    switch (suggestion.area_type) {
+                      case 'city':
+                        displayText = `${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
+                        break;
+                      case 'neighborhood':
+                        displayText = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
+                        break;
+                      case 'school':
+                        displayText = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
+                        break;
+                      case 'postal_code':
+                        displayText = `${suggestion.postal_code || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
+                        break;
+                      case 'address':
+                        displayText = suggestion.full_address || '';
+                        break;
+                      case 'county':
+                        displayText = `${suggestion.county || ''}, ${suggestion.state_code || ''}`.trim();
+                        break;
+                      default:
+                        displayText = suggestion.full_address || suggestion.name || '';
+                    }
+                    
+                    return (
+                      <button
+                        key={suggestion.slug_id || index}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(suggestion)}
+                        className={`w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0 ${
+                          selectedIndex === index ? 'bg-accent-yellow/20' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin size={16} className="text-gray-400 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-primary-black truncate">{displayText}</p>
+                            <p className="text-xs text-gray-500 capitalize">{suggestion.area_type.replace('_', ' ')}</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <motion.button
+              type="submit"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={handleSearch}
-              className="px-6 md:px-5 py-3 md:py-2.5 bg-accent-yellow text-primary-black rounded-lg font-bold text-sm md:text-xs flex items-center justify-center gap-2 hover:bg-yellow-400 transition-all shadow-lg shadow-accent-yellow/30"
+              className="w-full sm:w-auto px-6 sm:px-5 md:px-5 py-3 sm:py-3 md:py-2.5 bg-accent-yellow text-primary-black rounded-lg font-bold text-sm sm:text-sm md:text-base flex items-center justify-center gap-2 hover:bg-yellow-400 transition-all shadow-lg shadow-accent-yellow/30"
             >
-              <Search size={18} className="md:w-5 md:h-5" />
+              <Search size={18} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
               <span className="hidden sm:inline">Search Properties</span>
               <span className="sm:hidden">Search</span>
             </motion.button>
-          </div>
+          </form>
         </motion.div>
 
-        {/* Stats Section - Mobile First */}
+        {/* Trusted Partners Section */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4 }}
-          className="mt-8 md:mt-12 relative z-[1]"
+          className="w-full max-w-7xl mx-auto mt-8 md:mt-12"
         >
-          <p className="text-center text-white text-sm md:text-base lg:text-lg font-semibold mb-4 md:mb-6 px-3 md:px-4">
-            For over 30 years, Cap Rate has been the trusted brand for Commercial Real Estate
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-3 lg:gap-4 px-3 md:px-0">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.6 + index * 0.1 }}
-                className="bg-white/5 backdrop-blur-md border border-accent-yellow/30 rounded-lg p-4 md:p-4 lg:p-6 text-center transition-all hover:bg-white/10"
-              >
-                <div className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-extrabold text-accent-yellow mb-1 md:mb-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)] leading-tight">
-                  {stat.number}
-                </div>
-                <div className="text-xs sm:text-sm md:text-sm lg:text-base text-white font-medium">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
+          <TrustedPartners />
         </motion.div>
 
-        {/* Companies Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.8 }}
-          className="mt-12 md:mt-8 text-center"
-        >
-          <h3 className="text-lg md:text-lg lg:text-xl font-semibold text-white mb-6 md:mb-4 px-4">
-            Trusted by Industry Leaders Worldwide
-          </h3>
-
-          <div className="relative overflow-hidden py-4">
-            <div className="flex gap-8 md:gap-12 animate-scroll">
-              {[...companies, ...companies].map((company, index) => (
-                <div
-                  key={`${company.name}-${index}`}
-                  className="min-w-[120px] md:min-w-[120px] h-16 md:h-14 flex items-center justify-center group transition-all duration-300"
-                >
-                  <Image
-                    src={company.logo}
-                    alt={company.name}
-                    width={120}
-                    height={60}
-                    className="object-contain w-full h-full transition-all duration-300"
-                    unoptimized
-                    onError={(e) => {
-                      // Fallback: hide image and show text
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent && !parent.querySelector('.fallback-text')) {
-                        const fallback = document.createElement('span');
-                        fallback.className = 'fallback-text font-bold text-base md:text-xl text-white';
-                        fallback.textContent = company.name;
-                        parent.appendChild(fallback);
-                      }
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
       </div>
 
       {/* Login Modal - Inside Hero Section */}
@@ -811,11 +781,7 @@ export default function Hero() {
                   {
                     title: 'Search',
                     items: [
-                      { icon: Search, label: 'Search For Sale', href: '/?tab=For Sale' },
-                      { icon: Search, label: 'Search For Lease', href: '/?tab=For Lease' },
                       { icon: Search, label: 'Search Auctions', href: '/?tab=Auctions' },
-                      { icon: Search, label: 'Search For Businesses', href: '#' },
-                      { icon: Search, label: 'Find a Broker', href: '#' },
                     ],
                   },
                   {
@@ -836,60 +802,32 @@ export default function Hero() {
                   {
                     title: 'Tools',
                     items: [
-                      { icon: Plus, label: 'Add a Listing', href: '/advertise', expandable: true },
-                      { icon: Megaphone, label: 'Marketing Center', href: '/advertise' },
                       { icon: HelpCircle, label: 'Help Center', href: '#' },
-                      { icon: Megaphone, label: 'Advertise', href: '/advertise', highlight: true },
                     ],
                   },
                 ].map((section, sectionIndex) => (
                   <div key={section.title}>
                     {section.items.map((item) => {
                       const Icon = item.icon;
-                      const isExpandable = item.expandable;
-                      const isExpanded = expandedSection === item.label;
-                      const isHighlight = item.highlight;
+                      const isExpandable = false;
+                      const isExpanded = false;
 
                       return (
                         <div key={item.label}>
                           <button
                             onClick={() => {
-                              if (isExpandable) {
-                                setExpandedSection(expandedSection === item.label ? null : item.label);
-                              } else if (item.href.startsWith('/')) {
+                              if (item.href && item.href.startsWith('/')) {
                                 window.location.href = item.href;
                                 setIsSidebarOpen(false);
                               }
                             }}
-                            className={`w-full flex items-center justify-between px-6 py-4 hover:bg-light-gray transition-colors ${
-                              isHighlight ? 'text-accent-yellow font-semibold' : 'text-primary-black'
-                            }`}
+                            className="w-full flex items-center justify-between px-6 py-4 hover:bg-light-gray transition-colors text-primary-black"
                           >
                             <div className="flex items-center gap-3">
                               <Icon size={20} />
                               <span>{item.label}</span>
                             </div>
-                            {isExpandable && (
-                              isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />
-                            )}
                           </button>
-                          {isExpandable && isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="pl-14 pr-6 pb-2 space-y-2">
-                                <a href="/advertise" className="block py-2 text-sm text-custom-gray hover:text-primary-black">
-                                  List Property
-                                </a>
-                                <a href="/advertise" className="block py-2 text-sm text-custom-gray hover:text-primary-black">
-                                  Manage Listings
-                                </a>
-                              </div>
-                            </motion.div>
-                          )}
                         </div>
                       );
                     })}

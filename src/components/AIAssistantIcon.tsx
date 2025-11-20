@@ -532,7 +532,7 @@ export default function AIAssistantIcon() {
       {/* AI Assistant Icon Button */}
       <motion.div
         ref={iconRef}
-        className="fixed bottom-[5.5rem] right-3 md:bottom-24 md:right-6 w-12 h-12 md:w-14 md:h-14 z-50 cursor-pointer"
+        className="fixed bottom-[5.5rem] sm:bottom-[5.5rem] md:bottom-24 right-3 sm:right-4 md:right-6 w-12 h-12 sm:w-12 sm:h-12 md:w-14 md:h-14 z-50 cursor-pointer"
         onClick={handleIconClick}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -659,12 +659,21 @@ export default function AIAssistantIcon() {
       {/* Chat Widget - Positioned on the right side */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95, x: 20 }}
-            animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95, x: 20 }}
-            className="fixed bottom-20 md:bottom-40 right-2 md:right-6 left-2 md:left-auto w-[calc(100vw-1rem)] md:w-96 h-[calc(100vh-5rem)] md:h-[600px] bg-white rounded-lg shadow-2xl z-50 flex flex-col border border-gray-200 max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-12rem)]"
-          >
+          <>
+            {/* Backdrop for mobile */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:inset-auto md:top-auto md:left-auto md:translate-x-0 md:translate-y-0 md:bottom-20 md:right-6 w-[calc(100%-2rem)] max-w-[350px] h-[70vh] max-h-[500px] md:w-96 md:h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col border border-gray-200 mx-4 md:mx-0"
+            >
             <div className="bg-accent-yellow px-3 md:px-4 py-2.5 md:py-3 rounded-t-lg flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <User size={18} className="sm:w-5 sm:h-5 text-primary-black" />
@@ -730,7 +739,8 @@ export default function AIAssistantIcon() {
                 </button>
               </div>
             </div>
-          </motion.div>
+            </motion.div>
+            </>
         )}
       </AnimatePresence>
     </>

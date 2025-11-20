@@ -69,7 +69,9 @@ async function fetchForSaleTrending(limit = 8): Promise<TrendingProperty[]> {
     locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
     sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
     typeLabel: item.propertyTypeDetailed || item.propertyType || 'Commercial Property',
-    imageUrl: item.images?.[0] || '/assets/logoRE.png',
+    imageUrl: (item.images && item.images.length > 0 && item.images[0] && item.images[0].startsWith('http')) 
+      ? item.images[0] 
+      : '/assets/logoRE.png',
     link: `/property/commercial/${item.propertyId || `sale-${index}`}`,
     isExternal: false,
   }));
@@ -104,7 +106,9 @@ async function fetchForLeaseTrending(limit = 8): Promise<TrendingProperty[]> {
     locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
     sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
     typeLabel: item.propertyTypeDetailed || item.propertyType || 'Commercial Property',
-    imageUrl: item.images?.[0] || '/assets/logoRE.png',
+    imageUrl: (item.images && item.images.length > 0 && item.images[0] && item.images[0].startsWith('http')) 
+      ? item.images[0] 
+      : '/assets/logoRE.png',
     link: `/property/commercial/${item.propertyId || `lease-${index}`}`,
     isExternal: false,
   }));
@@ -134,7 +138,9 @@ async function fetchAuctionTrending(limit = 8): Promise<TrendingProperty[]> {
     locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
     sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
     typeLabel: item.propertyTypeDetailed || item.propertyType || 'Auction Property',
-    imageUrl: item.images?.[0] || '/assets/logoRE.png',
+    imageUrl: (item.images && item.images.length > 0 && item.images[0] && item.images[0].startsWith('http')) 
+      ? item.images[0] 
+      : '/assets/logoRE.png',
     link: `/property/commercial/${item.propertyId || `auction-${index}`}`,
     isExternal: false,
   }));

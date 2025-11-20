@@ -11,7 +11,7 @@ const footerColumns = [
   },
   {
     title: 'Products & Services',
-    links: ['Advertise With Us', 'LoopLink', 'Help'],
+    links: ['LoopLink', 'Help'],
   },
   {
     title: 'Marketplace',

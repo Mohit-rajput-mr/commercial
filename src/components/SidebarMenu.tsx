@@ -74,10 +74,8 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
     {
       title: 'Tools',
       items: [
-        { icon: Plus, label: 'Add a Listing', href: '/advertise', expandable: true },
-        { icon: Megaphone, label: 'Marketing Center', href: '/advertise' },
         { icon: HelpCircle, label: 'Help Center', href: '#' },
-        { icon: Megaphone, label: 'Advertise', href: '/advertise', highlight: true },
+        { icon: Search, label: 'API Test', href: '/api-test' },
       ],
     },
   ];
@@ -125,7 +123,7 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
           >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="relative h-8 w-32">
+              <div className="relative h-8 w-32 bg-black/80 backdrop-blur-md rounded-lg px-3 py-2 flex items-center justify-center">
                 <Image
                   src="/assets/logoRE.png"
                   alt="Cap Rate"
@@ -147,9 +145,9 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
                 <div key={section.title}>
                   {section.items.map((item, itemIndex) => {
                     const Icon = item.icon;
-                    const isExpandable = item.expandable;
+                    const isExpandable = (item as any).expandable || false;
                     const isExpanded = expandedSection === item.label;
-                    const isHighlight = item.highlight;
+                    const isHighlight = (item as any).highlight || false;
 
                     return (
                       <div key={item.label}>
@@ -173,23 +171,6 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
                             isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />
                           )}
                         </button>
-                        {isExpandable && isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="pl-14 pr-6 pb-2 space-y-2">
-                              <a href="/advertise" className="block py-2 text-sm text-custom-gray hover:text-primary-black">
-                                List Property
-                              </a>
-                              <a href="/advertise" className="block py-2 text-sm text-custom-gray hover:text-primary-black">
-                                Manage Listings
-                              </a>
-                            </div>
-                          </motion.div>
-                        )}
                       </div>
                     );
                   })}

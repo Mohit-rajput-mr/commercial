@@ -40,6 +40,18 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.pexels.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'wallpapers.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   // Disable static generation for dynamic routes to avoid build errors

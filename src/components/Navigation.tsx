@@ -83,18 +83,18 @@ export default function Navigation() {
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleLoginClick}
-            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-accent-yellow rounded-lg text-white font-semibold transition-all duration-300 hover:bg-accent-yellow hover:text-primary-black text-xs md:text-sm"
+            onClick={() => router.push('/api-test')}
+            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-white/30 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-white/20 hover:border-white/50 text-xs md:text-sm"
           >
-            Log In
+            API Test
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => router.push('/advertise')}
-            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] bg-accent-yellow text-primary-black rounded-lg font-semibold transition-all duration-300 hover:bg-yellow-400 hover:shadow-lg hover:shadow-accent-yellow/40 text-xs md:text-sm"
+            onClick={handleLoginClick}
+            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-accent-yellow rounded-lg text-white font-semibold transition-all duration-300 hover:bg-accent-yellow hover:text-primary-black text-xs md:text-sm"
           >
-            Advertise
+            Log In
           </motion.button>
         </div>
 

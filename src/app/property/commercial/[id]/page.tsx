@@ -71,6 +71,7 @@ export default function CommercialPropertyDetailPage() {
     if (params.id && typeof params.id === 'string') {
       loadProperty();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   const loadProperty = async () => {
