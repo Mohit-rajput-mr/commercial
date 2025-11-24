@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   Building2,
   Users,
-  MessageSquare,
   Settings,
   LogOut,
   Bell,
@@ -18,13 +17,12 @@ import {
   X,
   ChevronRight,
 } from 'lucide-react';
-import { isAdminAuthenticated, setAdminAuthenticated, getAdminChats, getAdminProfile } from '@/lib/admin-storage';
+import { isAdminAuthenticated, setAdminAuthenticated, getAdminProfile } from '@/lib/admin-storage';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Properties', href: '/admin/properties', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Live Chat', href: '/admin/chat', icon: MessageSquare },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
@@ -33,10 +31,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [profile, setProfile] = useState({ name: 'Admin', email: 'admin' });
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
     // Check authentication
     if (!isAdminAuthenticated()) {
       router.push('/admin/login');
@@ -46,16 +46,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Load profile
     const adminProfile = getAdminProfile();
     setProfile(adminProfile);
-
-    // Load unread chat count
-    const updateUnreadCount = () => {
-      const chats = getAdminChats();
-      const unread = chats.reduce((sum, chat) => sum + chat.unreadCount, 0);
-      setUnreadCount(unread);
-    };
-    updateUnreadCount();
-    const interval = setInterval(updateUnreadCount, 2000);
-    return () => clearInterval(interval);
   }, [router]);
 
   const handleLogout = () => {
@@ -68,13 +58,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (path === 'dashboard') return 'Dashboard';
     if (path === 'properties') return 'Properties Management';
     if (path === 'users') return 'User Management';
-    if (path === 'chat') return 'Live Chat';
     if (path === 'settings') return 'Settings';
     return 'Admin Panel';
   };
 
-  if (!isAdminAuthenticated()) {
-    return null; // Will redirect
+  if (!mounted || !isAdminAuthenticated()) {
+    return null; // Prevent hydration mismatch
   }
 
   return (
@@ -99,7 +88,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <SidebarContent
                 pathname={pathname}
-                unreadCount={unreadCount}
                 onClose={() => setSidebarOpen(false)}
                 onLogout={handleLogout}
               />
@@ -114,7 +102,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex-1 flex flex-col bg-primary-black text-white">
             <SidebarContent
               pathname={pathname}
-              unreadCount={unreadCount}
               onLogout={handleLogout}
             />
           </div>
@@ -143,17 +130,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
 
               <div className="flex items-center gap-4">
-                {/* Notifications */}
-                <div className="relative">
-                  <button className="p-2 hover:bg-gray-100 rounded-lg relative">
-                    <Bell size={20} className="text-primary-black" />
-                    {unreadCount > 0 && (
-                      <span className="absolute top-1 right-1 w-5 h-5 bg-accent-yellow text-primary-black rounded-full text-xs font-bold flex items-center justify-center">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </button>
-                </div>
 
                 {/* Profile Dropdown */}
                 <div className="relative">
@@ -211,12 +187,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 function SidebarContent({
   pathname,
-  unreadCount,
   onClose,
   onLogout,
 }: {
   pathname: string;
-  unreadCount: number;
   onClose?: () => void;
   onLogout: () => void;
 }) {
@@ -251,11 +225,6 @@ function SidebarContent({
             >
               <Icon size={20} />
               <span>{item.name}</span>
-              {item.name === 'Live Chat' && unreadCount > 0 && (
-                <span className="ml-auto bg-accent-yellow text-primary-black rounded-full px-2 py-0.5 text-xs font-bold">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
             </Link>
           );
         })}

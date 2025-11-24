@@ -49,6 +49,7 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     if (params.id && typeof params.id === 'string') {
+      // First try local data
       const propertyData = getPropertyDetailById(params.id);
       if (propertyData) {
         setProperty(propertyData);
@@ -66,6 +67,123 @@ export default function PropertyDetailPage() {
             .then(setWeather)
             .catch(() => setWeather(null));
         }
+      } else {
+        // If not found in local data, try fetching from database
+        // Try both UUID and zpid
+        Promise.all([
+          fetch(`/api/properties/${params.id}`).then(res => res.json()),
+          fetch(`/api/properties?search=${encodeURIComponent(params.id)}&limit=1`).then(res => res.json())
+        ])
+          .then(([byIdData, bySearchData]) => {
+            let dbProperty = null;
+            
+            // Try by ID first
+            if (byIdData.success && byIdData.property) {
+              dbProperty = byIdData.property;
+            }
+            // Try by search (zpid or address)
+            else if (bySearchData.success && bySearchData.properties && bySearchData.properties.length > 0) {
+              // Find exact match by zpid or id
+              dbProperty = bySearchData.properties.find((p: any) => 
+                p.id === params.id || p.zpid === params.id
+              ) || bySearchData.properties[0];
+            }
+            
+            if (dbProperty) {
+              // Convert database property to PropertyDetail format
+              const convertedProperty: PropertyDetail = {
+                id: dbProperty.id,
+                address: dbProperty.address,
+                city: dbProperty.city,
+                state: dbProperty.state,
+                zipCode: dbProperty.zip,
+                price: dbProperty.price_text || `$${dbProperty.price?.toLocaleString() || 'N/A'}`,
+                priceValue: dbProperty.price || 0,
+                status: dbProperty.status,
+                type: dbProperty.property_type,
+                beds: dbProperty.beds || 0,
+                baths: dbProperty.baths || 0,
+                size: dbProperty.sqft ? `${dbProperty.sqft} SF` : (dbProperty.living_area ? `${dbProperty.living_area} SF` : 'N/A'),
+                pricePerSF: dbProperty.price && dbProperty.sqft ? Math.round(dbProperty.price / dbProperty.sqft) : 0,
+                lotSize: dbProperty.lot_size ? `${dbProperty.lot_size} SF` : undefined,
+                yearBuilt: dbProperty.year_built,
+                description: dbProperty.description || '',
+                title: `${dbProperty.address} - ${dbProperty.city}`,
+                subtitle: `${dbProperty.property_type} Available in ${dbProperty.city}, ${dbProperty.state}`,
+                has3DTour: false,
+                imageGallery: Array.isArray(dbProperty.images) 
+                  ? dbProperty.images.map((url: string, index: number) => ({
+                      url,
+                      alt: `${dbProperty.address} - Image ${index + 1}`,
+                      type: index === 0 ? 'exterior' as const : (index % 2 === 0 ? 'interior' as const : 'amenity' as const)
+                    }))
+                  : [],
+                transportation: {
+                  transit: [],
+                  commuterRail: [],
+                  airport: { name: 'Local Airport', driveTime: 'N/A', distance: 'N/A' }
+                },
+                nearbyAmenities: { restaurants: [] },
+                amenities: Array.isArray(dbProperty.features) ? dbProperty.features : [],
+                owner: {
+                  name: dbProperty.contact_name || 'Property Owner',
+                  logo: '',
+                  description: 'Contact us for more information about this property.',
+                  website: '#'
+                },
+                relatedProperties: [],
+                metadata: {
+                  listingId: dbProperty.zpid || dbProperty.id,
+                  dateOnMarket: new Date(dbProperty.created_at || Date.now()).toLocaleDateString(),
+                  lastUpdated: new Date(dbProperty.updated_at || Date.now()).toLocaleDateString()
+                },
+                location: dbProperty.latitude && dbProperty.longitude ? {
+                  lat: dbProperty.latitude,
+                  lng: dbProperty.longitude,
+                  mapUrl: `https://www.google.com/maps?q=${dbProperty.latitude},${dbProperty.longitude}`
+                } : {
+                  lat: 39.7392,
+                  lng: -104.9903,
+                  mapUrl: 'https://www.google.com/maps?q=39.7392,-104.9903'
+                },
+                imageUrl: Array.isArray(dbProperty.images) && dbProperty.images.length > 0 ? dbProperty.images[0] : '',
+                images: Array.isArray(dbProperty.images) ? dbProperty.images : [],
+                highlights: Array.isArray(dbProperty.features) ? dbProperty.features : [],
+                spaceAvailability: [],
+                agent: {
+                  id: dbProperty.id || 'agent-1',
+                  name: dbProperty.contact_name || 'Agent',
+                  photo: '',
+                  email: dbProperty.contact_email || '',
+                  phone: dbProperty.contact_phone || '',
+                  company: 'Real Estate Company',
+                  companyLogo: ''
+                },
+                coordinates: dbProperty.latitude && dbProperty.longitude ? {
+                  lat: dbProperty.latitude,
+                  lng: dbProperty.longitude
+                } : undefined
+              };
+              setProperty(convertedProperty);
+              // Load favorite status
+              const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+              setIsFavorite(favorites.includes(params.id) || favorites.includes(dbProperty.zpid));
+              // Initialize loan amount
+              if (convertedProperty.priceValue) {
+                setLoanAmount(convertedProperty.priceValue);
+              }
+              // Fetch weather data
+              if (convertedProperty.location) {
+                const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+                getWeatherData(convertedProperty.location.lat, convertedProperty.location.lng, apiKey)
+                  .then(setWeather)
+                  .catch(() => setWeather(null));
+              }
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching property from database:', err);
+          });
       }
     }
   }, [params.id]);

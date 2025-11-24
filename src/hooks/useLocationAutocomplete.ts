@@ -53,20 +53,57 @@ export function useLocationAutocomplete(input: string) : UseLocationAutocomplete
     abortRef.current = abortController;
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `${API_URL}?input=${encodeURIComponent(input)}`,
-          {
-            method: 'GET',
-            headers: {
-              'x-rapidapi-key': RAPID_KEY,
-              'x-rapidapi-host': RAPID_HOST,
-            },
-            signal: abortController.signal,
+        // First, try to get database suggestions
+        let databaseSuggestions: LocationSuggestion[] = [];
+        try {
+          const dbRes = await fetch(
+            `/api/properties/autocomplete?q=${encodeURIComponent(input)}&limit=5`,
+            { signal: abortController.signal }
+          );
+          if (dbRes.ok) {
+            const dbData = await dbRes.json();
+            if (dbData.success && dbData.suggestions) {
+              databaseSuggestions = dbData.suggestions.map((s: any) => ({
+                area_type: 'address' as LocationAreaType,
+                city: s.city,
+                state_code: s.state,
+                postal_code: s.zipCode,
+                name: s.address,
+                full_address: s.fullAddress,
+                slug_id: s.id || s.zpid,
+              }));
+            }
           }
-        );
-        if (!res.ok) throw new Error(`API error (${res.status})`);
-        const data = await res.json();
-        setSuggestions(Array.isArray(data.autocomplete) ? data.autocomplete : (data.data?.results ?? []));
+        } catch (dbErr) {
+          // Ignore database errors, continue with API
+        }
+
+        // Then try external API
+        let apiSuggestions: LocationSuggestion[] = [];
+        try {
+          const res = await fetch(
+            `${API_URL}?input=${encodeURIComponent(input)}`,
+            {
+              method: 'GET',
+              headers: {
+                'x-rapidapi-key': RAPID_KEY,
+                'x-rapidapi-host': RAPID_HOST,
+              },
+              signal: abortController.signal,
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            apiSuggestions = Array.isArray(data.autocomplete) ? data.autocomplete : (data.data?.results ?? []);
+          }
+        } catch (apiErr: any) {
+          if (apiErr.name !== 'AbortError') {
+            console.error('API error:', apiErr);
+          }
+        }
+
+        // Combine: database first, then API
+        setSuggestions([...databaseSuggestions, ...apiSuggestions]);
         setError(null);
       } catch (err:any) {
         if (err.name === 'AbortError') return;
@@ -84,6 +121,9 @@ export function useLocationAutocomplete(input: string) : UseLocationAutocomplete
 
   return { suggestions, loading, error, fetchCount };
 }
+
+
+
 
 
 

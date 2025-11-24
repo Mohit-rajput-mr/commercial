@@ -76,6 +76,7 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
       items: [
         { icon: HelpCircle, label: 'Help Center', href: '#' },
         { icon: Search, label: 'API Test', href: '/api-test' },
+        { icon: Search, label: 'Zillow API 2.0', href: '/zillow' },
       ],
     },
   ];

@@ -67,6 +67,22 @@ export default function APITestPage() {
       <div className="h-[50px] w-full"></div>
       
       <div className="max-w-7xl mx-auto px-4 py-8 md:px-8">
+        {/* Quick Navigation */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <button
+            onClick={() => router.push('/zillow')}
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+          >
+            🏠 Zillow Search
+          </button>
+          <button
+            onClick={() => router.push('/streeteasy')}
+            className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md"
+          >
+            🏙️ StreetEasy Search
+          </button>
+        </div>
+
         <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-8 border border-gray-100">
           <h1 className="text-3xl md:text-4xl font-bold text-primary-black mb-2">API Test Page</h1>
           <p className="text-gray-600 mb-6">
@@ -251,4 +267,5 @@ export default function APITestPage() {
     </div>
   );
 }
+
 

@@ -42,6 +42,13 @@ interface Template {
   rooms: {[key: string]: { enabled: boolean; quantity: number }};
 }
 
+interface BuildingShape {
+  id: string;
+  name: string;
+  description: string;
+  icon: (props: { selected: boolean }) => JSX.Element;
+}
+
 // Room type definitions with default sizes and colors
 const ROOM_TYPES = {
   'private-office': { name: 'Private Office', defaultSize: 120, color: '#3B82F6', minSize: 80 },
@@ -56,6 +63,129 @@ const ROOM_TYPES = {
   'server-room': { name: 'Server Room', defaultSize: 100, color: '#DC2626', minSize: 60 },
   'copy-room': { name: 'Copy Room', defaultSize: 80, color: '#14B8A6', minSize: 50 },
 };
+
+// Building Shape Visual Components
+const ShapeIcon = ({ shape, selected }: { shape: string; selected: boolean }) => {
+  const baseClass = `transition-all ${selected ? 'fill-accent-yellow stroke-primary-black' : 'fill-gray-200 stroke-gray-400'}`;
+  const strokeWidth = selected ? '3' : '2';
+  
+  switch (shape) {
+    case 'square':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <rect x="15" y="15" width="70" height="70" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    case 'rectangle':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <rect x="10" y="25" width="80" height="50" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    case 'l-shape':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 15 15 L 60 15 L 60 45 L 85 45 L 85 85 L 15 85 Z" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    case 'u-shape':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 15 15 L 40 15 L 40 70 L 60 70 L 60 15 L 85 15 L 85 85 L 15 85 Z" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    case 't-shape':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 15 15 L 85 15 L 85 40 L 60 40 L 60 85 L 40 85 L 40 40 L 15 40 Z" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    case 'h-shape':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 15 15 L 35 15 L 35 40 L 65 40 L 65 15 L 85 15 L 85 85 L 65 85 L 65 60 L 35 60 L 35 85 L 15 85 Z" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    case 'courtyard':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 15 15 L 85 15 L 85 85 L 15 85 Z M 35 35 L 65 35 L 65 65 L 35 65 Z" className={baseClass} strokeWidth={strokeWidth} fillRule="evenodd" />
+        </svg>
+      );
+    case 'plus-shape':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 35 15 L 65 15 L 65 35 L 85 35 L 85 65 L 65 65 L 65 85 L 35 85 L 35 65 L 15 65 L 15 35 L 35 35 Z" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    case 'z-shape':
+      return (
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <path d="M 15 15 L 85 15 L 85 40 L 40 40 L 40 60 L 85 60 L 85 85 L 15 85 L 15 60 L 60 60 L 60 40 L 15 40 Z" className={baseClass} strokeWidth={strokeWidth} />
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
+// Building shapes configuration
+const BUILDING_SHAPES: BuildingShape[] = [
+  {
+    id: 'square',
+    name: 'Square',
+    description: 'Equal sides, efficient layout',
+    icon: ({ selected }) => <ShapeIcon shape="square" selected={selected} />,
+  },
+  {
+    id: 'rectangle',
+    name: 'Rectangle',
+    description: 'Classic elongated design',
+    icon: ({ selected }) => <ShapeIcon shape="rectangle" selected={selected} />,
+  },
+  {
+    id: 'l-shape',
+    name: 'L-Shape',
+    description: 'Corner lot, dual wings',
+    icon: ({ selected }) => <ShapeIcon shape="l-shape" selected={selected} />,
+  },
+  {
+    id: 'u-shape',
+    name: 'U-Shape',
+    description: 'Courtyard access, three wings',
+    icon: ({ selected }) => <ShapeIcon shape="u-shape" selected={selected} />,
+  },
+  {
+    id: 't-shape',
+    name: 'T-Shape',
+    description: 'Central corridor with wing',
+    icon: ({ selected }) => <ShapeIcon shape="t-shape" selected={selected} />,
+  },
+  {
+    id: 'h-shape',
+    name: 'H-Shape',
+    description: 'Dual wings with connector',
+    icon: ({ selected }) => <ShapeIcon shape="h-shape" selected={selected} />,
+  },
+  {
+    id: 'courtyard',
+    name: 'Courtyard',
+    description: 'Central open space',
+    icon: ({ selected }) => <ShapeIcon shape="courtyard" selected={selected} />,
+  },
+  {
+    id: 'plus-shape',
+    name: 'Plus Shape',
+    description: 'Four-wing radial design',
+    icon: ({ selected }) => <ShapeIcon shape="plus-shape" selected={selected} />,
+  },
+  {
+    id: 'z-shape',
+    name: 'Z-Shape',
+    description: 'Offset wings, modern design',
+    icon: ({ selected }) => <ShapeIcon shape="z-shape" selected={selected} />,
+  },
+];
 
 // Templates
 const TEMPLATES: Template[] = [
@@ -129,7 +259,7 @@ export default function SpaceCalculatorPage() {
   const [propertyType, setPropertyType] = useState('Office');
   const [employees, setEmployees] = useState(25);
   const [sqftPerPerson, setSqftPerPerson] = useState(150);
-  const [buildingShape, setBuildingShape] = useState<'square' | 'rectangle' | 'l-shape' | 'u-shape'>('rectangle');
+  const [buildingShape, setBuildingShape] = useState<'square' | 'rectangle' | 'l-shape' | 'u-shape' | 't-shape' | 'h-shape' | 'courtyard' | 'plus-shape' | 'z-shape'>('rectangle');
   
   // Room selections
   const [selectedRooms, setSelectedRooms] = useState<{[key: string]: { enabled: boolean; quantity: number; customSize?: number }}>({
@@ -192,6 +322,24 @@ export default function SpaceCalculatorPage() {
           buildingWidth = Math.sqrt(totalArea * 1.4);
           buildingHeight = buildingWidth * 0.8;
           break;
+        case 't-shape':
+          buildingWidth = Math.sqrt(totalArea * 1.4);
+          buildingHeight = buildingWidth * 0.9;
+          break;
+        case 'h-shape':
+          buildingWidth = Math.sqrt(totalArea * 1.5);
+          buildingHeight = buildingWidth * 0.85;
+          break;
+        case 'courtyard':
+          buildingWidth = buildingHeight = Math.sqrt(totalArea * 1.25);
+          break;
+        case 'plus-shape':
+          buildingWidth = buildingHeight = Math.sqrt(totalArea * 1.3);
+          break;
+        case 'z-shape':
+          buildingWidth = Math.sqrt(totalArea * 1.45);
+          buildingHeight = buildingWidth * 0.75;
+          break;
       }
       
       // Calculate corridor space (15% of total)
@@ -238,7 +386,65 @@ export default function SpaceCalculatorPage() {
         return (priority[a.type] || 99) - (priority[b.type] || 99);
       });
       
-      // Intelligent room placement algorithm
+      // Helper function to check if a position is valid for the building shape
+      const isValidPosition = (x: number, y: number, w: number, h: number): boolean => {
+        const margin = 20;
+        const maxX = buildingWidth - margin;
+        const maxY = buildingHeight - margin;
+        
+        // Check if room fits within basic bounds
+        if (x < margin || y < margin || x + w > maxX || y + h > maxY) {
+          return false;
+        }
+        
+        // Additional checks for complex shapes
+        switch (buildingShape) {
+          case 'l-shape':
+            // Avoid top-right corner
+            const lCutoffX = buildingWidth * 0.6;
+            const lCutoffY = buildingHeight * 0.5;
+            if (x > lCutoffX && y < lCutoffY) {
+              return false;
+            }
+            break;
+            
+          case 'u-shape':
+            // Avoid center gap
+            const uGapLeft = buildingWidth * 0.25;
+            const uGapRight = buildingWidth * 0.75;
+            const uGapTop = buildingHeight * 0.4;
+            if (x > uGapLeft && x < uGapRight && y < uGapTop) {
+              return false;
+            }
+            break;
+            
+          case 't-shape':
+            // Avoid side areas in top section
+            const tTopHeight = buildingHeight * 0.3;
+            const tStemLeft = buildingWidth * 0.3;
+            const tStemRight = buildingWidth * 0.7;
+            if (y < tTopHeight && (x < tStemLeft || x > tStemRight)) {
+              return false;
+            }
+            break;
+            
+          case 'courtyard':
+            // Avoid center courtyard
+            const courtyardMargin = buildingWidth * 0.25;
+            const centerLeft = courtyardMargin;
+            const centerRight = buildingWidth - courtyardMargin;
+            const centerTop = courtyardMargin;
+            const centerBottom = buildingHeight - courtyardMargin;
+            if (x > centerLeft && x < centerRight && y > centerTop && y < centerBottom) {
+              return false;
+            }
+            break;
+        }
+        
+        return true;
+      };
+      
+      // Intelligent room placement algorithm with shape awareness
       sortedRooms.forEach((room) => {
         const scaledSize = room.size * scaleFactor;
         
@@ -263,14 +469,38 @@ export default function SpaceCalculatorPage() {
           height = scaledSize / width;
         }
         
+        // Find valid position for room
+        let attempts = 0;
+        let validPosition = false;
+        let finalX = currentX;
+        let finalY = currentY;
+        
+        while (!validPosition && attempts < 50) {
+          if (isValidPosition(currentX, currentY, width, height)) {
+            validPosition = true;
+            finalX = currentX;
+            finalY = currentY;
+          } else {
+            // Try next position
+            currentY += height + padding;
+            
+            // Wrap to next column if needed
+            if (currentY > buildingHeight - 50) {
+              currentX += width + corridorWidth + padding;
+              currentY = 20;
+            }
+          }
+          attempts++;
+        }
+        
         rooms.push({
           id: `room-${roomId++}`,
           type: room.type,
           name: ROOM_TYPES[room.type as keyof typeof ROOM_TYPES].name,
           width,
           height,
-          x: currentX,
-          y: currentY,
+          x: finalX,
+          y: finalY,
           color: ROOM_TYPES[room.type as keyof typeof ROOM_TYPES].color,
           quantity: 1,
           isRequired: room.type === 'reception' || room.type === 'restroom',
@@ -344,6 +574,24 @@ export default function SpaceCalculatorPage() {
         buildingWidth = Math.sqrt(buildingArea * 1.5);
         buildingHeight = buildingWidth * 0.8;
         break;
+      case 't-shape':
+        buildingWidth = Math.sqrt(buildingArea * 1.4);
+        buildingHeight = buildingWidth * 0.9;
+        break;
+      case 'h-shape':
+        buildingWidth = Math.sqrt(buildingArea * 1.5);
+        buildingHeight = buildingWidth * 0.85;
+        break;
+      case 'courtyard':
+        buildingWidth = buildingHeight = Math.sqrt(buildingArea * 1.25);
+        break;
+      case 'plus-shape':
+        buildingWidth = buildingHeight = Math.sqrt(buildingArea * 1.3);
+        break;
+      case 'z-shape':
+        buildingWidth = Math.sqrt(buildingArea * 1.45);
+        buildingHeight = buildingWidth * 0.75;
+        break;
     }
     
     // Scale factor to fit canvas
@@ -355,40 +603,158 @@ export default function SpaceCalculatorPage() {
     const startX = padding + (availableWidth - buildingWidth * scale) / 2;
     const startY = 80;
     
-    // Draw outer walls (thick black lines)
+    // Draw outer walls based on building shape
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = wallThickness;
     ctx.fillStyle = '#F5F5F5';
     const outerWidth = buildingWidth * scale;
     const outerHeight = buildingHeight * scale;
-    ctx.fillRect(startX, startY, outerWidth, outerHeight);
-    ctx.strokeRect(startX, startY, outerWidth, outerHeight);
     
-    // Calculate room dimensions with proper spacing
-    const corridorWidth = 50; // corridor width in pixels
-    const roomPadding = 3;
+    // Draw building shape outline
+    ctx.beginPath();
     
-    // Group rooms by type for intelligent placement
-    const roomsByType: {[key: string]: Room[]} = {};
-    placedRooms.forEach((room) => {
-      if (!roomsByType[room.type]) {
-        roomsByType[room.type] = [];
-      }
-      roomsByType[room.type].push(room);
-    });
+    switch (buildingShape) {
+      case 'square':
+      case 'rectangle':
+        ctx.rect(startX, startY, outerWidth, outerHeight);
+        break;
+        
+      case 'l-shape':
+        // L-shape: main rectangle + side extension
+        const lMainWidth = outerWidth * 0.6;
+        const lExtWidth = outerWidth * 0.4;
+        const lMainHeight = outerHeight;
+        const lExtHeight = outerHeight * 0.5;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + lMainWidth, startY);
+        ctx.lineTo(startX + lMainWidth, startY + lExtHeight);
+        ctx.lineTo(startX + outerWidth, startY + lExtHeight);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        break;
+        
+      case 'u-shape':
+        // U-shape: three sections with gap in middle
+        const uSideWidth = outerWidth * 0.25;
+        const uGapWidth = outerWidth * 0.5;
+        const uGapDepth = outerHeight * 0.4;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX + uSideWidth + uGapWidth, startY + outerHeight);
+        ctx.lineTo(startX + uSideWidth + uGapWidth, startY + uGapDepth);
+        ctx.lineTo(startX + uSideWidth, startY + uGapDepth);
+        ctx.lineTo(startX + uSideWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        break;
+        
+      case 't-shape':
+        // T-shape: horizontal top + vertical stem
+        const tTopHeight = outerHeight * 0.3;
+        const tStemWidth = outerWidth * 0.4;
+        const tStemOffset = (outerWidth - tStemWidth) / 2;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + tTopHeight);
+        ctx.lineTo(startX + tStemOffset + tStemWidth, startY + tTopHeight);
+        ctx.lineTo(startX + tStemOffset + tStemWidth, startY + outerHeight);
+        ctx.lineTo(startX + tStemOffset, startY + outerHeight);
+        ctx.lineTo(startX + tStemOffset, startY + tTopHeight);
+        ctx.lineTo(startX, startY + tTopHeight);
+        ctx.closePath();
+        break;
+        
+      case 'h-shape':
+        // H-shape: two vertical bars connected by horizontal
+        const hBarWidth = outerWidth * 0.25;
+        const hConnectorHeight = outerHeight * 0.3;
+        const hConnectorTop = (outerHeight - hConnectorHeight) / 2;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + hBarWidth, startY);
+        ctx.lineTo(startX + hBarWidth, startY + hConnectorTop);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY + hConnectorTop);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY + outerHeight);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY + hConnectorTop + hConnectorHeight);
+        ctx.lineTo(startX + hBarWidth, startY + hConnectorTop + hConnectorHeight);
+        ctx.lineTo(startX + hBarWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        break;
+        
+      case 'courtyard':
+        // Courtyard: outer square with inner square cutout
+        const courtyardInnerMargin = outerWidth * 0.25;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        // Inner courtyard (will be drawn separately)
+        ctx.moveTo(startX + courtyardInnerMargin, startY + courtyardInnerMargin);
+        ctx.lineTo(startX + outerWidth - courtyardInnerMargin, startY + courtyardInnerMargin);
+        ctx.lineTo(startX + outerWidth - courtyardInnerMargin, startY + outerHeight - courtyardInnerMargin);
+        ctx.lineTo(startX + courtyardInnerMargin, startY + outerHeight - courtyardInnerMargin);
+        ctx.closePath();
+        break;
+        
+      case 'plus-shape':
+        // Plus shape: cross with four wings
+        const plusArmWidth = outerWidth * 0.35;
+        const plusArmOffset = (outerWidth - plusArmWidth) / 2;
+        ctx.moveTo(startX + plusArmOffset, startY);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY + plusArmOffset);
+        ctx.lineTo(startX + outerWidth, startY + plusArmOffset);
+        ctx.lineTo(startX + outerWidth, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY + outerHeight);
+        ctx.lineTo(startX + plusArmOffset, startY + outerHeight);
+        ctx.lineTo(startX + plusArmOffset, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX, startY + plusArmOffset);
+        ctx.lineTo(startX + plusArmOffset, startY + plusArmOffset);
+        ctx.closePath();
+        break;
+        
+      case 'z-shape':
+        // Z-shape: offset rectangles
+        const zTopHeight = outerHeight * 0.35;
+        const zMidHeight = outerHeight * 0.3;
+        const zBotHeight = outerHeight * 0.35;
+        const zOffset = outerWidth * 0.3;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + zTopHeight);
+        ctx.lineTo(startX + zOffset + (outerWidth - zOffset) * 0.5, startY + zTopHeight);
+        ctx.lineTo(startX + outerWidth, startY + zTopHeight + zMidHeight);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.lineTo(startX, startY + zTopHeight + zMidHeight);
+        ctx.lineTo(startX + (outerWidth - zOffset) * 0.5, startY + zTopHeight + zMidHeight);
+        ctx.lineTo(startX, startY + zTopHeight);
+        ctx.closePath();
+        break;
+    }
     
-    // Calculate scaled room dimensions
+    ctx.fill();
+    ctx.stroke();
+    
+    // Calculate available space for rooms (accounting for walls and margins)
+    const margin = wallThickness + 15;
+    const roomPadding = 10; // Padding between rooms
+    const corridorSpace = 15; // Space for corridors between rows
+    
+    // Calculate total room area needed
     const totalRoomArea = placedRooms.reduce((sum, r) => sum + (r.width * r.height), 0);
-    const usableArea = buildingArea * 0.75; // 25% for corridors
-    const roomScale = Math.sqrt(usableArea / totalRoomArea);
+    const usableArea = buildingArea * 0.55; // 45% for corridors and circulation
     
-    // Layout algorithm: place rooms in a grid-like pattern
-    let currentX = startX + wallThickness + roomPadding;
-    let currentY = startY + wallThickness + roomPadding;
-    let maxRowHeight = 0;
-    let rowStartX = currentX;
-    
-    const scaledRooms: {room: Room; x: number; y: number; w: number; h: number}[] = [];
+    // Calculate scale factor to fit all rooms within available space
+    let roomScale = Math.sqrt(usableArea / totalRoomArea);
     
     // Sort rooms for better layout
     const sortedRooms = [...placedRooms].sort((a, b) => {
@@ -408,57 +774,177 @@ export default function SpaceCalculatorPage() {
       return (priority[a.type] || 99) - (priority[b.type] || 99);
     });
     
-    // Place rooms with intelligent layout
+    // Helper function to check if a rectangle is within the building shape
+    const isWithinBuildingShape = (x: number, y: number, w: number, h: number): boolean => {
+      // Normalize coordinates relative to building start
+      const relX = x - startX;
+      const relY = y - startY;
+      const relX2 = relX + w;
+      const relY2 = relY + h;
+      
+      // Check all four corners of the room
+      const checkPoint = (px: number, py: number): boolean => {
+        switch (buildingShape) {
+          case 'square':
+          case 'rectangle':
+            return px >= 0 && px <= outerWidth && py >= 0 && py <= outerHeight;
+            
+          case 'l-shape':
+            const lMainWidth = outerWidth * 0.6;
+            const lExtHeight = outerHeight * 0.5;
+            // Check if point is in main vertical section or horizontal extension
+            const inMainSection = px >= 0 && px <= lMainWidth && py >= 0 && py <= outerHeight;
+            const inExtension = px >= lMainWidth && px <= outerWidth && py >= lExtHeight && py <= outerHeight;
+            return inMainSection || inExtension;
+            
+          case 'u-shape':
+            const uSideWidth = outerWidth * 0.25;
+            const uGapWidth = outerWidth * 0.5;
+            const uGapDepth = outerHeight * 0.4;
+            // Check if point is NOT in the gap
+            const inGap = px >= uSideWidth && px <= uSideWidth + uGapWidth && py >= 0 && py <= uGapDepth;
+            const inBounds = px >= 0 && px <= outerWidth && py >= 0 && py <= outerHeight;
+            return inBounds && !inGap;
+            
+          case 't-shape':
+            const tTopHeight = outerHeight * 0.3;
+            const tStemWidth = outerWidth * 0.4;
+            const tStemOffset = (outerWidth - tStemWidth) / 2;
+            const inTop = py >= 0 && py <= tTopHeight && px >= 0 && px <= outerWidth;
+            const inStem = py >= tTopHeight && py <= outerHeight && px >= tStemOffset && px <= tStemOffset + tStemWidth;
+            return inTop || inStem;
+            
+          case 'h-shape':
+            const hBarWidth = outerWidth * 0.25;
+            const hConnectorHeight = outerHeight * 0.3;
+            const hConnectorTop = (outerHeight - hConnectorHeight) / 2;
+            const inLeftBar = px >= 0 && px <= hBarWidth && py >= 0 && py <= outerHeight;
+            const inRightBar = px >= outerWidth - hBarWidth && px <= outerWidth && py >= 0 && py <= outerHeight;
+            const inConnector = px >= hBarWidth && px <= outerWidth - hBarWidth && py >= hConnectorTop && py <= hConnectorTop + hConnectorHeight;
+            return inLeftBar || inRightBar || inConnector;
+            
+          case 'courtyard':
+            const courtyardInnerMargin = outerWidth * 0.25;
+            const inOuter = px >= 0 && px <= outerWidth && py >= 0 && py <= outerHeight;
+            const inInner = px >= courtyardInnerMargin && px <= outerWidth - courtyardInnerMargin && 
+                           py >= courtyardInnerMargin && py <= outerHeight - courtyardInnerMargin;
+            return inOuter && !inInner;
+            
+          case 'plus-shape':
+            const plusArmWidth = outerWidth * 0.35;
+            const plusArmOffset = (outerWidth - plusArmWidth) / 2;
+            const inVertical = px >= plusArmOffset && px <= plusArmOffset + plusArmWidth && py >= 0 && py <= outerHeight;
+            const inHorizontal = py >= plusArmOffset && py <= plusArmOffset + plusArmWidth && px >= 0 && px <= outerWidth;
+            return inVertical || inHorizontal;
+            
+          case 'z-shape':
+            const zTopHeight = outerHeight * 0.3;
+            const zBottomHeight = outerHeight * 0.3;
+            const inTopBar = py >= 0 && py <= zTopHeight && px >= 0 && px <= outerWidth;
+            const inBottomBar = py >= outerHeight - zBottomHeight && py <= outerHeight && px >= 0 && px <= outerWidth;
+            const inDiagonal = py >= zTopHeight && py <= outerHeight - zBottomHeight;
+            return inTopBar || inBottomBar || inDiagonal;
+            
+          default:
+            return px >= 0 && px <= outerWidth && py >= 0 && py <= outerHeight;
+        }
+      };
+      
+      // All four corners must be within the shape
+      return checkPoint(relX, relY) && 
+             checkPoint(relX2, relY) && 
+             checkPoint(relX, relY2) && 
+             checkPoint(relX2, relY2);
+    };
+    
+    // Place rooms with shape-aware algorithm
+    const scaledRooms: {room: Room; x: number; y: number; w: number; h: number}[] = [];
+    const maxX = startX + outerWidth - margin;
+    const maxY = startY + outerHeight - margin;
+    
+    // Adjust room scale to better utilize space
+    roomScale *= 0.90;
+    
+    let currentX = startX + margin;
+    let currentY = startY + margin;
+    let maxRowHeight = 0;
+    let rowStartX = currentX;
+    
     sortedRooms.forEach((room, index) => {
-      const roomW = Math.sqrt(room.width * room.height * roomScale) * scale;
-      const roomH = roomW; // Keep rooms roughly square for better layout
+      // Calculate room dimensions
+      const area = room.width * room.height * roomScale;
+      let w = Math.sqrt(area * 1.2) * scale;
+      let h = (area / (w / scale)) * scale;
       
-      // Check if room fits in current row
-      if (currentX + roomW > startX + outerWidth - wallThickness - roomPadding) {
-        // Move to next row
-        currentX = rowStartX;
-        currentY += maxRowHeight + corridorWidth;
-        maxRowHeight = 0;
+      // Ensure minimum and maximum size
+      w = Math.max(Math.min(w, 150), 40);
+      h = Math.max(Math.min(h, 120), 40);
+      
+      let placed = false;
+      let attempts = 0;
+      const maxAttempts = 150;
+      
+      while (!placed && attempts < maxAttempts) {
+        // Check if room fits in current position
+        if (currentX + w <= maxX && currentY + h <= maxY && 
+            isWithinBuildingShape(currentX, currentY, w, h)) {
+          // Place the room
+          scaledRooms.push({
+            room,
+            x: currentX,
+            y: currentY,
+            w: w,
+            h: h,
+          });
+          
+          currentX += w + roomPadding;
+          maxRowHeight = Math.max(maxRowHeight, h);
+          placed = true;
+        } else {
+          // Try next position
+          currentX += 15; // Move right in small increments
+          
+          // Check if we need to move to next row
+          if (currentX + w > maxX || !isWithinBuildingShape(currentX, currentY, w, h)) {
+            // Move to next row
+            currentX = rowStartX;
+            currentY += maxRowHeight + corridorSpace;
+            maxRowHeight = 0;
+            
+            // For L-shape and other complex shapes, adjust row start X based on Y position
+            if (buildingShape === 'l-shape') {
+              const lMainWidth = outerWidth * 0.6;
+              const lExtHeight = outerHeight * 0.5;
+              const relY = currentY - startY;
+              // If we're in the extension part, we can use full width
+              if (relY >= lExtHeight) {
+                rowStartX = startX + margin;
+              }
+            }
+            
+            if (currentY + h > maxY) {
+              // No more space vertically, try reducing size
+              w *= 0.92;
+              h *= 0.92;
+              currentX = startX + margin;
+              currentY = startY + margin;
+              rowStartX = currentX;
+              
+              if (w < 35 || h < 35) {
+                // Room too small, skip it
+                break;
+              }
+            } else {
+              currentX = rowStartX;
+            }
+          }
+        }
+        attempts++;
       }
-      
-      // Check if we need to start a new section
-      if (currentY + roomH > startY + outerHeight - wallThickness - roomPadding) {
-        // Fit it anyway or reduce size
-        const reducedHeight = (startY + outerHeight - wallThickness - roomPadding - currentY);
-        scaledRooms.push({
-          room,
-          x: currentX,
-          y: currentY,
-          w: roomW,
-          h: Math.max(reducedHeight, 40),
-        });
-      } else {
-        scaledRooms.push({
-          room,
-          x: currentX,
-          y: currentY,
-          w: roomW,
-          h: roomH,
-        });
-      }
-      
-      currentX += roomW + roomPadding;
-      maxRowHeight = Math.max(maxRowHeight, roomH);
     });
     
-    // Draw corridors (hatched pattern)
-    ctx.fillStyle = '#E8E8E8';
-    ctx.fillRect(startX + wallThickness, startY + wallThickness, outerWidth - wallThickness * 2, outerHeight - wallThickness * 2);
-    
-    // Draw corridor pattern
-    ctx.strokeStyle = '#CCCCCC';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < outerWidth; i += 20) {
-      ctx.beginPath();
-      ctx.moveTo(startX + i, startY);
-      ctx.lineTo(startX + i, startY + outerHeight);
-      ctx.stroke();
-    }
+    // Draw corridors - just fill the entire building area (rooms will be drawn on top)
+    // Skip corridor drawing as it's making the shape unclear
     
     // Furniture drawing removed for clean floor plan - only architectural elements shown
     
@@ -554,6 +1040,132 @@ export default function SpaceCalculatorPage() {
       
       // Furniture, outlets, and light fixtures removed for clean floor plan
     });
+    
+    // Redraw building outline to ensure it's visible on top
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = wallThickness;
+    ctx.beginPath();
+    
+    switch (buildingShape) {
+      case 'square':
+      case 'rectangle':
+        ctx.rect(startX, startY, outerWidth, outerHeight);
+        break;
+        
+      case 'l-shape':
+        const lMainWidth = outerWidth * 0.6;
+        const lExtHeight = outerHeight * 0.5;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + lMainWidth, startY);
+        ctx.lineTo(startX + lMainWidth, startY + lExtHeight);
+        ctx.lineTo(startX + outerWidth, startY + lExtHeight);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        break;
+        
+      case 'u-shape':
+        const uSideWidth = outerWidth * 0.25;
+        const uGapWidth = outerWidth * 0.5;
+        const uGapDepth = outerHeight * 0.4;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX + uSideWidth + uGapWidth, startY + outerHeight);
+        ctx.lineTo(startX + uSideWidth + uGapWidth, startY + uGapDepth);
+        ctx.lineTo(startX + uSideWidth, startY + uGapDepth);
+        ctx.lineTo(startX + uSideWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        break;
+        
+      case 't-shape':
+        const tTopHeight = outerHeight * 0.3;
+        const tStemWidth = outerWidth * 0.4;
+        const tStemOffset = (outerWidth - tStemWidth) / 2;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + tTopHeight);
+        ctx.lineTo(startX + tStemOffset + tStemWidth, startY + tTopHeight);
+        ctx.lineTo(startX + tStemOffset + tStemWidth, startY + outerHeight);
+        ctx.lineTo(startX + tStemOffset, startY + outerHeight);
+        ctx.lineTo(startX + tStemOffset, startY + tTopHeight);
+        ctx.lineTo(startX, startY + tTopHeight);
+        ctx.closePath();
+        break;
+        
+      case 'h-shape':
+        const hBarWidth = outerWidth * 0.25;
+        const hConnectorHeight = outerHeight * 0.3;
+        const hConnectorTop = (outerHeight - hConnectorHeight) / 2;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + hBarWidth, startY);
+        ctx.lineTo(startX + hBarWidth, startY + hConnectorTop);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY + hConnectorTop);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY + outerHeight);
+        ctx.lineTo(startX + outerWidth - hBarWidth, startY + hConnectorTop + hConnectorHeight);
+        ctx.lineTo(startX + hBarWidth, startY + hConnectorTop + hConnectorHeight);
+        ctx.lineTo(startX + hBarWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        break;
+        
+      case 'courtyard':
+        const courtyardInnerMargin = outerWidth * 0.25;
+        // Outer perimeter
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.closePath();
+        // Inner courtyard outline
+        ctx.moveTo(startX + courtyardInnerMargin, startY + courtyardInnerMargin);
+        ctx.lineTo(startX + outerWidth - courtyardInnerMargin, startY + courtyardInnerMargin);
+        ctx.lineTo(startX + outerWidth - courtyardInnerMargin, startY + outerHeight - courtyardInnerMargin);
+        ctx.lineTo(startX + courtyardInnerMargin, startY + outerHeight - courtyardInnerMargin);
+        ctx.closePath();
+        break;
+        
+      case 'plus-shape':
+        const plusArmWidth = outerWidth * 0.35;
+        const plusArmOffset = (outerWidth - plusArmWidth) / 2;
+        ctx.moveTo(startX + plusArmOffset, startY);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY + plusArmOffset);
+        ctx.lineTo(startX + outerWidth, startY + plusArmOffset);
+        ctx.lineTo(startX + outerWidth, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX + plusArmOffset + plusArmWidth, startY + outerHeight);
+        ctx.lineTo(startX + plusArmOffset, startY + outerHeight);
+        ctx.lineTo(startX + plusArmOffset, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX, startY + plusArmOffset + plusArmWidth);
+        ctx.lineTo(startX, startY + plusArmOffset);
+        ctx.lineTo(startX + plusArmOffset, startY + plusArmOffset);
+        ctx.closePath();
+        break;
+        
+      case 'z-shape':
+        const zTopHeight = outerHeight * 0.35;
+        const zMidHeight = outerHeight * 0.3;
+        const zOffset = outerWidth * 0.3;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + outerWidth, startY);
+        ctx.lineTo(startX + outerWidth, startY + zTopHeight);
+        ctx.lineTo(startX + zOffset + (outerWidth - zOffset) * 0.5, startY + zTopHeight);
+        ctx.lineTo(startX + outerWidth, startY + zTopHeight + zMidHeight);
+        ctx.lineTo(startX + outerWidth, startY + outerHeight);
+        ctx.lineTo(startX, startY + outerHeight);
+        ctx.lineTo(startX, startY + zTopHeight + zMidHeight);
+        ctx.lineTo(startX + (outerWidth - zOffset) * 0.5, startY + zTopHeight + zMidHeight);
+        ctx.lineTo(startX, startY + zTopHeight);
+        ctx.closePath();
+        break;
+    }
+    
+    ctx.stroke();
     
     // Draw building entrance (main door)
     const entranceWidth = 60;
@@ -1116,7 +1728,7 @@ export default function SpaceCalculatorPage() {
                 Basic Information
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 {/* Property Type */}
                 <div>
                   <label className="block text-sm font-semibold text-primary-black mb-2">
@@ -1135,22 +1747,50 @@ export default function SpaceCalculatorPage() {
                     <option value="Industrial">Industrial</option>
                   </select>
                 </div>
-                
-                {/* Building Shape */}
-                <div>
-                  <label className="block text-sm font-semibold text-primary-black mb-2">
-                    Building Shape
-                  </label>
-                  <select
-                    value={buildingShape}
-                    onChange={(e) => setBuildingShape(e.target.value as any)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-accent-yellow transition-colors"
-                  >
-                    <option value="square">Square</option>
-                    <option value="rectangle">Rectangle</option>
-                    <option value="l-shape">L-Shape</option>
-                    <option value="u-shape">U-Shape</option>
-                  </select>
+              </div>
+              
+              {/* Building Shape Visual Selector */}
+              <div className="mt-6">
+                <label className="block text-sm font-semibold text-primary-black mb-3">
+                  Building Shape
+                </label>
+                <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                  {BUILDING_SHAPES.map((shape) => (
+                    <motion.button
+                      key={shape.id}
+                      type="button"
+                      onClick={() => setBuildingShape(shape.id as any)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`relative p-3 rounded-xl border-3 transition-all ${
+                        buildingShape === shape.id
+                          ? 'border-accent-yellow bg-yellow-50 shadow-lg'
+                          : 'border-gray-300 bg-white hover:border-gray-400 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="aspect-square mb-2">
+                        <shape.icon selected={buildingShape === shape.id} />
+                      </div>
+                      <div className={`text-xs font-bold text-center mb-1 ${
+                        buildingShape === shape.id ? 'text-primary-black' : 'text-gray-700'
+                      }`}>
+                        {shape.name}
+                      </div>
+                      <div className={`text-[10px] text-center leading-tight ${
+                        buildingShape === shape.id ? 'text-gray-700' : 'text-gray-500'
+                      }`}>
+                        {shape.description}
+                      </div>
+                      {buildingShape === shape.id && (
+                        <motion.div
+                          layoutId="selected-shape"
+                          className="absolute inset-0 border-3 border-accent-yellow rounded-xl pointer-events-none"
+                          initial={false}
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        />
+                      )}
+                    </motion.button>
+                  ))}
                 </div>
               </div>
               

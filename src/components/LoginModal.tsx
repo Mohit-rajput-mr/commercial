@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Heart } from 'lucide-react';
+import { X, Mail, Heart, User, Phone, Lock } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { setAdminAuthenticated } from '@/lib/admin-storage';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -12,9 +14,15 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProps) {
+  const router = useRouter();
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [errors, setErrors] = useState<{ email?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; phone?: string }>({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,13 +64,23 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
   ];
 
   const validateEmail = (email: string) => {
+    // Allow "admin" as a special case for admin login
+    if (email.trim().toLowerCase() === 'admin') {
+      return true;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validatePhone = (phone: string) => {
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: { email?: string } = {};
+    setLoading(true);
+    const newErrors: { email?: string; password?: string; name?: string; phone?: string } = {};
 
     if (!email) {
       newErrors.email = 'Email is required';
@@ -70,19 +88,125 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
       newErrors.email = 'Please enter a valid email address';
     }
 
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (email.trim().toLowerCase() !== 'admin' && password.length < 6) {
+      // Allow admin password to be shorter (just "admin")
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    if (!isLogin) {
+      if (!name) {
+        newErrors.name = 'Name is required';
+      } else if (name.length < 2) {
+        newErrors.name = 'Name must be at least 2 characters';
+      }
+
+      if (!phone) {
+        newErrors.phone = 'Phone number is required';
+      } else if (!validatePhone(phone)) {
+        newErrors.phone = 'Please enter a valid phone number';
+      }
+    }
+
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      // Handle login/signup logic here
-      console.log('Email submitted:', email);
-      // For now, just close the modal
-      onClose();
+      try {
+        const trimmedEmail = email.trim().toLowerCase();
+        const trimmedPassword = password.trim();
+
+        // Check for admin login
+        if (isLogin && trimmedEmail === 'admin' && trimmedPassword === 'admin') {
+          // Admin login via API
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            setAdminAuthenticated(true);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            onClose();
+            router.push('/admin/dashboard');
+            setLoading(false);
+            return;
+          } else {
+            setErrors({ email: data.error || 'Login failed' });
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (isLogin) {
+          // Regular user login
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            onClose();
+            // Refresh the page to update user state
+            window.location.reload();
+          } else {
+            setErrors({ email: data.error || 'Login failed' });
+          }
+        } else {
+          // Signup
+          const response = await fetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, full_name: name, phone }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            // Auto-login after successful signup
+            localStorage.setItem('user', JSON.stringify(data.user));
+            alert('Account created successfully! You are now logged in.');
+            onClose();
+            // Refresh the page to update user state
+            window.location.reload();
+          } else {
+            setErrors({ email: data.error || 'Signup failed' });
+          }
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+        setErrors({ email: 'An error occurred. Please try again.' });
+      }
     }
+    setLoading(false);
   };
 
-  const handleSocialLogin = (provider: 'google' | 'linkedin' | 'apple') => {
-    console.log(`Login with ${provider}`);
-    // Implement OAuth logic here
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrors({ email: 'Please enter your email address first' });
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setErrors({ email: 'Please enter a valid email address' });
+      return;
+    }
+
+    try {
+      // TODO: Implement Supabase password reset
+      // const { error } = await supabase.auth.resetPasswordForEmail(email);
+      alert(`Password reset link will be sent to ${email}. (This will be fully implemented with Supabase email service)`);
+    } catch (error) {
+      console.error('Password reset error:', error);
+      alert('An error occurred. Please try again.');
+    }
   };
 
   // Handle ESC key to close
@@ -125,7 +249,28 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-                <h2 className="text-xl md:text-2xl font-bold text-primary-black">Log In/Sign Up</h2>
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-primary-black">
+                    {isLogin ? 'Log In' : 'Sign Up'}
+                  </h2>
+                  <p className="text-xs text-custom-gray mt-1">
+                    {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                    <button
+                      onClick={() => {
+                        setIsLogin(!isLogin);
+                        setErrors({});
+                        setPassword('');
+                        if (isLogin) {
+                          setName('');
+                          setPhone('');
+                        }
+                      }}
+                      className="text-accent-yellow hover:underline font-semibold"
+                    >
+                      {isLogin ? 'Sign Up' : 'Log In'}
+                    </button>
+                  </p>
+                </div>
                 <button
                   onClick={onClose}
                   className="p-2 md:p-2 hover:bg-gray-100 rounded-lg transition-colors w-11 h-11 flex items-center justify-center"
@@ -190,10 +335,39 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                 {/* Right Column - Form */}
                 <div className="w-full md:w-1/2 p-4 md:p-6 flex flex-col justify-center">
                   <p className="text-sm text-custom-gray mb-4 md:mb-6">
-                    Enter your email to login or create a free account
+                    {isLogin ? 'Enter your credentials to log in' : 'Create a free account to get started'}
                   </p>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    {!isLogin && (
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-semibold text-primary-black mb-2">
+                          Full Name*
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
+                          <input
+                            type="text"
+                            id="name"
+                            value={name}
+                            onChange={(e) => {
+                              setName(e.target.value);
+                              if (errors.name) setErrors({ ...errors, name: undefined });
+                            }}
+                            placeholder="Enter your full name"
+                            className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
+                              errors.name
+                                ? 'border-red-500'
+                                : 'border-gray-300 focus:border-accent-yellow'
+                            }`}
+                          />
+                        </div>
+                        {errors.name && (
+                          <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                        )}
+                      </div>
+                    )}
+
                     <div>
                       <label htmlFor="email" className="block text-sm font-semibold text-primary-black mb-2">
                         Email*
@@ -201,14 +375,14 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
                         <input
-                          type="email"
+                          type="text"
                           id="email"
                           value={email}
                           onChange={(e) => {
                             setEmail(e.target.value);
-                            if (errors.email) setErrors({});
+                            if (errors.email) setErrors({ ...errors, email: undefined });
                           }}
-                          placeholder="Enter email address"
+                          placeholder="email"
                           className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
                             errors.email
                               ? 'border-red-500'
@@ -216,47 +390,96 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                           }`}
                         />
                       </div>
+                      <p className="text-xs text-custom-gray mt-1">
+                        VIP access from email (or enter &apos;admin&apos; for admin access)
+                      </p>
                       {errors.email && (
                         <p className="text-red-500 text-xs mt-1">{errors.email}</p>
                       )}
                     </div>
 
+                    {!isLogin && (
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-semibold text-primary-black mb-2">
+                          Phone Number*
+                        </label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
+                          <input
+                            type="tel"
+                            id="phone"
+                            value={phone}
+                            onChange={(e) => {
+                              setPhone(e.target.value);
+                              if (errors.phone) setErrors({ ...errors, phone: undefined });
+                            }}
+                            placeholder="+1 (917) 209-6200"
+                            className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
+                              errors.phone
+                                ? 'border-red-500'
+                                : 'border-gray-300 focus:border-accent-yellow'
+                            }`}
+                          />
+                        </div>
+                        {errors.phone && (
+                          <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label htmlFor="password" className="block text-sm font-semibold text-primary-black mb-2">
+                        Password*
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
+                        <input
+                          type="password"
+                          id="password"
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (errors.password) setErrors({ ...errors, password: undefined });
+                          }}
+                          placeholder="Enter password"
+                          className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
+                            errors.password
+                              ? 'border-red-500'
+                              : 'border-gray-300 focus:border-accent-yellow'
+                          }`}
+                        />
+                      </div>
+                      {errors.password && (
+                        <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+                      )}
+                    </div>
+
+                    {isLogin && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleForgotPassword}
+                          className="text-sm text-accent-yellow hover:underline"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
+                    )}
+
                     <button
                       type="submit"
-                      className="w-full px-6 py-3 md:py-4 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all min-h-[48px] text-base"
+                      disabled={loading}
+                      className="w-full px-6 py-3 md:py-4 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all min-h-[48px] text-base disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Continue
+                      {loading ? 'Please wait...' : isLogin ? 'Log In' : 'Sign Up'}
                     </button>
                   </form>
 
-                  <div className="mt-4 md:mt-6">
-                    <p className="text-center text-sm text-custom-gray mb-4">or continue with</p>
-                    <div className="flex gap-3 justify-center">
-                      <button
-                        onClick={() => handleSocialLogin('google')}
-                        className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition-all font-bold text-lg min-w-[48px] min-h-[48px]"
-                        aria-label="Login with Google"
-                      >
-                        G
-                      </button>
-                      <button
-                        onClick={() => handleSocialLogin('linkedin')}
-                        className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-all font-bold text-sm min-w-[48px] min-h-[48px]"
-                        aria-label="Login with LinkedIn"
-                      >
-                        in
-                      </button>
-                      <button
-                        onClick={() => handleSocialLogin('apple')}
-                        className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800 transition-all min-w-[48px] min-h-[48px]"
-                        aria-label="Login with Apple"
-                      >
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+                  {!isLogin && (
+                    <p className="text-xs text-custom-gray mt-4 text-center">
+                      By signing up, you agree to our Terms of Service and Privacy Policy
+                    </p>
+                  )}
                 </div>
               </div>
             </motion.div>

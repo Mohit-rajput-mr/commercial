@@ -5,6 +5,24 @@
 
 let commercialData: any[] = [];
 
+// All 14 dataset files in the public folder
+const DATASET_FILES = [
+  'commercial_dataset_17nov2025.json',
+  'commercial_dataset2.json',
+  'commercial_dataset_Chicago.json',
+  'commercial_dataset_houston.json',
+  'commercial_dataset_LA.json',
+  'commercial_dataset_ny.json',
+  'dataset_miami_beach.json',
+  'dataset_miami_sale.json',
+  'dataset_miamibeach_lease.json',
+  'dataset_philadelphia_sale.json',
+  'dataset_philadelphia.json',
+  'dataset_phoenix.json',
+  'dataset_san_antonio_sale.json',
+  'dataset_son_antonio_lease.json'
+];
+
 async function loadCommercialData(): Promise<any[]> {
   if (commercialData.length > 0) {
     return commercialData;
@@ -14,58 +32,48 @@ async function loadCommercialData(): Promise<any[]> {
     let allData: any[] = [];
     
     if (typeof window !== 'undefined') {
-      try {
-        const response1 = await fetch('/commercial_dataset_17nov2025.json');
-        if (response1.ok) {
-          const data1 = await response1.json();
-          if (Array.isArray(data1)) {
-            allData = [...allData, ...data1];
+      // Browser environment - load all datasets
+      const loadPromises = DATASET_FILES.map(async (filename) => {
+        try {
+          const response = await fetch(`/${filename}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+              console.log(`✅ Loaded ${filename}: ${data.length} properties`);
+              return data;
+            }
           }
+        } catch (err) {
+          console.warn(`Error loading ${filename}:`, err);
         }
-      } catch (err) {
-        console.warn('Error loading commercial_dataset_17nov2025.json:', err);
-      }
+        return [];
+      });
       
-      try {
-        const response2 = await fetch('/commercial_dataset2.json');
-        if (response2.ok) {
-          const data2 = await response2.json();
-          if (Array.isArray(data2)) {
-            allData = [...allData, ...data2];
-          }
-        }
-      } catch (err) {
-        console.warn('Error loading commercial_dataset2.json:', err);
-      }
-      
+      const results = await Promise.all(loadPromises);
+      allData = results.flat();
       commercialData = allData;
+      console.log(`📊 Total properties loaded from all datasets: ${allData.length}`);
     } else {
+      // Server environment - load all datasets
       const fs = require('fs');
       const path = require('path');
       
-      try {
-        const filePath1 = path.join(process.cwd(), 'public', 'commercial_dataset_17nov2025.json');
-        const fileContents1 = fs.readFileSync(filePath1, 'utf8');
-        const data1 = JSON.parse(fileContents1);
-        if (Array.isArray(data1)) {
-          allData = [...allData, ...data1];
+      for (const filename of DATASET_FILES) {
+        try {
+          const filePath = path.join(process.cwd(), 'public', filename);
+          const fileContents = fs.readFileSync(filePath, 'utf8');
+          const data = JSON.parse(fileContents);
+          if (Array.isArray(data)) {
+            allData = [...allData, ...data];
+            console.log(`✅ Loaded ${filename}: ${data.length} properties`);
+          }
+        } catch (err) {
+          console.warn(`Error loading ${filename}:`, err);
         }
-      } catch (err) {
-        console.warn('Error loading commercial_dataset_17nov2025.json:', err);
-      }
-      
-      try {
-        const filePath2 = path.join(process.cwd(), 'public', 'commercial_dataset2.json');
-        const fileContents2 = fs.readFileSync(filePath2, 'utf8');
-        const data2 = JSON.parse(fileContents2);
-        if (Array.isArray(data2)) {
-          allData = [...allData, ...data2];
-        }
-      } catch (err) {
-        console.warn('Error loading commercial_dataset2.json:', err);
       }
       
       commercialData = allData;
+      console.log(`📊 Total properties loaded from all datasets: ${allData.length}`);
     }
     
     return commercialData;
@@ -74,6 +82,59 @@ async function loadCommercialData(): Promise<any[]> {
     commercialData = [];
     return [];
   }
+}
+
+// Property type categorization
+const COMMERCIAL_PROPERTY_TYPES = [
+  'office',
+  'retail',
+  'industrial',
+  'warehouse',
+  'flex',
+  'hospitality',
+  'hotel',
+  'motel',
+  'specialty',
+  'land',
+  'mixed-use',
+  'shopping center',
+  'strip center',
+  'restaurant',
+  'medical',
+  'healthcare'
+];
+
+const RESIDENTIAL_PROPERTY_TYPES = [
+  'multifamily',
+  'apartment',
+  'condo',
+  'townhouse',
+  'single family',
+  'residential'
+];
+
+/**
+ * Determines if a property type is commercial or residential
+ * @param propertyType - The property type string from the dataset
+ * @returns 'commercial' | 'residential'
+ */
+export function categorizePropertyType(propertyType: string | null | undefined): 'commercial' | 'residential' {
+  if (!propertyType) return 'commercial'; // Default to commercial for unknown types
+  
+  const normalizedType = propertyType.toLowerCase().trim();
+  
+  // Check if it's a residential type
+  if (RESIDENTIAL_PROPERTY_TYPES.some(type => normalizedType.includes(type))) {
+    return 'residential';
+  }
+  
+  // Check if it's a commercial type
+  if (COMMERCIAL_PROPERTY_TYPES.some(type => normalizedType.includes(type))) {
+    return 'commercial';
+  }
+  
+  // Default to commercial if unclear
+  return 'commercial';
 }
 
 interface RawCommercialData {
@@ -110,6 +171,7 @@ export interface CommercialProperty {
   lotSize?: number;
   yearBuilt?: number;
   propertyType?: string;
+  propertyCategory?: 'commercial' | 'residential'; // Added category field
   status?: string;
   imgSrc?: string;
   images?: string[];
@@ -139,6 +201,9 @@ export interface CommercialSearchResponse {
 }
 
 function normalizeProperty(item: RawCommercialData): CommercialProperty {
+  const propertyType = item.propertyType || item.propertyTypeDetailed || '';
+  const category = categorizePropertyType(propertyType);
+  
   return {
     zpid: item.propertyId || String(Math.random()),
     address: item.address || '',
@@ -147,7 +212,8 @@ function normalizeProperty(item: RawCommercialData): CommercialProperty {
     zipcode: item.zip || '',
     price: item.priceNumeric || undefined,
     priceText: item.price || undefined,
-    propertyType: item.propertyType || item.propertyTypeDetailed || '',
+    propertyType: propertyType,
+    propertyCategory: category,
     status: item.listingType || undefined,
     imgSrc: item.images?.[0] || undefined,
     images: item.images || [],
@@ -196,7 +262,8 @@ function matchesListingType(listingType: string | null | undefined, searchType: 
 export async function searchCommercial(
   location: string,
   type: 'sale' | 'lease' = 'sale',
-  propertyType?: string
+  propertyType?: string,
+  category?: 'commercial' | 'residential' | 'all'
 ): Promise<CommercialSearchResponse> {
   const startTime = Date.now();
   const searchQuery = location.trim().toLowerCase();
@@ -209,6 +276,14 @@ export async function searchCommercial(
       .filter((item) => {
         if (!matchesListingType(item.listingType, type)) {
           return false;
+        }
+        
+        // Filter by category if specified
+        if (category && category !== 'all') {
+          const itemCategory = categorizePropertyType(item.propertyType || item.propertyTypeDetailed);
+          if (itemCategory !== category) {
+            return false;
+          }
         }
         
         if (propertyType) {
@@ -336,7 +411,7 @@ export async function searchCommercial(
       totalResultCount: filtered.length,
       _responseTime: responseTime,
       _endpoint: 'local-dataset',
-      _params: JSON.stringify({ location, type, propertyType }),
+      _params: JSON.stringify({ location, type, propertyType, category }),
     };
   } catch (err) {
     const responseTime = Date.now() - startTime;

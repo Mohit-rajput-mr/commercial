@@ -24,39 +24,98 @@ export async function getAddressSuggestions(
 ): Promise<AddressSuggestion[]> {
   if (!query || query.length < 2) return [];
 
-  // If no API key, use local property data
-  if (!apiKey) {
-    return getLocalAddressSuggestions(query);
+  // Always fetch database suggestions first
+  const databaseSuggestions = await getDatabaseAddressSuggestions(query);
+  
+  // If we have database suggestions, prioritize them
+  if (databaseSuggestions.length > 0) {
+    // Also try to get Google suggestions if API key is available
+    if (apiKey) {
+      try {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+            query
+          )}&key=${apiKey}&types=address&components=country:us`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'OK' && data.predictions) {
+            const googleSuggestions = data.predictions.map((prediction: any, index: number) => ({
+              id: prediction.place_id || `place-${index}`,
+              address: prediction.structured_formatting?.main_text || prediction.description,
+              city: extractCity(prediction.description),
+              state: extractState(prediction.description),
+              zipCode: extractZipCode(prediction.description),
+              fullAddress: prediction.description,
+            }));
+            // Combine: database first, then Google
+            return [...databaseSuggestions, ...googleSuggestions];
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching Google suggestions:', error);
+      }
+    }
+    return databaseSuggestions;
   }
 
-  try {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-        query
-      )}&key=${apiKey}&types=address&components=country:us`
-    );
+  // If no database suggestions, try Google
+  if (apiKey) {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+          query
+        )}&key=${apiKey}&types=address&components=country:us`
+      );
 
-    if (!response.ok) {
-      return getLocalAddressSuggestions(query);
+      if (!response.ok) {
+        return getLocalAddressSuggestions(query);
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.predictions) {
+        return data.predictions.map((prediction: any, index: number) => ({
+          id: prediction.place_id || `place-${index}`,
+          address: prediction.structured_formatting?.main_text || prediction.description,
+          city: extractCity(prediction.description),
+          state: extractState(prediction.description),
+          zipCode: extractZipCode(prediction.description),
+          fullAddress: prediction.description,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching address suggestions:', error);
     }
+  }
 
+  return getLocalAddressSuggestions(query);
+}
+
+/**
+ * Get address suggestions from database
+ */
+async function getDatabaseAddressSuggestions(query: string): Promise<AddressSuggestion[]> {
+  try {
+    const response = await fetch(`/api/properties/autocomplete?q=${encodeURIComponent(query)}&limit=10`);
     const data = await response.json();
-
-    if (data.status === 'OK' && data.predictions) {
-      return data.predictions.map((prediction: any, index: number) => ({
-        id: prediction.place_id || `place-${index}`,
-        address: prediction.structured_formatting?.main_text || prediction.description,
-        city: extractCity(prediction.description),
-        state: extractState(prediction.description),
-        zipCode: extractZipCode(prediction.description),
-        fullAddress: prediction.description,
+    
+    if (data.success && data.suggestions) {
+      return data.suggestions.map((s: any) => ({
+        id: s.id || s.zpid,
+        address: s.address,
+        city: s.city,
+        state: s.state,
+        zipCode: s.zipCode || s.zip,
+        fullAddress: s.fullAddress || `${s.address}, ${s.city}, ${s.state} ${s.zipCode || ''}`,
+        coordinates: s.coordinates,
       }));
     }
-
-    return getLocalAddressSuggestions(query);
+    return [];
   } catch (error) {
-    console.error('Error fetching address suggestions:', error);
-    return getLocalAddressSuggestions(query);
+    console.error('Error fetching database suggestions:', error);
+    return [];
   }
 }
 

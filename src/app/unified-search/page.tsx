@@ -22,6 +22,7 @@ function UnifiedSearchPageContent() {
 
   const [residentialProps, setResidentialProps] = useState<(APIProperty | ZillowProperty)[]>([]);
   const [commercialProps, setCommercialProps] = useState<CommercialProperty[]>([]);
+  const [databaseProps, setDatabaseProps] = useState<(APIProperty | CommercialProperty)[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,8 +76,102 @@ function UnifiedSearchPageContent() {
           console.error('❌ Property API error:', err);
         }
 
-        // Search commercial properties
-        const commercialRes = await searchCommercial(location, commercialStatus as 'sale' | 'lease').catch(() => ({ props: [] }));
+        // Search database properties (admin-uploaded)
+        let databaseResidential: APIProperty[] = [];
+        let databaseCommercial: CommercialProperty[] = [];
+        try {
+          console.log('📡 Searching database properties for:', location);
+          // Search database properties - try multiple search strategies
+          let dbResponse = await fetch(`/api/properties?search=${encodeURIComponent(location)}&limit=100`);
+          let dbData = await dbResponse.json();
+          
+          // If no results, try searching by city and state separately
+          if (!dbData.success || !dbData.properties || dbData.properties.length === 0) {
+            const locationParts = location.split(',').map(p => p.trim());
+            if (locationParts.length >= 2) {
+              const city = locationParts[0];
+              const state = locationParts[1];
+              console.log('📡 Trying city/state search:', city, state);
+              dbResponse = await fetch(`/api/properties?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}&limit=100`);
+              dbData = await dbResponse.json();
+            }
+          }
+          
+          console.log('📊 Database search results:', dbData.success ? dbData.properties?.length || 0 : 0, 'properties');
+          if (dbData.success && dbData.properties && dbData.properties.length > 0) {
+            console.log('✅ Sample database property:', dbData.properties[0]);
+          } else {
+            console.log('⚠️ No database properties found for:', location);
+          }
+          
+          if (dbData.success && dbData.properties) {
+            // Separate residential and commercial properties
+            dbData.properties.forEach((prop: any) => {
+              const propertyData = {
+                zpid: prop.zpid || prop.id,
+                address: prop.address || '',
+                city: prop.city || '',
+                state: prop.state || '',
+                zipcode: prop.zip || prop.zipcode || '',
+                price: prop.price || 0,
+                priceText: prop.price_text || `$${prop.price?.toLocaleString() || 'N/A'}`,
+                propertyType: prop.property_type || 'Commercial',
+                status: prop.status || 'For Sale',
+                imgSrc: prop.images && prop.images.length > 0 ? prop.images[0] : null,
+                images: prop.images || [],
+                description: prop.description || '',
+                beds: prop.beds || 0,
+                baths: prop.baths || 0,
+                sqft: prop.sqft || prop.living_area || 0,
+                lotSize: prop.lot_size || 0,
+                yearBuilt: prop.year_built || null,
+                latitude: prop.latitude || null,
+                longitude: prop.longitude || null,
+                source: 'database',
+              };
+
+              // If property type is Residential, add to residential array
+              if (prop.property_type === 'Residential') {
+                databaseResidential.push({
+                  zpid: propertyData.zpid,
+                  address: propertyData.address,
+                  city: propertyData.city,
+                  state: propertyData.state,
+                  zipcode: propertyData.zipcode,
+                  price: propertyData.price,
+                  bedrooms: propertyData.beds,
+                  bathrooms: propertyData.baths,
+                  livingArea: propertyData.sqft,
+                  lotSize: propertyData.lotSize,
+                  yearBuilt: propertyData.yearBuilt,
+                  propertyType: 'Residential',
+                  status: propertyData.status,
+                  imgSrc: propertyData.imgSrc,
+                  images: propertyData.images,
+                  description: propertyData.description,
+                  latitude: propertyData.latitude,
+                  longitude: propertyData.longitude,
+                  source: 'database',
+                } as APIProperty & { source: string });
+              } else {
+                // Commercial property
+                databaseCommercial.push(propertyData as CommercialProperty);
+              }
+            });
+            console.log('✅ Database properties found:', {
+              residential: databaseResidential.length,
+              commercial: databaseCommercial.length
+            });
+          }
+        } catch (err) {
+          console.error('❌ Database search error:', err);
+        }
+
+        // Search commercial properties - only get actual commercial types
+        const commercialRes = await searchCommercial(location, commercialStatus as 'sale' | 'lease', undefined, 'commercial').catch(() => ({ props: [] }));
+        
+        // Also search for residential properties from datasets (multifamily, etc.)
+        const residentialFromDatasets = await searchCommercial(location, commercialStatus as 'sale' | 'lease', undefined, 'residential').catch(() => ({ props: [] }));
 
         // Convert ZillowProperty to APIProperty format for consistent display
         const convertZillowToAPI = (zillow: ZillowProperty): APIProperty => {
@@ -120,8 +215,50 @@ function UnifiedSearchPageContent() {
             filteredResidential.push(prop);
           }
         });
+
+        // Add database residential properties (remove duplicates)
+        databaseResidential.forEach(prop => {
+          const propZpid = prop.zpid || (prop as any).id;
+          if (propZpid && !existingZpids.has(propZpid)) {
+            filteredResidential.push(prop);
+            existingZpids.add(propZpid);
+          }
+        });
+        
+        // Add residential properties from datasets (multifamily, etc.)
+        if (residentialFromDatasets.props && residentialFromDatasets.props.length > 0) {
+          console.log('📊 Residential from datasets:', residentialFromDatasets.props.length);
+          residentialFromDatasets.props.forEach(prop => {
+            const propZpid = prop.zpid || (prop as any).id;
+            if (propZpid && !existingZpids.has(propZpid)) {
+              // Convert CommercialProperty to APIProperty format
+              filteredResidential.push({
+                zpid: prop.zpid,
+                address: typeof prop.address === 'string' ? prop.address : (prop.address?.streetAddress || ''),
+                city: prop.city || '',
+                state: prop.state || '',
+                zipcode: prop.zipcode || '',
+                price: prop.price,
+                bedrooms: prop.bedrooms,
+                bathrooms: prop.bathrooms,
+                livingArea: prop.livingArea,
+                lotSize: prop.lotSize,
+                yearBuilt: prop.yearBuilt,
+                propertyType: prop.propertyType,
+                status: prop.status,
+                imgSrc: prop.imgSrc,
+                images: prop.images,
+                description: prop.description,
+                latitude: prop.latitude,
+                longitude: prop.longitude,
+              } as APIProperty);
+              existingZpids.add(propZpid);
+            }
+          });
+        }
         
         console.log('📊 Total combined residential properties:', filteredResidential.length);
+        console.log('📊 Database residential:', databaseResidential.length);
         
         let filteredCommercial = commercialRes.props || [];
         console.log('📊 Commercial properties:', filteredCommercial.length);
@@ -181,9 +318,27 @@ function UnifiedSearchPageContent() {
           return bPrice - aPrice;
         });
 
+        // Combine database commercial properties with commercial properties
+        // Remove duplicates based on address
+        const allCommercial = [...filteredCommercial];
+        const existingAddresses = new Set(filteredCommercial.map(p => {
+          const addressStr = typeof p.address === 'string' ? p.address.toLowerCase() : (p.address?.streetAddress || '').toLowerCase();
+          return `${addressStr}_${p.city?.toLowerCase() || ''}_${p.state?.toLowerCase() || ''}`;
+        }));
+        
+        databaseCommercial.forEach(prop => {
+          const propAddressStr = typeof prop.address === 'string' ? prop.address.toLowerCase() : (prop.address?.streetAddress || '').toLowerCase();
+          const addressKey = `${propAddressStr}_${prop.city?.toLowerCase() || ''}_${prop.state?.toLowerCase() || ''}`;
+          if (!existingAddresses.has(addressKey)) {
+            allCommercial.push(prop);
+            existingAddresses.add(addressKey);
+          }
+        });
+
         // No limit - show all properties
         setResidentialProps(filteredResidential);
-        setCommercialProps(filteredCommercial);
+        setCommercialProps(allCommercial);
+        setDatabaseProps([...databaseResidential, ...databaseCommercial]);
       } catch (err) {
         setError('Failed to search properties. Please try again.');
         console.error('Search error:', err);
@@ -196,12 +351,22 @@ function UnifiedSearchPageContent() {
   }, [location, propertyType, status]);
 
   const handleResidentialClick = (property: APIProperty) => {
-    // Navigate to Zillow property detail page
-    router.push(`/property/zillow/${property.zpid}`);
+    // Check if it's a database property
+    if ((property as any).source === 'database') {
+      router.push(`/property/${property.zpid}`);
+    } else {
+      // Navigate to Zillow property detail page
+      router.push(`/property/zillow/${property.zpid}`);
+    }
   };
 
-  const handleCommercialClick = (property: CommercialProperty) => {
-    router.push(`/property/commercial/${property.zpid}`);
+  const handleCommercialClick = (property: CommercialProperty & { source?: string }) => {
+    // Check if it's a database property
+    if (property.source === 'database') {
+      router.push(`/property/${property.zpid}`);
+    } else {
+      router.push(`/property/commercial/${property.zpid}`);
+    }
   };
 
   return (
@@ -264,6 +429,11 @@ function UnifiedSearchPageContent() {
             <div className="mb-8">
               <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4">
                 Residential Properties ({residentialProps.length})
+                {databaseProps.filter((p: any) => p.source === 'database' && p.propertyType === 'Residential').length > 0 && (
+                  <span className="text-sm font-normal text-custom-gray ml-2">
+                    ({databaseProps.filter((p: any) => p.source === 'database' && p.propertyType === 'Residential').length} from database)
+                  </span>
+                )}
               </h2>
               {residentialProps.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -289,15 +459,27 @@ function UnifiedSearchPageContent() {
             <div className="mb-8">
               <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4">
                 Commercial Properties ({commercialProps.length})
+                {databaseProps.filter((p: any) => p.source === 'database' && p.propertyType !== 'Residential').length > 0 && (
+                  <span className="text-sm font-normal text-custom-gray ml-2">
+                    ({databaseProps.filter((p: any) => p.source === 'database' && p.propertyType !== 'Residential').length} from database)
+                  </span>
+                )}
               </h2>
               {commercialProps.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   {commercialProps.map((property) => (
-                    <div key={property.zpid}>
+                    <div key={property.zpid || (typeof property.address === 'string' ? property.address : property.address?.streetAddress || `prop-${Math.random()}`)}>
                       <CommercialPropertyCard
                         property={property}
                         isSelected={false}
-                        onClick={() => handleCommercialClick(property)}
+                        onClick={() => {
+                          // If it's a database property, navigate to database property page
+                          if ((property as any).source === 'database') {
+                            router.push(`/property/${property.zpid}`);
+                          } else {
+                            handleCommercialClick(property);
+                          }
+                        }}
                       />
                     </div>
                   ))}

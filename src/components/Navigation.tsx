@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Menu } from 'lucide-react';
+import { Menu, Database } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNavbarScroll } from '@/hooks/useNavbarScroll';
 import logoRE from '../../assets/logoRE.png';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useRouter();
   const isVisible = useNavbarScroll({
     hideOnScrollDown: true,
@@ -23,6 +24,12 @@ export default function Navigation() {
     window.dispatchEvent(new CustomEvent('openLoginModal'));
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setCurrentUser(null);
+    window.location.reload();
+  };
+
   const handleSidebarClick = () => {
     // Dispatch custom event to trigger sidebar menu in Hero
     window.dispatchEvent(new CustomEvent('openSidebarMenu'));
@@ -33,8 +40,27 @@ export default function Navigation() {
       setIsScrolled(window.scrollY > 50);
     };
 
+    // Check for logged in user
+    const checkUser = () => {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          setCurrentUser(user);
+        } catch (e) {
+          console.error('Error parsing user:', e);
+        }
+      }
+    };
+
+    checkUser();
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('storage', checkUser);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('storage', checkUser);
+    };
   }, []);
 
   return (
@@ -83,23 +109,47 @@ export default function Navigation() {
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => router.push('/api-test')}
-            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-white/30 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-white/20 hover:border-white/50 text-xs md:text-sm"
+            onClick={() => router.push('/database-properties')}
+            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg font-semibold transition-all duration-300 text-xs md:text-sm flex items-center gap-2"
           >
-            API Test
+            <Database className="w-4 h-4" />
+            Database Properties
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleLoginClick}
-            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-accent-yellow rounded-lg text-white font-semibold transition-all duration-300 hover:bg-accent-yellow hover:text-primary-black text-xs md:text-sm"
-          >
-            Log In
-          </motion.button>
+          {currentUser ? (
+            <div className="flex items-center gap-3">
+              <span className="text-white font-medium text-sm">
+                Welcome, {currentUser.full_name || 'User'}
+              </span>
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
+                className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-red-500 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-red-500 hover:text-white text-xs md:text-sm"
+              >
+                Log Out
+              </motion.button>
+            </div>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLoginClick}
+              className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-accent-yellow rounded-lg text-white font-semibold transition-all duration-300 hover:bg-accent-yellow hover:text-primary-black text-xs md:text-sm"
+            >
+              Log In
+            </motion.button>
+          )}
         </div>
 
         {/* Mobile Menu - Hamburger */}
         <div className="md:hidden flex items-center gap-2">
+          <button
+            onClick={() => router.push('/database-properties')}
+            className="text-primary-black p-2 bg-accent-yellow hover:bg-yellow-400 rounded-lg transition-colors"
+            title="Database Properties"
+          >
+            <Database size={20} />
+          </button>
           <button
             onClick={handleSidebarClick}
             className="text-white p-2"

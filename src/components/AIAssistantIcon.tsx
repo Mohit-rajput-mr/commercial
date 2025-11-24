@@ -314,7 +314,22 @@ export default function AIAssistantIcon() {
     const loadCommercialDatasets = async () => {
       setIsDatasetLoading(true);
       try {
-        const datasetUrls = ['/commercial_dataset_17nov2025.json', '/commercial_dataset2.json'];
+        const datasetUrls = [
+          '/commercial_dataset_17nov2025.json',
+          '/commercial_dataset2.json',
+          '/commercial_dataset_Chicago.json',
+          '/commercial_dataset_houston.json',
+          '/commercial_dataset_LA.json',
+          '/commercial_dataset_ny.json',
+          '/dataset_miami_beach.json',
+          '/dataset_miami_sale.json',
+          '/dataset_miamibeach_lease.json',
+          '/dataset_philadelphia_sale.json',
+          '/dataset_philadelphia.json',
+          '/dataset_phoenix.json',
+          '/dataset_san_antonio_sale.json',
+          '/dataset_son_antonio_lease.json'
+        ];
         const results = await Promise.allSettled(
           datasetUrls.map(async (url) => {
             const response = await fetch(url);

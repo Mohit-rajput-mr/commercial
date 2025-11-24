@@ -158,7 +158,7 @@ function getDefaultSettings(): AdminSettings {
   return {
     siteTitle: 'Real Estate Marketplace',
     siteDescription: 'The World\'s #1 Commercial Real Estate Marketplace',
-    contactEmail: 'leojoemall@gmail.com',
+    contactEmail: 'leojoemail@gmail.com',
     contactPhone: '+1 (917) 209-6200',
     officeAddress: '',
     primaryColor: '#FFD700',

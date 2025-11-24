@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
-import { MapPin, Square, Building2 } from 'lucide-react';
+import { MapPin, Square, Building2, Phone } from 'lucide-react';
 import { CommercialProperty, getAddressString, getCity as getCommercialCity, getState as getCommercialState, getZipcode as getCommercialZipcode } from '@/lib/us-real-estate-api';
 
 interface CommercialPropertyCardProps {
@@ -11,6 +12,8 @@ interface CommercialPropertyCardProps {
 }
 
 export default function CommercialPropertyCard({ property, isSelected, onClick }: CommercialPropertyCardProps) {
+  const leoJoPhone = '+1 (917) 209-6200';
+
   const formatPrice = (price?: number, priceText?: string) => {
     if (priceText) return priceText;
     if (!price) return 'Price on Request';
@@ -21,11 +24,12 @@ export default function CommercialPropertyCard({ property, isSelected, onClick }
     }).format(price);
   };
 
+
   return (
     <div
       onClick={onClick}
-      className={`bg-[#FED7AA] rounded-lg shadow-md overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:scale-[1.01] sm:hover:scale-[1.02] border-2 ${
-        isSelected ? 'border-orange-600 shadow-lg' : 'border-transparent'
+      className={`bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:scale-[1.01] sm:hover:scale-[1.02] border-2 ${
+        isSelected ? 'border-accent-yellow shadow-lg' : 'border-transparent'
       }`}
     >
       {/* Image */}
@@ -86,6 +90,20 @@ export default function CommercialPropertyCard({ property, isSelected, onClick }
             {property.status}
           </div>
         )}
+
+        {/* Contact Leo Jo Button */}
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <a
+            href={`https://wa.me/${leoJoPhone.replace(/[^\d]/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 text-sm block"
+          >
+            <Phone size={16} />
+            WhatsApp Leo Jo
+          </a>
+        </div>
       </div>
     </div>
   );

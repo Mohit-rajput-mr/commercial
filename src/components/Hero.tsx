@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft } from 'lucide-react';
+import { Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft, Database } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import TrustedPartners from './TrustedPartners';
@@ -443,16 +443,29 @@ export default function Hero() {
                 </div>
               )}
             </div>
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-full sm:w-auto px-6 sm:px-5 md:px-5 py-3 sm:py-3 md:py-2.5 bg-accent-yellow text-primary-black rounded-lg font-bold text-sm sm:text-sm md:text-base flex items-center justify-center gap-2 hover:bg-yellow-400 transition-all shadow-lg shadow-accent-yellow/30"
-            >
-              <Search size={18} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
-              <span className="hidden sm:inline">Search Properties</span>
-              <span className="sm:hidden">Search</span>
-            </motion.button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-full sm:w-auto px-6 sm:px-5 md:px-5 py-3 sm:py-3 md:py-2.5 bg-accent-yellow text-primary-black rounded-lg font-bold text-sm sm:text-sm md:text-base flex items-center justify-center gap-2 hover:bg-yellow-400 transition-all shadow-lg shadow-accent-yellow/30"
+              >
+                <Search size={18} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
+                <span className="hidden sm:inline">Search Properties</span>
+                <span className="sm:hidden">Search</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => router.push('/database-properties')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-full sm:w-auto px-4 sm:px-4 md:px-4 py-3 sm:py-3 md:py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-lg font-semibold text-sm sm:text-sm md:text-base flex items-center justify-center gap-2 hover:bg-white/30 transition-all"
+              >
+                <Database size={18} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
+                <span className="hidden sm:inline">Database Properties</span>
+                <span className="sm:hidden">Database</span>
+              </motion.button>
+            </div>
           </form>
         </motion.div>
 
@@ -801,6 +814,7 @@ export default function Hero() {
                     title: 'Tools',
                     items: [
                       { icon: HelpCircle, label: 'Help Center', href: '#' },
+                      { icon: Search, label: 'Zillow API 2.0', href: '/zillow' },
                     ],
                   },
                 ].map((section, sectionIndex) => (
