@@ -21,41 +21,12 @@ import {
   Copy,
   Mail,
   ExternalLink,
-  Phone,
 } from 'lucide-react';
 import { getCommercialDetails, getCommercialImages, CommercialProperty, getAddressString, getCity, getState, getZipcode } from '@/lib/us-real-estate-api';
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
 
-// Free OpenStreetMap component
-function FreeMap({ lat, lng, address }: { lat: number; lng: number; address: string }) {
-  return (
-    <div className="relative w-full h-full rounded-lg overflow-hidden">
-      <iframe
-        width="100%"
-        height="100%"
-        frameBorder="0"
-        scrolling="no"
-        marginHeight={0}
-        marginWidth={0}
-        src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`}
-        className="absolute inset-0"
-      />
-      <div className="absolute bottom-4 right-4 bg-white px-3 py-2 rounded-lg shadow-lg">
-        <a
-          href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=15`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-primary-black hover:text-orange-600 flex items-center gap-1"
-        >
-          <MapPin size={14} />
-          View Larger Map
-        </a>
-      </div>
-    </div>
-  );
-}
 
 export default function CommercialPropertyDetailPage() {
   const params = useParams();
@@ -66,10 +37,6 @@ export default function CommercialPropertyDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Leo Jo contact info
-  const leoJoPhone = '+1 (917) 209-6200';
-  const leoJoEmail = 'leojoemail@gmail.com';
 
   useEffect(() => {
     if (params.id && typeof params.id === 'string') {
@@ -85,67 +52,22 @@ export default function CommercialPropertyDetailPage() {
     setError(null);
 
     try {
-      let details: CommercialProperty | null = null;
-
-      // First, try to fetch from database
-      try {
-        const dbResponse = await fetch(`/api/properties/${params.id}`);
-        const dbData = await dbResponse.json();
-        
-        if (dbResponse.ok && dbData.success && dbData.property) {
-          // Convert database property to CommercialProperty format
-          const dbProp = dbData.property;
-          details = {
-            zpid: dbProp.zpid || dbProp.id,
-            address: typeof dbProp.address === 'string' ? dbProp.address : (dbProp.address?.streetAddress || dbProp.address?.city || ''),
-            city: dbProp.city || '',
-            state: dbProp.state || '',
-            zipcode: dbProp.zip || dbProp.zipcode || '',
-            price: dbProp.price || 0,
-            priceText: dbProp.price_text || (dbProp.price ? `$${dbProp.price.toLocaleString()}` : 'Contact for Price'),
-            propertyType: dbProp.property_type || 'Commercial',
-            status: dbProp.status || 'For Sale',
-            imgSrc: dbProp.images && Array.isArray(dbProp.images) && dbProp.images.length > 0 ? dbProp.images[0] : null,
-            images: dbProp.images && Array.isArray(dbProp.images) ? dbProp.images : [],
-            description: dbProp.description || '',
-            beds: dbProp.beds || 0,
-            baths: dbProp.baths || 0,
-            sqft: dbProp.sqft || dbProp.living_area || 0,
-            lotSize: dbProp.lot_size || 0,
-            yearBuilt: dbProp.year_built || null,
-            latitude: dbProp.latitude || null,
-            longitude: dbProp.longitude || null,
-          } as CommercialProperty;
-          console.log('✅ Property loaded from database:', details);
-        }
-      } catch (dbErr) {
-        console.log('Property not found in database, trying JSON dataset...', dbErr);
-      }
-
-      // If not found in database, try JSON dataset
-      if (!details) {
-        try {
-          details = await getCommercialDetails(params.id);
-          
-          // Try to fetch images separately
-          if (details) {
-            try {
-              const images = await getCommercialImages(params.id);
-              if (images && images.length > 0) {
-                details.images = images;
-                details.imgSrc = images[0];
-              }
-            } catch (imgErr) {
-              console.warn('Could not fetch images:', imgErr);
-            }
-          }
-        } catch (jsonErr) {
-          console.log('Property not found in JSON dataset either');
-        }
-      }
-
+      // Fetch property details from JSON dataset
+      const details = await getCommercialDetails(params.id);
+      
       if (!details) {
         throw new Error('Property not found');
+      }
+      
+      // Try to fetch images separately
+      try {
+        const images = await getCommercialImages(params.id);
+        if (images && images.length > 0) {
+          details.images = images;
+          details.imgSrc = images[0];
+        }
+      } catch (imgErr) {
+        console.warn('Could not fetch images:', imgErr);
       }
 
       setProperty(details);
@@ -546,19 +468,16 @@ export default function CommercialPropertyDetailPage() {
               </section>
             )}
 
-            {/* Location & Map - Mobile First */}
-            {(property.latitude && property.longitude) && (
-              <section>
-                <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">LOCATION</h2>
-                <div className="relative w-full h-[250px] sm:h-[300px] md:h-[400px] bg-gray-200 rounded-lg overflow-hidden mb-4">
-                  <FreeMap
-                    lat={property.latitude}
-                    lng={property.longitude}
-                    address={addressString}
-                  />
-                </div>
-              </section>
-            )}
+            {/* Location - Mobile First */}
+            <section>
+              <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">LOCATION</h2>
+              <div className="p-4 bg-light-gray rounded-lg mb-4">
+                <p className="text-custom-gray flex items-center gap-2">
+                  <MapPin size={16} />
+                  {addressString}
+                </p>
+              </div>
+            </section>
           </div>
 
           {/* Right Column - Sidebar - Mobile First */}
@@ -616,28 +535,20 @@ export default function CommercialPropertyDetailPage() {
                   <div>
                     <div className="text-sm md:text-base font-bold text-orange-900 mb-2">Leo Jo</div>
                     <a
-                      href={`mailto:${leoJoEmail}`}
-                      className="flex items-center gap-2 text-orange-600 hover:text-orange-700 transition-colors text-sm md:text-base break-all mb-2"
+                      href="mailto:leojoemail@gmail.com"
+                      className="flex items-center gap-2 text-orange-600 hover:text-orange-700 transition-colors text-sm md:text-base break-all"
                     >
                       <Mail size={18} className="md:w-5 md:h-5 flex-shrink-0" />
-                      <span>{leoJoEmail}</span>
-                    </a>
-                    <a
-                      href={`tel:${leoJoPhone.replace(/\s/g, '')}`}
-                      className="flex items-center gap-2 text-orange-600 hover:text-orange-700 transition-colors text-sm md:text-base"
-                    >
-                      <Phone size={18} className="md:w-5 md:h-5 flex-shrink-0" />
-                      <span>{leoJoPhone}</span>
+                      <span>leojoemail@gmail.com</span>
                     </a>
                   </div>
                   <a
-                    href={`https://wa.me/${leoJoPhone.replace(/[^\d]/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full bg-green-500 text-white px-4 md:px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+                    href="mailto:leojoemail@gmail.com"
+                    className="w-full bg-orange-600 text-white px-4 md:px-6 py-3 rounded-lg font-bold hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+
                   >
-                    <Phone size={18} className="md:w-5 md:h-5" />
-                    WhatsApp Leo Jo
+                    <Mail size={18} className="md:w-5 md:h-5" />
+                    Contact Leo Jo
                   </a>
                 </div>
               </div>

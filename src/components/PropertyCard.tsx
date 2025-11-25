@@ -24,8 +24,8 @@ export default function PropertyCard({ property, isSelected, onClick }: Property
   };
 
   const handleClick = () => {
-    // Navigate to professional property detail page
-    router.push(`/property/cr/${property.zpid}`);
+    // Navigate to residential property detail page
+    router.push(`/property/residential/${property.zpid}`);
   };
 
   return (

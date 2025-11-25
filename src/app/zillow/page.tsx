@@ -648,7 +648,7 @@ const PropertyCard = React.memo(function PropertyCard({
   };
 
   return (
-    <Link href={`/zillow/property/${property.zpid}`}>
+    <Link href={`/property/residential/${property.zpid}`}>
       <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group">
         {/* Property Image */}
         <div className="relative h-64 bg-gray-200 overflow-hidden">

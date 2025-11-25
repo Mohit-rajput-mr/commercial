@@ -27,93 +27,158 @@ export default function DatabasePropertiesPage() {
         setLoading(true);
         setError(null);
         
-        // Fetch all active properties from database
-        console.log('📡 Fetching database properties...');
-        const response = await fetch('/api/properties?limit=1000&page=1');
-        const data = await response.json();
+        // Load properties from test_database.json
+        console.log('📡 Loading properties from test_database.json...');
+        const response = await fetch('/test_database.json');
         
-        console.log('📊 API Response:', {
-          success: data.success,
-          propertiesCount: data.properties?.length || 0,
-          error: data.error,
-          pagination: data.pagination
-        });
+        if (!response.ok) {
+          throw new Error(`Failed to load test_database.json: ${response.statusText}`);
+        }
         
-        if (data.success && Array.isArray(data.properties)) {
-          console.log('✅ Properties fetched:', data.properties.length);
-          if (data.properties.length > 0) {
-            console.log('📋 Sample property:', data.properties[0]);
-          } else {
-            console.warn('⚠️ No properties found. Properties need to have is_active = true to appear.');
-          }
-          // Convert database properties to the format expected by PropertyCard/CommercialPropertyCard
-          const formattedProperties = data.properties.map((prop: any) => {
-            const propertyData = {
-              zpid: prop.zpid || prop.id,
-              address: prop.address || '',
-              city: prop.city || '',
-              state: prop.state || '',
-              zipcode: prop.zip || prop.zipcode || '',
-              price: prop.price || 0,
-              priceText: prop.price_text || `$${prop.price?.toLocaleString() || 'N/A'}`,
-              propertyType: prop.property_type || 'Commercial',
-              status: prop.status || 'For Sale',
-              imgSrc: prop.images && prop.images.length > 0 ? prop.images[0] : null,
-              images: prop.images || [],
-              description: prop.description || '',
-              beds: prop.beds || 0,
-              baths: prop.baths || 0,
-              sqft: prop.sqft || prop.living_area || 0,
-              lotSize: prop.lot_size || 0,
-              yearBuilt: prop.year_built || null,
-              latitude: prop.latitude || null,
-              longitude: prop.longitude || null,
-              source: 'database',
-            };
-
-            // If residential, return as APIProperty, otherwise as CommercialProperty
-            if (prop.property_type === 'Residential') {
-              return {
-                zpid: propertyData.zpid,
-                address: propertyData.address,
-                city: propertyData.city,
-                state: propertyData.state,
-                zipcode: propertyData.zipcode,
-                price: propertyData.price,
-                bedrooms: propertyData.beds,
-                bathrooms: propertyData.baths,
-                livingArea: propertyData.sqft,
-                lotSize: propertyData.lotSize,
-                yearBuilt: propertyData.yearBuilt,
-                propertyType: 'Residential',
-                status: propertyData.status,
-                imgSrc: propertyData.imgSrc,
-                images: propertyData.images,
-                description: propertyData.description,
-                latitude: propertyData.latitude,
-                longitude: propertyData.longitude,
-                source: 'database',
-              } as APIProperty & { source: string };
-            } else {
-              return propertyData as CommercialProperty;
-            }
-          });
+        // Read as text first to handle JSON structure issues
+        const textData = await response.text();
+        
+        // Try to parse as-is first
+        let jsonData;
+        try {
+          jsonData = JSON.parse(textData);
+        } catch (e) {
+          // If parsing fails, try to fix common issues
+          let fixedText = textData.trim();
           
-          setProperties(formattedProperties);
-          setFilteredProperties(formattedProperties);
-        } else {
-          console.error('❌ Failed to load properties:', data.error || 'Unknown error');
-          if (data.error) {
-            setError(`Error: ${data.error}`);
-          } else if (data.properties && Array.isArray(data.properties) && data.properties.length === 0) {
-            setError('No active properties found in the database. Properties must have is_active = true to appear here.');
-          } else {
-            setError('Failed to load properties. Please check the browser console for more details.');
+          // If it doesn't start with '{', add it
+          if (!fixedText.startsWith('{')) {
+            fixedText = '{' + fixedText;
+          }
+          
+          // Remove trailing comma before closing braces
+          fixedText = fixedText.replace(/,\s*(\}|\])/g, '$1');
+          
+          // Ensure proper closing - should end with }\n}
+          if (!fixedText.endsWith('}')) {
+            fixedText = fixedText + '\n}';
+          }
+          
+          // If it doesn't have the outer closing brace, add it
+          const openCount = (fixedText.match(/\{/g) || []).length;
+          const closeCount = (fixedText.match(/\}/g) || []).length;
+          if (openCount > closeCount) {
+            fixedText = fixedText + '\n}';
+          }
+          
+          try {
+            jsonData = JSON.parse(fixedText);
+          } catch (e2) {
+            console.error('JSON parse error:', e2);
+            console.error('First 200 chars:', fixedText.substring(0, 200));
+            console.error('Last 200 chars:', fixedText.substring(fixedText.length - 200));
+            const errorMessage = e2 instanceof Error ? e2.message : 'Unknown error';
+            throw new Error(`Failed to parse JSON: ${errorMessage}`);
           }
         }
+        
+        // Extract properties from pageProps.properties
+        const rawProperties = jsonData?.pageProps?.properties || [];
+        
+        console.log('📊 Loaded from test_database.json:', {
+          totalProperties: rawProperties.length,
+          sampleProperty: rawProperties[0]
+        });
+        
+        if (rawProperties.length === 0) {
+          console.warn('⚠️ No properties found in test_database.json');
+          setError('No properties found in test_database.json');
+          setProperties([]);
+          setFilteredProperties([]);
+          return;
+        }
+        
+        // Convert properties from test_database.json format to PropertyCard/CommercialPropertyCard format
+        const formattedProperties = rawProperties.map((prop: any) => {
+          // Extract address components
+          const addressLine = prop.location?.address?.line || '';
+          const city = prop.location?.address?.city || '';
+          const state = prop.location?.address?.state || prop.location?.address?.state_code || '';
+          const zipcode = prop.location?.address?.postal_code || '';
+          const lat = prop.location?.address?.coordinate?.lat || null;
+          const lon = prop.location?.address?.coordinate?.lon || null;
+          
+          // Extract property details
+          const price = prop.list_price || 0;
+          const beds = prop.description?.beds || null;
+          const baths = prop.description?.baths_consolidated ? parseFloat(prop.description.baths_consolidated) : null;
+          const sqft = prop.description?.sqft || null;
+          const lotSqft = prop.description?.lot_sqft || null;
+          const yearBuilt = prop.description?.year_built || null;
+          const propertyType = prop.description?.type || 'unknown';
+          const status = prop.status === 'for_sale' ? 'For Sale' : prop.status === 'for_rent' ? 'For Rent' : 'For Sale';
+          
+          // Extract images
+          const primaryPhoto = prop.primary_photo?.href || null;
+          const photos = prop.photos?.map((p: any) => p.href) || [];
+          const images = primaryPhoto ? [primaryPhoto, ...photos.filter((p: string) => p !== primaryPhoto)] : photos;
+          
+          // Determine if residential or commercial
+          const isResidential = ['condos', 'single_family', 'townhomes', 'multi_family'].includes(propertyType);
+          
+          if (isResidential && beds !== null) {
+            // Format as APIProperty (Residential)
+            return {
+              zpid: prop.property_id || prop.listing_id || `prop-${Math.random()}`,
+              address: addressLine,
+              city: city,
+              state: state,
+              zipcode: zipcode,
+              price: price,
+              bedrooms: beds || 0,
+              bathrooms: baths || 0,
+              livingArea: sqft || 0,
+              lotSize: lotSqft || 0,
+              yearBuilt: yearBuilt,
+              propertyType: 'Residential',
+              status: status,
+              imgSrc: images[0] || null,
+              images: images,
+              description: '',
+              latitude: lat,
+              longitude: lon,
+              source: 'test_database',
+            } as APIProperty & { source: string };
+          } else {
+            // Format as CommercialProperty
+            return {
+              zpid: prop.property_id || prop.listing_id || `prop-${Math.random()}`,
+              address: addressLine,
+              city: city,
+              state: state,
+              zipcode: zipcode,
+              price: price,
+              priceText: price > 0 ? `$${price.toLocaleString()}` : 'Price on Request',
+              propertyType: propertyType === 'land' ? 'Land' : 'Commercial',
+              status: status,
+              imgSrc: images[0] || null,
+              images: images,
+              description: '',
+              beds: beds || 0,
+              baths: baths || 0,
+              sqft: sqft || 0,
+              lotSize: lotSqft || 0,
+              yearBuilt: yearBuilt,
+              latitude: lat,
+              longitude: lon,
+              source: 'test_database',
+            } as CommercialProperty & { source: string };
+          }
+        });
+        
+        console.log('✅ Formatted properties:', formattedProperties.length);
+        setProperties(formattedProperties);
+        setFilteredProperties(formattedProperties);
       } catch (err: any) {
-        console.error('❌ Error fetching properties:', err);
-        setError(`Failed to load properties: ${err.message || 'Unknown error'}. Please try again later.`);
+        console.error('❌ Error loading properties from test_database.json:', err);
+        setError(`Failed to load properties: ${err.message || 'Unknown error'}. Please make sure test_database.json exists in the public folder.`);
+        setProperties([]);
+        setFilteredProperties([]);
       } finally {
         setLoading(false);
       }

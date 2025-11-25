@@ -27,7 +27,6 @@ import { PropertyDetail } from '@/types/propertyDetail';
 import { allProperties } from '@/data/sampleProperties';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
-import PropertyMap from '@/components/PropertyMap';
 import { getWeatherData, WeatherData } from '@/lib/weatherApi';
 
 export default function PropertyDetailPage() {
@@ -45,7 +44,6 @@ export default function PropertyDetailPage() {
   const [loanTerm, setLoanTerm] = useState(30);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: 'I am interested in this property. Please contact me.', financing: false });
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [mapView, setMapView] = useState<'aerial' | 'map' | 'commute'>('aerial');
 
   useEffect(() => {
     if (params.id && typeof params.id === 'string') {
@@ -744,7 +742,7 @@ export default function PropertyDetailPage() {
 
             {/* Location Section */}
             <section>
-              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">LOCATION & MAP</h2>
+              <h2 className="text-2xl font-bold text-primary-black mb-[0.4px] md:mb-4">LOCATION</h2>
               
               {/* Weather Info */}
               {weather && (
@@ -760,50 +758,11 @@ export default function PropertyDetailPage() {
                 </div>
               )}
 
-              <div className="space-y-[0.4px] md:space-y-4">
-                <div className="flex gap-2 border-b border-gray-300">
-                  <button
-                    onClick={() => setMapView('aerial')}
-                    className={`px-4 py-2 font-semibold transition-colors ${
-                      mapView === 'aerial'
-                        ? 'text-primary-black border-b-2 border-accent-yellow'
-                        : 'text-custom-gray hover:text-primary-black'
-                    }`}
-                  >
-                    AERIAL
-                  </button>
-                  <button
-                    onClick={() => setMapView('map')}
-                    className={`px-4 py-2 font-semibold transition-colors ${
-                      mapView === 'map'
-                        ? 'text-primary-black border-b-2 border-accent-yellow'
-                        : 'text-custom-gray hover:text-primary-black'
-                    }`}
-                  >
-                    MAP
-                  </button>
-                  <button
-                    onClick={() => setMapView('commute')}
-                    className={`px-4 py-2 font-semibold transition-colors ${
-                      mapView === 'commute'
-                        ? 'text-primary-black border-b-2 border-accent-yellow'
-                        : 'text-custom-gray hover:text-primary-black'
-                    }`}
-                  >
-                    COMMUTE
-                  </button>
-                </div>
-                <div className="relative w-full h-96 bg-gray-200 rounded overflow-hidden">
-                  <PropertyMap
-                    address={property.address}
-                    city={property.city}
-                    state={property.state}
-                    zipCode={property.zipCode}
-                    coordinates={property.location}
-                    height="100%"
-                    showControls={true}
-                  />
-                </div>
+              <div className="p-4 bg-light-gray rounded-lg">
+                <p className="text-custom-gray">
+                  <MapPin size={16} className="inline mr-2" />
+                  {property.address}, {property.city}, {property.state} {property.zipCode}
+                </p>
               </div>
             </section>
 

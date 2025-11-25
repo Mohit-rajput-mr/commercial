@@ -16,3 +16,8 @@ ALTER TABLE properties DROP CONSTRAINT IF EXISTS properties_property_type_check;
 ALTER TABLE properties ADD CONSTRAINT properties_property_type_check 
   CHECK (property_type = ANY (ARRAY['Residential'::text, 'Commercial'::text]));
 
+
+
+
+
+

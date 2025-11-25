@@ -7,7 +7,27 @@ import { X, Send, User } from 'lucide-react';
 const DEEPSEEK_API_KEY = 'sk-a8605ba2f76f44a2aaf690037a2d3189';
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-const SYSTEM_PROMPT = `You are an intelligent AI assistant for Cap Rate, the world's #1 commercial real estate marketplace. You have comprehensive knowledge about the entire platform, all its features, components, and how everything works. You also have direct access to Cap Rate's commercial datasets (commercial_dataset_17nov2025.json and commercial_dataset2.json) which include verified property listings for sale, lease, and auction across the U.S. Use these datasets to surface relevant listings whenever users ask for properties.
+const SYSTEM_PROMPT = `You are an intelligent AI assistant for Cap Rate, the world's #1 commercial real estate marketplace. You have comprehensive knowledge about the entire platform, all its features, components, and how everything works. 
+
+**IMPORTANT: Always provide SHORT, CONCISE responses. Get straight to the main point. No long explanations unless specifically asked.**
+
+You also have direct access to Cap Rate's commercial datasets which include verified property listings for sale, lease, and auction across the U.S.:
+- commercial_dataset_17nov2025.json
+- commercial_dataset2.json
+- commercial_dataset_Chicago.json
+- commercial_dataset_houston.json
+- commercial_dataset_LA.json
+- commercial_dataset_ny.json
+- dataset_miami_beach.json
+- dataset_miami_sale.json
+- dataset_miamibeach_lease.json
+- dataset_philadelphia_sale.json
+- dataset_philadelphia.json
+- dataset_phoenix.json
+- dataset_san_antonio_sale.json
+- dataset_son_antonio_lease.json
+
+Use these datasets to surface relevant listings whenever users ask for properties.
 
 === PLATFORM OVERVIEW ===
 Cap Rate is a leading commercial and residential real estate marketplace with:
@@ -91,7 +111,8 @@ Cap Rate is a leading commercial and residential real estate marketplace with:
 - Property Details: 
   - Residential: /property/cr/[zpid]
   - Commercial: /property/commercial/[id]
-  - Zillow: /property/zillow/[zpid]
+  - Residential: /property/residential/[zpid]
+  - Commercial: /property/commercial/[id]
 - Search Filters: Location, Property Type, For Lease/For Sale status
 - Location Autocomplete: Real-time suggestions as you type
 
@@ -412,9 +433,20 @@ export default function AIAssistantIcon() {
       const datasetContext = includeProperties ? buildPropertyContext(trimmedInput) : null;
       const conversationMessages = [...messages, userMessage].filter((m) => m.role !== 'system');
 
+      // Add reminder for short responses to each user message
+      const enhancedMessages = conversationMessages.map((m) => {
+        if (m.role === 'user') {
+          return { 
+            role: m.role, 
+            content: `${m.content}\n\n[Keep response SHORT and CONCISE - 2-3 sentences max unless listing properties]` 
+          };
+        }
+        return m;
+      });
+
       const allMessagesForAPI = [
         { role: 'system', content: datasetContext ? `${SYSTEM_PROMPT}\n\n${datasetContext}` : SYSTEM_PROMPT },
-        ...conversationMessages,
+        ...enhancedMessages,
       ].map((m) => ({ role: m.role, content: m.content }));
 
       // Add streaming assistant message placeholder
@@ -429,7 +461,7 @@ export default function AIAssistantIcon() {
         body: JSON.stringify({
           model: 'deepseek-chat',
           messages: allMessagesForAPI,
-          max_tokens: 500,
+          max_tokens: 200, // Reduced for shorter responses
           temperature: 0.7,
           stream: true,
         }),

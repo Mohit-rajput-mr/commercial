@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -16,16 +15,15 @@ import {
   Printer,
   GitCompare,
   MapPin,
-  Check,
-  ExternalLink,
   ArrowLeft,
-  Bed,
-  Bath,
   Square,
-  Calendar,
+  Building2,
   Copy,
   Mail,
+  ExternalLink,
   Phone,
+  Bed,
+  Bath,
 } from 'lucide-react';
 import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 import Nav from '@/components/Navigation';
@@ -33,47 +31,134 @@ import Footer from '@/components/Footer';
 import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
 
 
-export default function CRPropertyDetailPage() {
+export default function ResidentialPropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const id = typeof params.id === 'string' ? params.id : '';
   const [property, setProperty] = useState<PropertyDetailsResponse | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Leo Jo contact info
+  const leoJoPhone = '+1 (917) 209-6200';
+  const leoJoEmail = 'leojoemail@gmail.com';
 
   useEffect(() => {
-    if (params.zpid && typeof params.zpid === 'string') {
+    if (params.id && typeof params.id === 'string') {
       loadProperty();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.zpid]);
+  }, [params.id]);
 
   const loadProperty = async () => {
-    if (!params.zpid || typeof params.zpid !== 'string') return;
+    if (!params.id || typeof params.id !== 'string') return;
     
     setLoading(true);
     setError(null);
 
     try {
-      // Fetch property details
-      const details = await getPropertyDetails(params.zpid);
-      
-      // Try to fetch images separately
+      let details: PropertyDetailsResponse | null = null;
+
+      // First, try to fetch from database
       try {
-        const images = await getPropertyImages(params.zpid);
-        if (images && images.length > 0) {
-          details.images = images;
+        const dbResponse = await fetch(`/api/properties/${params.id}`);
+        const dbData = await dbResponse.json();
+        
+        if (dbResponse.ok && dbData.success && dbData.property) {
+          // Convert database property to PropertyDetailsResponse format
+          const dbProp = dbData.property;
+          details = {
+            zpid: dbProp.zpid || dbProp.id,
+            address: typeof dbProp.address === 'string' ? dbProp.address : (dbProp.address?.streetAddress || dbProp.address?.city || ''),
+            city: dbProp.city || '',
+            state: dbProp.state || '',
+            zipcode: dbProp.zip || dbProp.zipcode || '',
+            price: dbProp.price || 0,
+            propertyType: dbProp.property_type || 'Residential',
+            status: dbProp.status || 'For Sale',
+            images: dbProp.images && Array.isArray(dbProp.images) ? dbProp.images : [],
+            description: dbProp.description || '',
+            bedrooms: dbProp.beds || 0,
+            bathrooms: dbProp.baths || 0,
+            livingArea: dbProp.sqft || dbProp.living_area || 0,
+            lotSize: dbProp.lot_size || 0,
+            yearBuilt: dbProp.year_built || null,
+            latitude: dbProp.latitude || null,
+            longitude: dbProp.longitude || null,
+          } as PropertyDetailsResponse;
+          console.log('✅ Property loaded from database:', details);
         }
-      } catch (imgErr) {
-        console.warn('Could not fetch images:', imgErr);
+      } catch (dbErr) {
+        console.log('Property not found in database, trying local dataset...', dbErr);
+      }
+
+      // If not found in database, try to load from local JSON datasets
+      if (!details) {
+        const datasets = [
+          '/dataset_miami_sale.json',
+          '/commercial_dataset2.json',
+          '/commercial_dataset_Chicago.json'
+        ];
+
+        for (const datasetPath of datasets) {
+          try {
+            const response = await fetch(datasetPath);
+            const data = await response.json();
+            const property = data.find((p: any) => 
+              p.zpid === params.id || 
+              String(p.zpid) === params.id ||
+              p.propertyId === params.id ||
+              String(p.propertyId) === params.id
+            );
+            
+            if (property) {
+              // Parse price if it's a string
+              let priceValue = 0;
+              if (typeof property.price === 'string') {
+                priceValue = parseInt(property.price.replace(/[^0-9]/g, '')) || property.priceNumeric || 0;
+              } else {
+                priceValue = property.price || property.priceNumeric || 0;
+              }
+
+              details = {
+                zpid: property.zpid || property.propertyId || params.id,
+                address: property.address || property.streetAddress || '',
+                city: property.city || '',
+                state: property.state || '',
+                zipcode: property.zipcode || property.zip || '',
+                price: priceValue,
+                propertyType: property.propertyType || property.homeType || property.propertyTypeDetailed || 'Property',
+                status: property.status || property.homeStatus || property.listingType || 'For Sale',
+                images: property.images || (property.imgSrc ? [property.imgSrc] : []),
+                description: property.description || (property.dataPoints ? property.dataPoints.join('. ') : ''),
+                bedrooms: property.bedrooms || property.beds || property.numberOfUnits || 0,
+                bathrooms: property.bathrooms || property.baths || 0,
+                livingArea: property.livingArea || property.sqft || property.squareFootage || 0,
+                lotSize: property.lotSize || property.lotAreaValue || 0,
+                yearBuilt: property.yearBuilt || null,
+                latitude: property.latitude || null,
+                longitude: property.longitude || null,
+              } as PropertyDetailsResponse;
+              console.log(`✅ Property loaded from ${datasetPath}:`, details);
+              break;
+            }
+          } catch (jsonErr) {
+            console.log(`Property not found in ${datasetPath}`, jsonErr);
+          }
+        }
+      }
+
+      if (!details) {
+        throw new Error('Property not found in database or local datasets');
       }
 
       setProperty(details);
       
       // Load favorite status
       const favorites = JSON.parse(localStorage.getItem('api-favorites') || '[]');
-      setIsFavorite(favorites.includes(params.zpid));
+      setIsFavorite(favorites.includes(params.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load property');
       console.error('Error loading property:', err);
@@ -108,7 +193,7 @@ export default function CRPropertyDetailPage() {
     );
   }
 
-  const images = property.images || (property.imgSrc ? [property.imgSrc] : []);
+  const images = property.images || [];
   const addressString = getAddressString(property.address);
   const city = getCity(property);
   const state = getState(property);
@@ -124,11 +209,15 @@ export default function CRPropertyDetailPage() {
   };
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    }
   };
 
   const formatPrice = (price?: number) => {
@@ -140,9 +229,9 @@ export default function CRPropertyDetailPage() {
     }).format(price);
   };
 
-  const copyZpid = () => {
+  const copyPropertyId = () => {
     navigator.clipboard.writeText(property.zpid);
-    alert('ZPID copied to clipboard!');
+    alert('Property ID copied to clipboard!');
   };
 
   return (
@@ -153,7 +242,7 @@ export default function CRPropertyDetailPage() {
       <div className="h-[50px] w-full"></div>
       
       {/* Breadcrumb - Mobile First */}
-      <div className="bg-light-gray py-3 px-4">
+      <div className="bg-gray-50 py-3 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-2 text-xs md:text-sm text-custom-gray flex-wrap">
             <Link href="/" className="hover:text-accent-yellow">Home</Link>
@@ -180,7 +269,7 @@ export default function CRPropertyDetailPage() {
                 onClick={toggleFavorite}
                 className={`px-3 md:px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors text-sm md:text-base ${
                   isFavorite
-                    ? 'bg-accent-yellow text-primary-black hover:bg-yellow-400'
+                    ? 'bg-accent-yellow text-primary-black hover:bg-yellow-500'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
@@ -278,7 +367,7 @@ export default function CRPropertyDetailPage() {
       )}
 
       {/* Header Stats Bar - Mobile First */}
-      <div className="bg-white border-b border-gray-200 px-4 md:px-5 py-4 md:py-6">
+      <div className="bg-gray-50 border-b border-gray-200 px-4 md:px-5 py-4 md:py-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div className="flex flex-wrap items-center gap-4 md:gap-6">
@@ -286,30 +375,26 @@ export default function CRPropertyDetailPage() {
                 <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-primary-black">
                   {formatPrice(property.price)}
                 </p>
-                {property.zestimate && (
+                {property.status && (
                   <p className="text-xs md:text-sm text-custom-gray mt-1">
-                    Zestimate: {formatPrice(property.zestimate)}
+                    Status: {property.status}
                   </p>
                 )}
               </div>
-              {property.bedrooms !== undefined && (
-                <div>
-                  <p className="text-base md:text-lg font-semibold text-primary-black">{property.bedrooms}</p>
-                  <p className="text-xs md:text-sm text-custom-gray">Beds</p>
-                </div>
-              )}
-              {property.bathrooms !== undefined && (
-                <div>
-                  <p className="text-base md:text-lg font-semibold text-primary-black">{property.bathrooms}</p>
-                  <p className="text-xs md:text-sm text-custom-gray">Baths</p>
-                </div>
-              )}
               {property.livingArea && (
                 <div>
                   <p className="text-base md:text-lg font-semibold text-primary-black">
                     {property.livingArea.toLocaleString()} sqft
                   </p>
                   <p className="text-xs md:text-sm text-custom-gray">Size</p>
+                </div>
+              )}
+              {property.propertyType && (
+                <div>
+                  <p className="text-base md:text-lg font-semibold text-primary-black">
+                    {property.propertyType}
+                  </p>
+                  <p className="text-xs md:text-sm text-custom-gray">Type</p>
                 </div>
               )}
             </div>
@@ -331,10 +416,10 @@ export default function CRPropertyDetailPage() {
             </button>
             <button
               onClick={() => {
-                const comparisons = JSON.parse(localStorage.getItem('api-comparisons') || '[]');
+                const comparisons = JSON.parse(localStorage.getItem('residential-comparisons') || '[]');
                 if (!comparisons.includes(property.zpid)) {
                   comparisons.push(property.zpid);
-                  localStorage.setItem('api-comparisons', JSON.stringify(comparisons));
+                  localStorage.setItem('residential-comparisons', JSON.stringify(comparisons));
                   alert('Property added to comparison!');
                 } else {
                   alert('Property already in comparison!');
@@ -347,7 +432,7 @@ export default function CRPropertyDetailPage() {
             </button>
             <button
               onClick={() => {
-                const propertyText = `Property Details\n================\n${addressString}\n${city}, ${state} ${zipcode}\n\nPrice: ${formatPrice(property.price)}\nBedrooms: ${property.bedrooms || 'N/A'}\nBathrooms: ${property.bathrooms || 'N/A'}\nLiving Area: ${property.livingArea ? property.livingArea.toLocaleString() + ' sqft' : 'N/A'}\nYear Built: ${property.yearBuilt || 'N/A'}\n\n${property.description || 'No description available'}`.trim();
+                const propertyText = `Residential Property Details\n================\n${addressString}\n${city}, ${state} ${zipcode}\n\nPrice: ${formatPrice(property.price)}\nBedrooms: ${property.bedrooms || 'N/A'}\nBathrooms: ${property.bathrooms || 'N/A'}\nSize: ${property.livingArea ? property.livingArea.toLocaleString() + ' sqft' : 'N/A'}\nProperty Type: ${property.propertyType || 'N/A'}\nStatus: ${property.status || 'N/A'}\n\n${property.description || 'No description available'}`.trim();
                 const blob = new Blob([propertyText], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -403,25 +488,29 @@ export default function CRPropertyDetailPage() {
               <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">PROPERTY DETAILS</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                 {property.bedrooms !== undefined && (
-                  <div className="flex items-center gap-2 p-3 bg-light-gray rounded-lg">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <Bed size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
                     <div>
                       <div className="text-xs md:text-sm text-custom-gray">Bedrooms</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">{property.bedrooms}</div>
+                      <div className="font-semibold text-sm md:text-base text-primary-black">
+                        {property.bedrooms}
+                      </div>
                     </div>
                   </div>
                 )}
                 {property.bathrooms !== undefined && (
-                  <div className="flex items-center gap-2 p-3 bg-light-gray rounded-lg">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <Bath size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
                     <div>
                       <div className="text-xs md:text-sm text-custom-gray">Bathrooms</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">{property.bathrooms}</div>
+                      <div className="font-semibold text-sm md:text-base text-primary-black">
+                        {property.bathrooms}
+                      </div>
                     </div>
                   </div>
                 )}
                 {property.livingArea && (
-                  <div className="flex items-center gap-2 p-3 bg-light-gray rounded-lg">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <Square size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
                     <div>
                       <div className="text-xs md:text-sm text-custom-gray">Living Area</div>
@@ -432,7 +521,7 @@ export default function CRPropertyDetailPage() {
                   </div>
                 )}
                 {property.lotSize && (
-                  <div className="flex items-center gap-2 p-3 bg-light-gray rounded-lg">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <Square size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
                     <div>
                       <div className="text-xs md:text-sm text-custom-gray">Lot Size</div>
@@ -442,20 +531,20 @@ export default function CRPropertyDetailPage() {
                     </div>
                   </div>
                 )}
-                {property.yearBuilt && (
-                  <div className="flex items-center gap-2 p-3 bg-light-gray rounded-lg">
-                    <Calendar size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
-                    <div>
-                      <div className="text-xs md:text-sm text-custom-gray">Year Built</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">{property.yearBuilt}</div>
-                    </div>
-                  </div>
-                )}
                 {property.propertyType && (
-                  <div className="flex items-center gap-2 p-3 bg-light-gray rounded-lg">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <Building2 size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
                     <div>
                       <div className="text-xs md:text-sm text-custom-gray">Property Type</div>
                       <div className="font-semibold text-sm md:text-base text-primary-black">{property.propertyType}</div>
+                    </div>
+                  </div>
+                )}
+                {property.yearBuilt && (
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div>
+                      <div className="text-xs md:text-sm text-custom-gray">Year Built</div>
+                      <div className="font-semibold text-sm md:text-base text-primary-black">{property.yearBuilt}</div>
                     </div>
                   </div>
                 )}
@@ -486,17 +575,17 @@ export default function CRPropertyDetailPage() {
           <div className="lg:col-span-1">
             <div className="lg:sticky lg:top-4 space-y-4 md:space-y-6">
               {/* Property Info Box */}
-              <div className="bg-light-gray rounded-lg p-4 md:p-6 space-y-3 md:space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4 border border-gray-200">
                 <h3 className="text-base md:text-lg font-semibold text-primary-black mb-3 md:mb-4">PROPERTY INFORMATION</h3>
                 <div className="space-y-2 md:space-y-3 text-xs md:text-sm">
                   <div className="flex justify-between">
-                    <span className="text-custom-gray">ZPID:</span>
+                    <span className="text-custom-gray">Property ID:</span>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-semibold text-primary-black text-xs">{property.zpid}</span>
                       <button
-                        onClick={copyZpid}
+                        onClick={copyPropertyId}
                         className="text-accent-yellow hover:text-yellow-600"
-                        title="Copy ZPID"
+                        title="Copy Property ID"
                       >
                         <Copy size={12} className="md:w-3.5 md:h-3.5" />
                       </button>
@@ -508,35 +597,44 @@ export default function CRPropertyDetailPage() {
                       <span className="font-semibold text-primary-black">{property.status}</span>
                     </div>
                   )}
-                  {property.zestimate && (
+                  {property.propertyType && (
                     <div className="flex justify-between">
-                      <span className="text-custom-gray">Zestimate:</span>
-                      <span className="font-semibold text-primary-black">{formatPrice(property.zestimate)}</span>
+                      <span className="text-custom-gray">Type:</span>
+                      <span className="font-semibold text-primary-black">{property.propertyType}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Contact Leo Jo */}
-              <div className="bg-light-gray rounded-lg p-4 md:p-6 space-y-3 md:space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4 border border-gray-200">
                 <h3 className="text-base md:text-lg font-semibold text-primary-black mb-3 md:mb-4">CONTACT</h3>
                 <div className="space-y-3 md:space-y-4">
                   <div>
                     <div className="text-sm md:text-base font-bold text-primary-black mb-2">Leo Jo</div>
                     <a
-                      href="mailto:leojoemail@gmail.com"
-                      className="flex items-center gap-2 text-accent-yellow hover:text-yellow-600 transition-colors text-sm md:text-base break-all"
+                      href={`mailto:${leoJoEmail}`}
+                      className="flex items-center gap-2 text-accent-yellow hover:text-yellow-600 transition-colors text-sm md:text-base break-all mb-2"
                     >
                       <Mail size={18} className="md:w-5 md:h-5 flex-shrink-0" />
-                      <span>leojoemail@gmail.com</span>
+                      <span>{leoJoEmail}</span>
+                    </a>
+                    <a
+                      href={`tel:${leoJoPhone.replace(/\s/g, '')}`}
+                      className="flex items-center gap-2 text-accent-yellow hover:text-yellow-600 transition-colors text-sm md:text-base"
+                    >
+                      <Phone size={18} className="md:w-5 md:h-5 flex-shrink-0" />
+                      <span>{leoJoPhone}</span>
                     </a>
                   </div>
                   <a
-                    href="mailto:leojoemail@gmail.com"
-                    className="w-full bg-accent-yellow text-primary-black px-4 md:px-6 py-3 rounded-lg font-bold hover:bg-yellow-400 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+                    href={`https://wa.me/${leoJoPhone.replace(/[^\d]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-green-500 text-white px-4 md:px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
                   >
-                    <Mail size={18} className="md:w-5 md:h-5" />
-                    Contact Leo Jo
+                    <Phone size={18} className="md:w-5 md:h-5" />
+                    WhatsApp Leo Jo
                   </a>
                 </div>
               </div>
@@ -544,7 +642,7 @@ export default function CRPropertyDetailPage() {
               {/* Back to Home */}
               <button
                 onClick={() => router.push('/')}
-                className="w-full border-2 border-primary-black text-primary-black px-4 md:px-6 py-3 rounded-lg font-semibold hover:bg-primary-black hover:text-white transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+                className="w-full border-2 border-accent-yellow text-accent-yellow px-4 md:px-6 py-3 rounded-lg font-semibold hover:bg-accent-yellow hover:text-primary-black transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
               >
                 <ArrowLeft size={18} className="md:w-5 md:h-5" />
                 Back to Home

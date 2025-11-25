@@ -22,3 +22,8 @@ WHERE property_type IN ('Condo', 'House', 'Multi-Family');
 -- Verify the constraint
 SELECT DISTINCT property_type FROM properties;
 
+
+
+
+
+

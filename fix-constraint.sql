@@ -25,3 +25,8 @@ FROM properties
 GROUP BY property_type 
 ORDER BY property_type;
 
+
+
+
+
+

@@ -55,15 +55,18 @@ async function loadCommercialDatasets(): Promise<any[]> {
   return combined;
 }
 
-async function fetchForSaleTrending(limit = 8): Promise<TrendingProperty[]> {
-  const allData = await loadCommercialDatasets();
-
+async function fetchForSaleTrendingFromData(allData: any[], usedPropertyIds: Set<string>, limit = 8): Promise<TrendingProperty[]> {
   const forSale = allData
     .filter((item) => {
+      // Skip if already used
+      if (usedPropertyIds.has(item.propertyId)) return false;
+      
       const listingType = String(item.listingType || '').toLowerCase();
-      const isAuction = item.isAuction || listingType.includes('auction');
-      const isLease = listingType.includes('lease') || listingType.includes('rent');
-      return !isAuction && !isLease && (item.price || item.priceNumeric);
+      // Exclude only lease/rent properties - include everything else (sale, auction, etc.)
+      const isLease = listingType.includes('lease') || listingType.includes('rent') || listingType.includes('sublease');
+      // Must have a price
+      const hasPrice = item.price || item.priceNumeric;
+      return !isLease && hasPrice;
     })
     .sort((a, b) => {
       // Prioritize properties with images
@@ -76,6 +79,9 @@ async function fetchForSaleTrending(limit = 8): Promise<TrendingProperty[]> {
       return (b.priceNumeric || 0) - (a.priceNumeric || 0);
     })
     .slice(0, limit);
+
+  // Mark these properties as used
+  forSale.forEach(item => usedPropertyIds.add(item.propertyId));
 
   return forSale.map((item, index) => ({
     id: item.propertyId || `sale-${index}`,
@@ -92,15 +98,15 @@ async function fetchForSaleTrending(limit = 8): Promise<TrendingProperty[]> {
   }));
 }
 
-async function fetchForLeaseTrending(limit = 8): Promise<TrendingProperty[]> {
-  const allData = await loadCommercialDatasets();
-
+async function fetchForLeaseTrendingFromData(allData: any[], usedPropertyIds: Set<string>, limit = 8): Promise<TrendingProperty[]> {
   const forLease = allData
     .filter((item) => {
+      // Skip if already used
+      if (usedPropertyIds.has(item.propertyId)) return false;
+      
       const listingType = String(item.listingType || '').toLowerCase();
-      const isAuction = item.isAuction || listingType.includes('auction');
-      const isLease = listingType.includes('lease') || listingType.includes('rent');
-      return !isAuction && isLease;
+      const isLease = listingType.includes('lease') || listingType.includes('rent') || listingType.includes('sublease');
+      return isLease;
     })
     .sort((a, b) => {
       // Prioritize properties with images
@@ -113,6 +119,9 @@ async function fetchForLeaseTrending(limit = 8): Promise<TrendingProperty[]> {
       return (b.priceNumeric || 0) - (a.priceNumeric || 0);
     })
     .slice(0, limit);
+
+  // Mark these properties as used
+  forLease.forEach(item => usedPropertyIds.add(item.propertyId));
 
   return forLease.map((item, index) => ({
     id: item.propertyId || `lease-${index}`,
@@ -129,11 +138,16 @@ async function fetchForLeaseTrending(limit = 8): Promise<TrendingProperty[]> {
   }));
 }
 
-async function fetchAuctionTrending(limit = 8): Promise<TrendingProperty[]> {
-  const allData = await loadCommercialDatasets();
-
+async function fetchAuctionTrendingFromData(allData: any[], usedPropertyIds: Set<string>, limit = 8): Promise<TrendingProperty[]> {
   const auctions = allData
-    .filter((item) => item.isAuction || String(item.listingType || '').toLowerCase().includes('auction'))
+    .filter((item) => {
+      // Skip if already used
+      if (usedPropertyIds.has(item.propertyId)) return false;
+      
+      // Only show properties explicitly marked as auctions
+      const isAuction = item.isAuction === true || String(item.listingType || '').toLowerCase().includes('auction');
+      return isAuction;
+    })
     .sort((a, b) => {
       // Prioritize properties with images
       const aHasImages = a.images && a.images.length > 0 ? 1 : 0;
@@ -146,9 +160,12 @@ async function fetchAuctionTrending(limit = 8): Promise<TrendingProperty[]> {
     })
     .slice(0, limit);
 
+  // Mark these properties as used
+  auctions.forEach(item => usedPropertyIds.add(item.propertyId));
+
   return auctions.map((item, index) => ({
     id: item.propertyId || `auction-${index}`,
-    priceLabel: item.price || (item.priceNumeric ? `$${item.priceNumeric.toLocaleString()}` : 'Starting bid TBD'),
+    priceLabel: item.price || (item.priceNumeric ? `Starting bid $${item.priceNumeric.toLocaleString()}` : 'Starting bid TBD'),
     addressLine: item.address || 'Address not available',
     locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
     sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
@@ -188,17 +205,26 @@ export default function Listings() {
       setError(null);
 
       try {
-        const [sale, lease, auction] = await Promise.all([
-          fetchForSaleTrending(),
-          fetchForLeaseTrending(),
-          fetchAuctionTrending(),
-        ]);
+        // Load all datasets once
+        const allData = await loadCommercialDatasets();
+        
+        // Track used property IDs to ensure no duplicates across tabs
+        const usedPropertyIds = new Set<string>();
+        
+        // Get auction properties first (most specific)
+        const auctionProps = await fetchAuctionTrendingFromData(allData, usedPropertyIds);
+        
+        // Get sale properties (excluding auctions already shown)
+        const saleProps = await fetchForSaleTrendingFromData(allData, usedPropertyIds);
+        
+        // Get lease properties (excluding any already shown)
+        const leaseProps = await fetchForLeaseTrendingFromData(allData, usedPropertyIds);
 
         if (isMounted) {
           setPropertiesByTab({
-            'For Sale': sale,
-            'For Lease': lease,
-            Auctions: auction,
+            'For Sale': saleProps,
+            'For Lease': leaseProps,
+            Auctions: auctionProps,
           });
         }
       } catch (err: any) {

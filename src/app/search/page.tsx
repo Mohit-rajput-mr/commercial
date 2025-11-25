@@ -2,12 +2,12 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { searchPropertiesByLocation, ZillowProperty, searchCommercial, CommercialProperty } from "@/lib/us-real-estate-api";
 import { searchProperties, APIProperty } from '@/lib/property-api';
-import { Search, MapPin } from "lucide-react";
+import { Search } from "lucide-react";
 import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -22,6 +22,7 @@ function SearchPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
 
   // Build search query from any city/state/zip/address params or direct location param
   const city = searchParams.get("city") || "";
@@ -180,10 +181,32 @@ function SearchPageContent() {
           }
         });
 
-        console.log('Search results - Residential:', allResidential.length, 'Commercial:', allCommercial.length);
-        setResidentialProps(allResidential);
-        setCommercialProps(allCommercial);
+        // Sort properties to prioritize exact address matches
+        const sortByAddressMatch = (props: any[], searchQuery: string) => {
+          return props.sort((a, b) => {
+            const aAddress = (typeof a.address === 'string' ? a.address : (a.address?.streetAddress || '')).toLowerCase();
+            const bAddress = (typeof b.address === 'string' ? b.address : (b.address?.streetAddress || '')).toLowerCase();
+            const query = searchQuery.toLowerCase();
+            
+            const aExactMatch = aAddress.includes(query);
+            const bExactMatch = bAddress.includes(query);
+            
+            if (aExactMatch && !bExactMatch) return -1;
+            if (!aExactMatch && bExactMatch) return 1;
+            return 0;
+          });
+        };
+
+        const sortedResidential = sortByAddressMatch([...allResidential], locationQuery);
+        const sortedCommercial = sortByAddressMatch([...allCommercial], locationQuery);
+
+        console.log('Search results - Residential:', sortedResidential.length, 'Commercial:', sortedCommercial.length);
+        setResidentialProps(sortedResidential);
+        setCommercialProps(sortedCommercial);
         setFetched(true);
+
+        // TODO: Geocode properties that don't have coordinates
+        // geocodeProperties([...sortedResidential, ...sortedCommercial]);
       } catch (err: any) {
         console.error('Search error:', err);
         setError("Failed to load properties. Try again later.");
@@ -195,6 +218,7 @@ function SearchPageContent() {
     }
     fetchProperties();
   }, [locationQuery]);
+
 
   const handleCommercialClick = (property: CommercialProperty & { source?: string }) => {
     // Check if it's a database property
@@ -210,17 +234,18 @@ function SearchPageContent() {
     if ((property as any).source === 'database') {
       router.push(`/property/${property.zpid}`);
     } else {
-      router.push(`/property/zillow/${property.zpid}`);
+      router.push(`/property/residential/${property.zpid}`);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       <div className="h-[50px] w-full"></div>
       
-      <div className="max-w-7xl mx-auto px-4 py-8 md:px-8">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-primary-black mb-8 text-center">
+      <div className="max-w-[1920px] mx-auto px-4 py-8 md:px-8">
+        <h1 className="text-2xl md:text-3xl font-extrabold text-primary-black mb-6 text-center">
           Properties {locationQuery && `for ${locationQuery}`}
         </h1>
         
@@ -245,41 +270,56 @@ function SearchPageContent() {
           </div>
         )}
 
-        {/* Residential Properties Section */}
-        {residentialProps.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4">
-              Residential Properties ({residentialProps.length})
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {residentialProps.map((property) => (
-                <PropertyCard
-                  key={property.zpid}
-                  property={property as APIProperty}
-                  isSelected={false}
-                  onClick={() => handleResidentialClick(property)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Properties Grid Layout */}
+        {!loading && (residentialProps.length > 0 || commercialProps.length > 0) && (
+          <div className="space-y-8">
+              {/* Residential Properties Section */}
+              {residentialProps.length > 0 && (
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-blue-600 rounded-full"></span>
+                    Residential Properties ({residentialProps.length})
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {residentialProps.map((property) => (
+                      <div
+                        key={property.zpid}
+                        onClick={() => setSelectedProperty(property.zpid)}
+                      >
+                        <PropertyCard
+                          property={property as APIProperty}
+                          isSelected={selectedProperty === property.zpid}
+                          onClick={() => handleResidentialClick(property)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-        {/* Commercial Properties Section */}
-        {commercialProps.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4">
-              Commercial Properties ({commercialProps.length})
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {commercialProps.map((property) => (
-                <CommercialPropertyCard
-                  key={property.zpid}
-                  property={property}
-                  isSelected={false}
-                  onClick={() => handleCommercialClick(property)}
-                />
-              ))}
-            </div>
+              {/* Commercial Properties Section */}
+              {commercialProps.length > 0 && (
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-4 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-orange-600 rounded-full"></span>
+                    Commercial Properties ({commercialProps.length})
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {commercialProps.map((property) => (
+                      <div
+                        key={property.zpid}
+                        onClick={() => setSelectedProperty(property.zpid)}
+                      >
+                        <CommercialPropertyCard
+                          property={property}
+                          isSelected={selectedProperty === property.zpid}
+                          onClick={() => handleCommercialClick(property)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
           </div>
         )}
       </div>

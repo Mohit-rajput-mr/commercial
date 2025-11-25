@@ -1,0 +1,446 @@
+'use client';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { APIProperty } from '@/lib/property-api';
+import { CommercialProperty } from '@/lib/us-real-estate-api';
+import { geocodeAddress } from '@/lib/geocoding';
+import { MapPin, Loader2 } from 'lucide-react';
+// @ts-ignore - CSS imports don't have type definitions
+import 'leaflet/dist/leaflet.css';
+// @ts-ignore
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+// @ts-ignore
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
+// Leaflet types
+type LeafletMap = any;
+type LeafletMarker = any;
+type LeafletLayer = any;
+type LeafletMarkerClusterGroup = any;
+
+interface MapViewProps {
+  properties: (APIProperty | CommercialProperty)[];
+  centerLocation?: string;
+  onMarkerClick?: (propertyId: string) => void;
+  onMarkerHover?: (propertyId: string | null) => void;
+  highlightedPropertyId?: string | null;
+  showResidential?: boolean;
+  showCommercial?: boolean;
+}
+
+// Clean white/blue map style - Positron
+const MAP_TILE_URL = 'https://maps.geoapify.com/v1/tile/positron/{z}/{x}/{y}.png?&apiKey=f396d0928e4b41eeac1751e01b3a444e';
+
+// Determine if property is commercial or residential
+const isCommercialProperty = (property: APIProperty | CommercialProperty): boolean => {
+  const propType = (property.propertyType || '').toLowerCase();
+  const commercialTypes = ['commercial', 'office', 'retail', 'industrial', 'warehouse', 'medical', 'land', 'hotel', 'mixed', 'flex', 'special', 'multifamily'];
+  return commercialTypes.some(type => propType.includes(type));
+};
+
+// Create custom marker icon SVG
+const createMarkerIcon = (isCommercial: boolean, isHighlighted: boolean = false): string => {
+  const color = isCommercial ? '#f59e0b' : '#3b82f6';
+  const scale = isHighlighted ? 'transform: scale(1.4);' : '';
+  const shadow = isHighlighted ? 'filter: drop-shadow(0 0 12px rgba(0,0,0,0.5));' : 'filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3));';
+  
+  return `<div style="${scale} ${shadow} transition: transform 0.2s ease;">
+    <svg width="36" height="44" viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26c0-9.941-8.059-18-18-18z" fill="${color}" stroke="white" stroke-width="2"/>
+      <circle cx="18" cy="16" r="8" fill="white"/>
+      ${isCommercial 
+        ? '<rect x="13" y="11" width="10" height="10" rx="1" fill="' + color + '"/>' 
+        : '<path d="M18 10l-6 5v7h4v-5h4v5h4v-7l-6-5z" fill="' + color + '"/>'
+      }
+    </svg>
+  </div>`;
+};
+
+// Geocoded property cache
+interface GeocodedProperty {
+  property: APIProperty | CommercialProperty;
+  lat: number;
+  lng: number;
+}
+
+export default function MapView({
+  properties,
+  centerLocation,
+  onMarkerClick,
+  onMarkerHover,
+  highlightedPropertyId,
+  showResidential = true,
+  showCommercial = true
+}: MapViewProps) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<LeafletMap | null>(null);
+  const markersRef = useRef<Map<string, LeafletMarker>>(new Map());
+  const markerClusterGroupRef = useRef<LeafletMarkerClusterGroup | null>(null);
+  const leafletRef = useRef<any>(null);
+  const geocodedPropertiesRef = useRef<Map<string, GeocodedProperty>>(new Map());
+  const isGeocodingRef = useRef(false);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+  const [geocodingStatus, setGeocodingStatus] = useState({ done: 0, total: 0, phase: 'idle' as 'idle' | 'geocoding' | 'rendering' | 'complete' });
+
+  // Initialize map
+  useEffect(() => {
+    if (typeof window === 'undefined' || !mapRef.current) return;
+    if (mapInstanceRef.current) return;
+
+    let mounted = true;
+
+    async function initMap() {
+      try {
+        const L = (await import('leaflet')).default;
+        leafletRef.current = L;
+        await import('leaflet.markercluster');
+
+        if (!mounted || !mapRef.current) return;
+        if ((mapRef.current as any)._leaflet_id) {
+          setIsLoading(false);
+          setMapReady(true);
+          return;
+        }
+
+        // Get initial center from search location
+        let initialCenter: [number, number] = [25.7617, -80.1918];
+        let initialZoom = 11;
+
+        if (centerLocation) {
+          const geocoded = await geocodeAddress(centerLocation);
+          if (geocoded) {
+            initialCenter = [geocoded.lat, geocoded.lng];
+          }
+        }
+
+        const map = L.map(mapRef.current, {
+          center: initialCenter,
+          zoom: initialZoom,
+          minZoom: 8,
+          maxZoom: 18,
+          zoomControl: true,
+        });
+        
+        mapInstanceRef.current = map;
+
+        L.tileLayer(MAP_TILE_URL, {
+          attribution: '© Geoapify',
+          maxZoom: 20,
+        }).addTo(map);
+
+        // Cluster group with NO animation for instant display
+        const markerClusterGroup = (L as any).markerClusterGroup({
+          chunkedLoading: false, // Load all at once
+          animate: false, // No animation
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false,
+          zoomToBoundsOnClick: true,
+          maxClusterRadius: 50,
+          disableClusteringAtZoom: 16, // Show individual pins at zoom 16+
+          iconCreateFunction: (cluster: any) => {
+            const count = cluster.getChildCount();
+            const markers = cluster.getAllChildMarkers();
+            
+            let commercialCount = 0;
+            markers.forEach((marker: any) => {
+              if (marker.options.isCommercial) commercialCount++;
+            });
+            
+            const bgColor = commercialCount > markers.length / 2 ? '#f59e0b' : '#3b82f6';
+            
+            return L.divIcon({
+              html: `<div style="
+                background: ${bgColor};
+                color: white;
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 14px;
+                border: 3px solid white;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+              ">${count}</div>`,
+              className: 'custom-cluster-icon',
+              iconSize: L.point(44, 44),
+            });
+          }
+        });
+        map.addLayer(markerClusterGroup);
+        markerClusterGroupRef.current = markerClusterGroup;
+
+        setIsLoading(false);
+        setMapReady(true);
+
+      } catch (error) {
+        console.error('Error initializing map:', error);
+        setIsLoading(false);
+      }
+    }
+
+    initMap();
+
+    return () => {
+      mounted = false;
+      if (mapInstanceRef.current) {
+        try { mapInstanceRef.current.remove(); } catch (e) {}
+        mapInstanceRef.current = null;
+        markerClusterGroupRef.current = null;
+      }
+    };
+  }, [centerLocation]);
+
+  // Geocode ALL properties first, then render ALL pins at once
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || !markerClusterGroupRef.current || !leafletRef.current) return;
+    if (properties.length === 0) return;
+    if (isGeocodingRef.current) return;
+
+    const L = leafletRef.current;
+
+    async function geocodeAndRenderAll() {
+      isGeocodingRef.current = true;
+      
+      // Filter properties based on type
+      const filteredProperties = properties.filter(property => {
+        const isCommercial = isCommercialProperty(property);
+        if (isCommercial && !showCommercial) return false;
+        if (!isCommercial && !showResidential) return false;
+        return true;
+      });
+
+      if (filteredProperties.length === 0) {
+        markerClusterGroupRef.current?.clearLayers();
+        markersRef.current.clear();
+        setGeocodingStatus({ done: 0, total: 0, phase: 'complete' });
+        isGeocodingRef.current = false;
+        return;
+      }
+
+      console.log('🚀 Starting batch geocoding for', filteredProperties.length, 'properties');
+      setGeocodingStatus({ done: 0, total: filteredProperties.length, phase: 'geocoding' });
+
+      // PHASE 1: Geocode all addresses in parallel batches
+      const geocodedList: GeocodedProperty[] = [];
+      const batchSize = 20; // Larger batches for speed
+      
+      for (let i = 0; i < filteredProperties.length; i += batchSize) {
+        const batch = filteredProperties.slice(i, i + batchSize);
+        
+        const batchResults = await Promise.all(batch.map(async (property) => {
+          const propertyId = property.zpid || '';
+          
+          // Check cache first
+          if (geocodedPropertiesRef.current.has(propertyId)) {
+            return geocodedPropertiesRef.current.get(propertyId)!;
+          }
+
+          let lat: number | null = null;
+          let lng: number | null = null;
+
+          // Use existing coordinates if available
+          if (property.latitude && property.longitude) {
+            lat = property.latitude;
+            lng = property.longitude;
+          } else {
+            // Geocode the address
+            const address = typeof property.address === 'string' 
+              ? property.address 
+              : (property.address as any)?.streetAddress || '';
+            
+            const fullAddress = `${address}, ${property.city || ''}, ${property.state || ''} ${property.zipcode || ''}`.trim();
+            
+            if (fullAddress.length > 5) {
+              try {
+                const geocoded = await geocodeAddress(fullAddress);
+                if (geocoded) {
+                  lat = geocoded.lat;
+                  lng = geocoded.lng;
+                }
+              } catch (err) {
+                // Skip errors
+              }
+            }
+          }
+
+          if (lat && lng) {
+            const result: GeocodedProperty = { property, lat, lng };
+            geocodedPropertiesRef.current.set(propertyId, result);
+            return result;
+          }
+          return null;
+        }));
+
+        // Add successful results
+        batchResults.forEach(result => {
+          if (result) geocodedList.push(result);
+        });
+
+        // Update progress
+        setGeocodingStatus({ 
+          done: Math.min(i + batchSize, filteredProperties.length), 
+          total: filteredProperties.length, 
+          phase: 'geocoding' 
+        });
+      }
+
+      console.log('✅ Geocoding complete:', geocodedList.length, 'addresses resolved');
+      setGeocodingStatus({ done: geocodedList.length, total: geocodedList.length, phase: 'rendering' });
+
+      // PHASE 2: Clear old markers and create ALL new markers
+      markerClusterGroupRef.current?.clearLayers();
+      markersRef.current.clear();
+
+      const allMarkers: any[] = [];
+
+      geocodedList.forEach(({ property, lat, lng }) => {
+        const isCommercial = isCommercialProperty(property);
+        const propertyId = property.zpid || `prop-${Math.random()}`;
+        
+        const customIcon = L.divIcon({
+          className: 'custom-marker',
+          html: createMarkerIcon(isCommercial, highlightedPropertyId === propertyId),
+          iconSize: [36, 44],
+          iconAnchor: [18, 44],
+          popupAnchor: [0, -44],
+        });
+
+        const marker = L.marker([lat, lng], { 
+          icon: customIcon,
+          isCommercial: isCommercial
+        });
+
+        // Popup content
+        const imgSrc = property.imgSrc || (property.images && property.images[0]) || '';
+        const propertyName = typeof property.address === 'string' 
+          ? property.address.substring(0, 60) 
+          : (property.address as any)?.streetAddress?.substring(0, 60) || 'Property';
+        const price = property.price ? `$${property.price.toLocaleString()}` : 'Price N/A';
+        const typeLabel = isCommercial ? 'Commercial' : 'Residential';
+        const typeBadgeColor = isCommercial ? '#f59e0b' : '#3b82f6';
+
+        marker.bindPopup(`
+          <div style="min-width: 220px; font-family: system-ui, sans-serif;">
+            ${imgSrc ? `<img src="${imgSrc}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" onerror="this.style.display='none'" />` : ''}
+            <span style="background: ${typeBadgeColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${typeLabel}</span>
+            <div style="font-weight: 600; font-size: 13px; margin: 6px 0 4px;">${propertyName}</div>
+            <div style="font-size: 11px; color: #666; margin-bottom: 4px;">${property.city || ''}, ${property.state || ''}</div>
+            <div style="font-weight: 700; font-size: 16px; color: ${typeBadgeColor};">${price}</div>
+          </div>
+        `, { maxWidth: 280 });
+
+        marker.on('click', () => onMarkerClick?.(propertyId));
+        marker.on('mouseover', () => { onMarkerHover?.(propertyId); marker.openPopup(); });
+        marker.on('mouseout', () => onMarkerHover?.(null));
+
+        markersRef.current.set(propertyId, marker);
+        allMarkers.push(marker);
+      });
+
+      // PHASE 3: Add ALL markers at once - instant display!
+      if (allMarkers.length > 0 && markerClusterGroupRef.current) {
+        markerClusterGroupRef.current.addLayers(allMarkers);
+        console.log('🎯 All', allMarkers.length, 'pins rendered at once!');
+      }
+
+      setGeocodingStatus({ done: allMarkers.length, total: allMarkers.length, phase: 'complete' });
+      isGeocodingRef.current = false;
+    }
+
+    geocodeAndRenderAll();
+  }, [properties, mapReady, showResidential, showCommercial, onMarkerClick, onMarkerHover, highlightedPropertyId]);
+
+  // Highlight marker when property is hovered from list
+  useEffect(() => {
+    if (!mapReady || !leafletRef.current) return;
+
+    const L = leafletRef.current;
+
+    markersRef.current.forEach((marker, propertyId) => {
+      const isHighlighted = highlightedPropertyId === propertyId;
+      const isCommercial = marker.options.isCommercial;
+      
+      marker.setIcon(L.divIcon({
+        className: 'custom-marker',
+        html: createMarkerIcon(isCommercial, isHighlighted),
+        iconSize: [36, 44],
+        iconAnchor: [18, 44],
+        popupAnchor: [0, -44],
+      }));
+      
+      if (isHighlighted && mapInstanceRef.current) {
+        marker.openPopup();
+        mapInstanceRef.current.panTo(marker.getLatLng(), { animate: true, duration: 0.3 });
+      }
+    });
+  }, [highlightedPropertyId, mapReady]);
+
+  const pinsOnMap = markersRef.current.size;
+  const visibleCommercial = properties.filter(p => isCommercialProperty(p) && showCommercial).length;
+  const visibleResidential = properties.filter(p => !isCommercialProperty(p) && showResidential).length;
+
+  return (
+    <div className="relative w-full h-full bg-gray-100">
+      <div ref={mapRef} className="w-full h-full" />
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/90 flex items-center justify-center z-[1000]">
+          <div className="text-center">
+            <Loader2 className="animate-spin mx-auto mb-3 text-blue-500" size={40} />
+            <p className="text-gray-600 font-medium">Loading map...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Geocoding Progress */}
+      {!isLoading && geocodingStatus.phase !== 'complete' && geocodingStatus.phase !== 'idle' && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg px-5 py-3 z-[1000]">
+          <div className="flex items-center gap-3">
+            <Loader2 className="animate-spin text-blue-500" size={20} />
+            <div>
+              <div className="text-sm font-medium text-gray-700">
+                {geocodingStatus.phase === 'geocoding' ? 'Loading addresses...' : 'Rendering pins...'}
+              </div>
+              <div className="text-xs text-gray-500">
+                {geocodingStatus.done} / {geocodingStatus.total} properties
+              </div>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${(geocodingStatus.done / geocodingStatus.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Legend */}
+      {!isLoading && geocodingStatus.phase === 'complete' && (
+        <div className="absolute bottom-4 left-4 bg-white rounded-xl shadow-lg px-4 py-3 z-[1000]">
+          <div className="text-xs text-gray-500 mb-2">{pinsOnMap} pins displayed</div>
+          <div className="flex items-center gap-4 text-sm">
+            {showCommercial && (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-amber-500"></div>
+                <span className="font-medium text-gray-700">{visibleCommercial}</span>
+              </div>
+            )}
+            {showResidential && (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                <span className="font-medium text-gray-700">{visibleResidential}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

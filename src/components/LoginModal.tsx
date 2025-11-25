@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Heart, User, Phone, Lock } from 'lucide-react';
+import { X, Mail, Heart, User, Phone, Lock, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { setAdminAuthenticated } from '@/lib/admin-storage';
@@ -18,11 +18,14 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; phone?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string; name?: string; phone?: string }>({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -80,7 +83,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const newErrors: { email?: string; password?: string; name?: string; phone?: string } = {};
+    const newErrors: { email?: string; password?: string; name?: string; phone?: string; confirmPassword?: string } = {};
 
     if (!email) {
       newErrors.email = 'Email is required';
@@ -106,6 +109,12 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
         newErrors.phone = 'Phone number is required';
       } else if (!validatePhone(phone)) {
         newErrors.phone = 'Please enter a valid phone number';
+      }
+
+      if (!confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (password !== confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
       }
     }
 
@@ -434,7 +443,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
                         <input
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           id="password"
                           value={password}
                           onChange={(e) => {
@@ -442,17 +451,60 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                             if (errors.password) setErrors({ ...errors, password: undefined });
                           }}
                           placeholder="Enter password"
-                          className={`w-full pl-10 pr-4 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
+                          className={`w-full pl-10 pr-12 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
                             errors.password
                               ? 'border-red-500'
                               : 'border-gray-300 focus:border-accent-yellow'
                           }`}
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-custom-gray hover:text-primary-black transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
                       </div>
                       {errors.password && (
                         <p className="text-red-500 text-xs mt-1">{errors.password}</p>
                       )}
                     </div>
+
+                    {!isLogin && (
+                      <div>
+                        <label htmlFor="confirmPassword" className="block text-sm font-semibold text-primary-black mb-2">
+                          Confirm Password*
+                        </label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-gray" size={20} />
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            id="confirmPassword"
+                            value={confirmPassword}
+                            onChange={(e) => {
+                              setConfirmPassword(e.target.value);
+                              if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
+                            }}
+                            placeholder="Confirm password"
+                            className={`w-full pl-10 pr-12 py-3 md:py-3 min-h-[48px] border-2 rounded-lg focus:outline-none transition-all text-base ${
+                              errors.confirmPassword
+                                ? 'border-red-500'
+                                : 'border-gray-300 focus:border-accent-yellow'
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-custom-gray hover:text-primary-black transition-colors"
+                          >
+                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                          </button>
+                        </div>
+                        {errors.confirmPassword && (
+                          <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+                        )}
+                      </div>
+                    )}
 
                     {isLogin && (
                       <div className="flex justify-end">

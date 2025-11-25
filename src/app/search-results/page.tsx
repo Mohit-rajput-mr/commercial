@@ -14,9 +14,6 @@ import {
   Filter,
   SlidersHorizontal,
   X,
-  ZoomIn,
-  ZoomOut,
-  Layers,
   Save,
   ChevronDown,
   ChevronUp,
@@ -29,87 +26,6 @@ import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { AddressSuggestion } from '@/lib/addressAutocomplete';
 import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 
-// Simple map component (using iframe for now, can be upgraded to Google Maps API later)
-function MapView({ 
-  properties, 
-  selectedProperty, 
-  onPropertySelect,
-  center 
-}: { 
-  properties: Property[];
-  selectedProperty: string | null;
-  onPropertySelect: (id: string) => void;
-  center?: { lat: number; lng: number };
-}) {
-  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
-  
-  // Calculate center from properties or use provided center
-  const mapCenter = useMemo(() => {
-    if (center) return center;
-    if (properties.length === 0) return { lat: 39.7392, lng: -104.9903 };
-    
-    const avgLat = properties.reduce((sum, p) => sum + (p.coordinates?.lat || 0), 0) / properties.length;
-    const avgLng = properties.reduce((sum, p) => sum + (p.coordinates?.lng || 0), 0) / properties.length;
-    return { lat: avgLat, lng: avgLng };
-  }, [properties, center]);
-
-  const markers = properties
-    .filter(p => p.coordinates)
-    .map(p => `${p.coordinates!.lat},${p.coordinates!.lng}`)
-    .join('|');
-
-  // Note: Replace with your Google Maps API key in production
-  const mapUrl = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d12090!2d${mapCenter.lng}!3d${mapCenter.lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sus!4v1234567890&maptype=${mapType}`;
-
-  return (
-    <div className="relative w-full h-full">
-      <iframe
-        src={mapUrl}
-        width="100%"
-        height="100%"
-        style={{ border: 0 }}
-        allowFullScreen
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        className="absolute inset-0"
-      />
-      
-      {/* Map Controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-        <button
-          onClick={() => setMapType(mapType === 'roadmap' ? 'satellite' : 'roadmap')}
-          className="bg-white p-2 rounded shadow-lg hover:bg-gray-100 transition-colors"
-          title="Toggle Satellite View"
-        >
-          <Layers size={20} className="text-primary-black" />
-        </button>
-      </div>
-
-      {/* Property Markers Overlay (simplified - in production, use Google Maps API) */}
-      <div className="absolute inset-0 pointer-events-none">
-        {properties.filter(p => p.coordinates).map((property) => (
-          <div
-            key={property.id}
-            className={`absolute pointer-events-auto cursor-pointer transform -translate-x-1/2 -translate-y-1/2 ${
-              selectedProperty === property.id ? 'z-20' : 'z-10'
-            }`}
-            style={{
-              left: `${50 + (property.coordinates!.lng - mapCenter.lng) * 1000}%`,
-              top: `${50 - (property.coordinates!.lat - mapCenter.lat) * 1000}%`,
-            }}
-            onClick={() => onPropertySelect(property.id)}
-          >
-            <div className={`w-6 h-6 rounded-full border-2 ${
-              selectedProperty === property.id 
-                ? 'bg-accent-yellow border-primary-black' 
-                : 'bg-blue-600 border-white'
-            } shadow-lg`} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function PropertyCard({ 
   property, 
@@ -186,7 +102,6 @@ function PropertyCard({
 function SearchResultsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('location') || '');
   const [propertyType, setPropertyType] = useState(searchParams.get('type') || '');
   const [showFilters, setShowFilters] = useState(false);
@@ -312,9 +227,6 @@ function SearchResultsPageContent() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              <button className="px-4 py-2.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-                Draw on Map
-              </button>
               <div className="flex items-center gap-2">
                 <select
                   value={priceMin}
@@ -375,49 +287,9 @@ function SearchResultsPageContent() {
         </div>
       </div>
 
-      {/* Mobile Tabs */}
-      <div className="md:hidden border-b border-gray-200 bg-white sticky top-[260px] z-20">
-        <div className="flex">
-          <button
-            onClick={() => setActiveTab('map')}
-            className={`flex-1 px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${
-              activeTab === 'map'
-                ? 'border-accent-yellow text-primary-black'
-                : 'border-transparent text-custom-gray'
-            }`}
-          >
-            Map
-          </button>
-          <button
-            onClick={() => setActiveTab('list')}
-            className={`flex-1 px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${
-              activeTab === 'list'
-                ? 'border-accent-yellow text-primary-black'
-                : 'border-transparent text-custom-gray'
-            }`}
-          >
-            List
-          </button>
-        </div>
-      </div>
 
-      {/* Main Content - Desktop Split / Mobile Tabbed */}
-      <div className="flex h-[calc(100vh-200px)] md:h-[calc(100vh-180px)]">
-        {/* Map Section - Desktop: Left 50%, Mobile: Full when Map tab active */}
-        <div className={`${
-          activeTab === 'map' ? 'block' : 'hidden'
-        } md:block w-full md:w-1/2 relative`}>
-          <MapView
-            properties={filteredProperties}
-            selectedProperty={selectedProperty}
-            onPropertySelect={handlePropertySelect}
-          />
-        </div>
-
-        {/* Listings Section - Desktop: Right 50%, Mobile: Full when List tab active */}
-        <div className={`${
-          activeTab === 'list' ? 'block' : 'hidden'
-        } md:block w-full md:w-1/2 overflow-y-auto bg-gray-50`}>
+      {/* Main Content */}
+      <div className="overflow-y-auto bg-gray-50">
           <div className="p-4 md:p-6 space-y-4">
             {/* Promotional Banner (First Card) */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-lg">
@@ -450,7 +322,6 @@ function SearchResultsPageContent() {
             )}
           </div>
         </div>
-      </div>
 
       {/* Filters Sidebar/Modal */}
       <AnimatePresence>
@@ -563,15 +434,6 @@ function SearchResultsPageContent() {
         )}
       </AnimatePresence>
 
-      {/* Mobile: Floating Map Button when on List tab */}
-      {activeTab === 'list' && (
-        <button
-          onClick={() => setActiveTab('map')}
-          className="md:hidden fixed bottom-6 right-6 bg-accent-yellow text-primary-black p-4 rounded-full shadow-lg z-30"
-        >
-          <MapPin size={24} />
-        </button>
-      )}
 
       <Footer />
     </div>
