@@ -17,10 +17,10 @@ const CITY_DATASET_MAP: Record<string, string[]> = {
   'houston': ['commercial_dataset_houston.json'],
   
   // New York
-  'new york': ['commercial_dataset_ny.json'],
-  'new york city': ['commercial_dataset_ny.json'],
-  'nyc': ['commercial_dataset_ny.json'],
-  'manhattan': ['commercial_dataset_ny.json'],
+  'new york': ['commercial_dataset_ny.json', 'dataset_manhattan_ny.json'],
+  'new york city': ['commercial_dataset_ny.json', 'dataset_manhattan_ny.json'],
+  'nyc': ['commercial_dataset_ny.json', 'dataset_manhattan_ny.json'],
+  'manhattan': ['dataset_manhattan_ny.json', 'commercial_dataset_ny.json'],
   'brooklyn': ['commercial_dataset_ny.json'],
   
   // Miami
@@ -156,37 +156,92 @@ export async function loadPropertiesForLocation(searchLocation: string): Promise
       // Convert and filter properties
       for (let i = 0; i < data.length; i++) {
         const prop = data[i];
-        const propId = prop.propertyId || `${file}-${i}`;
         
-        // Skip duplicates
-        if (seenIds.has(propId)) continue;
+        // Detect dataset format: Manhattan dataset has addressCity, addressState fields
+        const isManhattanFormat = prop.addressCity !== undefined || prop.addressState !== undefined;
         
-        // Check if property matches the search location
-        if (!propertyMatchesLocation(prop, searchLocation)) continue;
-        
-        seenIds.add(propId);
-        
-        allProperties.push({
-          zpid: propId,
-          address: prop.address || '',
-          city: prop.city || '',
-          state: prop.state || '',
-          zipcode: prop.zip || '',
-          price: prop.priceNumeric || 0,
-          propertyType: prop.propertyType || 'Commercial',
-          status: prop.listingType?.includes('Lease') ? 'For Lease' : 'For Sale',
-          imgSrc: prop.images?.[0] || null,
-          images: prop.images || [],
-          description: prop.description || '',
-          bedrooms: prop.numberOfUnits || 0,
-          bathrooms: 0,
-          livingArea: prop.squareFootage ? parseInt(prop.squareFootage.replace(/,/g, '')) || 0 : 0,
-          lotSize: 0,
-          yearBuilt: undefined,
-          latitude: undefined,
-          longitude: undefined,
-          listingUrl: prop.listingUrl || undefined,
-        } as CommercialProperty);
+        if (isManhattanFormat) {
+          // Manhattan dataset format (residential/Zillow format)
+          const propId = prop.zpid || `manhattan-${i}`;
+          
+          // Skip duplicates
+          if (seenIds.has(propId)) continue;
+          
+          // Check if property matches the search location
+          const propCity = (prop.addressCity || '').toLowerCase().trim();
+          const propState = (prop.addressState || '').toLowerCase().trim();
+          const { city: searchCity, state: searchState } = parseLocation(searchLocation);
+          
+          // Match Manhattan specifically or New York
+          const matchesManhattan = searchCity === 'manhattan' || 
+            searchCity === 'new york' || 
+            searchCity === 'nyc' ||
+            (propCity === 'new york' && (searchCity === 'manhattan' || searchCity === 'new york' || searchCity === 'nyc'));
+          
+          if (!matchesManhattan && searchCity && propCity !== searchCity) continue;
+          if (searchState && propState !== searchState.toLowerCase()) continue;
+          
+          seenIds.add(propId);
+          
+          // Convert to CommercialProperty format (can be used for residential too)
+          allProperties.push({
+            zpid: propId,
+            address: prop.address || prop.addressStreet || '',
+            city: prop.addressCity || 'New York',
+            state: prop.addressState || 'NY',
+            zipcode: prop.addressZipcode || '',
+            price: 0, // Manhattan dataset doesn't have price
+            propertyType: 'Residential',
+            propertyCategory: 'residential',
+            status: 'For Sale',
+            imgSrc: prop.imageSource || null,
+            images: prop.photoUrls && prop.photoUrls.length > 0 
+              ? prop.photoUrls 
+              : (prop.imageSource ? [prop.imageSource] : []),
+            description: '',
+            bedrooms: 0,
+            bathrooms: 0,
+            livingArea: 0,
+            lotSize: 0,
+            yearBuilt: undefined,
+            latitude: prop.latitude || undefined,
+            longitude: prop.longitude || undefined,
+            listingUrl: prop.detailUrl || undefined,
+          } as CommercialProperty);
+        } else {
+          // Standard commercial dataset format
+          const propId = prop.propertyId || `${file}-${i}`;
+          
+          // Skip duplicates
+          if (seenIds.has(propId)) continue;
+          
+          // Check if property matches the search location
+          if (!propertyMatchesLocation(prop, searchLocation)) continue;
+          
+          seenIds.add(propId);
+          
+          allProperties.push({
+            zpid: propId,
+            address: prop.address || '',
+            city: prop.city || '',
+            state: prop.state || '',
+            zipcode: prop.zip || '',
+            price: prop.priceNumeric || 0,
+            propertyType: prop.propertyType || 'Commercial',
+            status: prop.listingType?.includes('Lease') ? 'For Lease' : 'For Sale',
+            imgSrc: prop.images?.[0] || null,
+            images: prop.images || [],
+            description: prop.description || '',
+            bedrooms: prop.numberOfUnits || 0,
+            bathrooms: 0,
+            livingArea: prop.squareFootage ? parseInt(prop.squareFootage.replace(/,/g, '')) || 0 : 0,
+            lotSize: 0,
+            yearBuilt: undefined,
+            latitude: undefined,
+            longitude: undefined,
+            listingUrl: prop.listingUrl || undefined,
+          } as CommercialProperty);
+        }
       }
     } catch (err) {
       console.error(`❌ Error loading ${file}:`, err);

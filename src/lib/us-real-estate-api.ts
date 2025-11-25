@@ -5,7 +5,7 @@
 
 let commercialData: any[] = [];
 
-// All 14 dataset files in the public folder
+// All 15 dataset files in the public folder
 const DATASET_FILES = [
   'commercial_dataset_17nov2025.json',
   'commercial_dataset2.json',
@@ -13,6 +13,7 @@ const DATASET_FILES = [
   'commercial_dataset_houston.json',
   'commercial_dataset_LA.json',
   'commercial_dataset_ny.json',
+  'dataset_manhattan_ny.json',
   'dataset_miami_beach.json',
   'dataset_miami_sale.json',
   'dataset_miamibeach_lease.json',
