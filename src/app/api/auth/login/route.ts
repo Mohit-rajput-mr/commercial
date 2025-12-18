@@ -67,12 +67,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update last login
+    let userData: Record<string, unknown> = { ...authData.user };
+
+    // Get full user data from users table (including full_name)
     if (authData.user) {
+      // Update last login
       await supabaseAdmin
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', authData.user.id);
+
+      // Fetch full user profile with name
+      const { data: userProfile, error: profileError } = await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (!profileError && userProfile) {
+        // Merge auth user with profile data
+        userData = {
+          ...authData.user,
+          full_name: userProfile.full_name,
+          phone: userProfile.phone,
+          role: userProfile.role,
+          status: userProfile.status,
+        };
+      }
 
       // Log activity
       await supabaseAdmin.from('activities').insert({
@@ -84,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      user: authData.user,
+      user: userData,
       session: authData.session,
     });
   } catch (error) {

@@ -29,6 +29,7 @@ import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddr
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
+import PropertyDetailsSections from '@/components/PropertyDetailsSections';
 
 
 export default function ResidentialPropertyDetailPage() {
@@ -94,59 +95,60 @@ export default function ResidentialPropertyDetailPage() {
         console.log('Property not found in database, trying local dataset...', dbErr);
       }
 
-      // If not found in database, try to load from local JSON datasets
+      // If not found in database, try to load from new residential datasets
       if (!details) {
-        const datasets = [
-          '/dataset_miami_sale.json',
-          '/commercial_dataset2.json',
-          '/commercial_dataset_Chicago.json'
-        ];
+        try {
+          const { getResidentialPropertyById } = await import('@/lib/residential-dataset-loader');
 
-        for (const datasetPath of datasets) {
-          try {
-            const response = await fetch(datasetPath);
-            const data = await response.json();
-            const property = data.find((p: any) => 
-              p.zpid === params.id || 
-              String(p.zpid) === params.id ||
-              p.propertyId === params.id ||
-              String(p.propertyId) === params.id
-            );
-            
-            if (property) {
-              // Parse price if it's a string
-              let priceValue = 0;
-              if (typeof property.price === 'string') {
-                priceValue = parseInt(property.price.replace(/[^0-9]/g, '')) || property.priceNumeric || 0;
-              } else {
-                priceValue = property.price || property.priceNumeric || 0;
-              }
+          // STRICT: We only care about JSON "state" field (Lease/Sale) now.
+          // We *do not* try to infer from status or any defaults here.
+          const residentialProp = await getResidentialPropertyById(params.id);
 
-              details = {
-                zpid: property.zpid || property.propertyId || params.id,
-                address: property.address || property.streetAddress || '',
-                city: property.city || '',
-                state: property.state || '',
-                zipcode: property.zipcode || property.zip || '',
-                price: priceValue,
-                propertyType: property.propertyType || property.homeType || property.propertyTypeDetailed || 'Property',
-                status: property.status || property.homeStatus || property.listingType || 'For Sale',
-                images: property.images || (property.imgSrc ? [property.imgSrc] : []),
-                description: property.description || (property.dataPoints ? property.dataPoints.join('. ') : ''),
-                bedrooms: property.bedrooms || property.beds || property.numberOfUnits || 0,
-                bathrooms: property.bathrooms || property.baths || 0,
-                livingArea: property.livingArea || property.sqft || property.squareFootage || 0,
-                lotSize: property.lotSize || property.lotAreaValue || 0,
-                yearBuilt: property.yearBuilt || null,
-                latitude: property.latitude || null,
-                longitude: property.longitude || null,
-              } as PropertyDetailsResponse;
-              console.log(`✅ Property loaded from ${datasetPath}:`, details);
-              break;
+          if (residentialProp) {
+            const rawState =
+              (residentialProp as any).listingState || (residentialProp as any).state || '';
+            const stateLower =
+              typeof rawState === 'string' ? rawState.toLowerCase().trim() : '';
+
+            // Derive status ONLY from JSON state
+            let derivedStatus: 'For Sale' | 'For Rent' = 'For Sale';
+            if (stateLower === 'lease') {
+              derivedStatus = 'For Rent';
+            } else if (stateLower === 'sale') {
+              derivedStatus = 'For Sale';
             }
-          } catch (jsonErr) {
-            console.log(`Property not found in ${datasetPath}`, jsonErr);
+
+            details = {
+              zpid: residentialProp.zpid,
+              address: residentialProp.address,
+              city: residentialProp.city,
+              state: residentialProp.state,
+              zipcode: residentialProp.zipcode,
+              price: residentialProp.price || 0,
+              propertyType: residentialProp.propertyType || 'Residential',
+              status: derivedStatus,
+              images:
+                residentialProp.images ||
+                (residentialProp.imgSrc ? [residentialProp.imgSrc] : []),
+              description: residentialProp.description || '',
+              bedrooms: residentialProp.bedrooms || 0,
+              bathrooms: residentialProp.bathrooms || 0,
+              livingArea: residentialProp.livingArea || 0,
+              lotSize: residentialProp.lotSize || 0,
+              yearBuilt: residentialProp.yearBuilt || null,
+              latitude: residentialProp.latitude || null,
+              longitude: residentialProp.longitude || null,
+            } as PropertyDetailsResponse;
+
+            console.log('✅ Property loaded from residential datasets:', details);
+            console.log(`   JSON state: ${rawState}`);
+            console.log(`   Derived status from state: ${details.status}`);
           }
+        } catch (residentialErr) {
+          console.log('Property not found in residential datasets:', residentialErr);
+          // DO NOT fallback to legacy datasets for residential properties
+          // Legacy datasets may have incorrect status and cause confusion
+          // Only use the new residential/sale and residential/lease folder structure
         }
       }
 
@@ -479,177 +481,181 @@ export default function ResidentialPropertyDetailPage() {
       </div>
 
       {/* Main Content - Mobile First */}
-      <div className="max-w-7xl mx-auto px-4 md:px-5 py-6 md:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-          {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-6 md:space-y-8">
-            {/* Property Details - Mobile First */}
-            <section>
-              <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">PROPERTY DETAILS</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                {property.bedrooms !== undefined && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Bed size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
-                    <div>
-                      <div className="text-xs md:text-sm text-custom-gray">Bedrooms</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">
-                        {property.bedrooms}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {property.bathrooms !== undefined && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Bath size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
-                    <div>
-                      <div className="text-xs md:text-sm text-custom-gray">Bathrooms</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">
-                        {property.bathrooms}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {property.livingArea && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Square size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
-                    <div>
-                      <div className="text-xs md:text-sm text-custom-gray">Living Area</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">
-                        {property.livingArea.toLocaleString()} sqft
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {property.lotSize && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Square size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
-                    <div>
-                      <div className="text-xs md:text-sm text-custom-gray">Lot Size</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">
-                        {property.lotSize.toLocaleString()} sqft
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {property.propertyType && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Building2 size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
-                    <div>
-                      <div className="text-xs md:text-sm text-custom-gray">Property Type</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">{property.propertyType}</div>
-                    </div>
-                  </div>
-                )}
-                {property.yearBuilt && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div>
-                      <div className="text-xs md:text-sm text-custom-gray">Year Built</div>
-                      <div className="font-semibold text-sm md:text-base text-primary-black">{property.yearBuilt}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Description */}
-            {property.description && (
+      <div className="w-full">
+        <div className="max-w-7xl mx-auto px-4 md:px-5 py-6 md:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+            {/* Left Column - Main Content */}
+            <div className="lg:col-span-2 space-y-6 md:space-y-8">
+              {/* Property Details - Mobile First */}
               <section>
-                <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">ABOUT THIS PROPERTY</h2>
-                <p className="text-sm md:text-base text-custom-gray leading-relaxed">{property.description}</p>
-              </section>
-            )}
-
-            {/* Location - Mobile First */}
-            <section>
-              <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">LOCATION</h2>
-              <div className="p-4 bg-light-gray rounded-lg mb-4">
-                <p className="text-custom-gray flex items-center gap-2">
-                  <MapPin size={16} />
-                  {addressString}
-                </p>
-              </div>
-            </section>
-          </div>
-
-          {/* Right Column - Sidebar - Mobile First */}
-          <div className="lg:col-span-1">
-            <div className="lg:sticky lg:top-4 space-y-4 md:space-y-6">
-              {/* Property Info Box */}
-              <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4 border border-gray-200">
-                <h3 className="text-base md:text-lg font-semibold text-primary-black mb-3 md:mb-4">PROPERTY INFORMATION</h3>
-                <div className="space-y-2 md:space-y-3 text-xs md:text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-custom-gray">Property ID:</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-semibold text-primary-black text-xs">{property.zpid}</span>
-                      <button
-                        onClick={copyPropertyId}
-                        className="text-accent-yellow hover:text-yellow-600"
-                        title="Copy Property ID"
-                      >
-                        <Copy size={12} className="md:w-3.5 md:h-3.5" />
-                      </button>
+                <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">PROPERTY DETAILS</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                  {property.bedrooms !== undefined && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <Bed size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
+                      <div>
+                        <div className="text-xs md:text-sm text-custom-gray">Bedrooms</div>
+                        <div className="font-semibold text-sm md:text-base text-primary-black">
+                          {property.bedrooms}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  {property.status && (
-                    <div className="flex justify-between">
-                      <span className="text-custom-gray">Status:</span>
-                      <span className="font-semibold text-primary-black">{property.status}</span>
+                  )}
+                  {property.bathrooms !== undefined && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <Bath size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
+                      <div>
+                        <div className="text-xs md:text-sm text-custom-gray">Bathrooms</div>
+                        <div className="font-semibold text-sm md:text-base text-primary-black">
+                          {property.bathrooms}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {property.livingArea && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <Square size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
+                      <div>
+                        <div className="text-xs md:text-sm text-custom-gray">Living Area</div>
+                        <div className="font-semibold text-sm md:text-base text-primary-black">
+                          {property.livingArea.toLocaleString()} sqft
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {property.lotSize && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <Square size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
+                      <div>
+                        <div className="text-xs md:text-sm text-custom-gray">Lot Size</div>
+                        <div className="font-semibold text-sm md:text-base text-primary-black">
+                          {property.lotSize.toLocaleString()} sqft
+                        </div>
+                      </div>
                     </div>
                   )}
                   {property.propertyType && (
-                    <div className="flex justify-between">
-                      <span className="text-custom-gray">Type:</span>
-                      <span className="font-semibold text-primary-black">{property.propertyType}</span>
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <Building2 size={18} className="md:w-5 md:h-5 text-accent-yellow flex-shrink-0" />
+                      <div>
+                        <div className="text-xs md:text-sm text-custom-gray">Property Type</div>
+                        <div className="font-semibold text-sm md:text-base text-primary-black">{property.propertyType}</div>
+                      </div>
+                    </div>
+                  )}
+                  {property.yearBuilt && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div>
+                        <div className="text-xs md:text-sm text-custom-gray">Year Built</div>
+                        <div className="font-semibold text-sm md:text-base text-primary-black">{property.yearBuilt}</div>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
+              </section>
 
-              {/* Contact Leo Jo */}
-              <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4 border border-gray-200">
-                <h3 className="text-base md:text-lg font-semibold text-primary-black mb-3 md:mb-4">CONTACT</h3>
-                <div className="space-y-3 md:space-y-4">
-                  <div>
-                    <div className="text-sm md:text-base font-bold text-primary-black mb-2">Leo Jo</div>
+              {/* Location - Mobile First */}
+              <section>
+                <h2 className="text-xl md:text-2xl font-bold text-primary-black mb-3 md:mb-4">LOCATION</h2>
+                <div className="p-4 bg-light-gray rounded-lg mb-4">
+                  <p className="text-custom-gray flex items-center gap-2">
+                    <MapPin size={16} />
+                    {addressString}
+                  </p>
+                </div>
+              </section>
+            </div>
+
+            {/* Right Column - Sidebar - Mobile First */}
+            <div className="lg:col-span-1">
+              <div className="lg:sticky lg:top-4 space-y-4 md:space-y-6">
+                {/* Property Info Box */}
+                <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4 border border-gray-200">
+                  <h3 className="text-base md:text-lg font-semibold text-primary-black mb-3 md:mb-4">PROPERTY INFORMATION</h3>
+                  <div className="space-y-2 md:space-y-3 text-xs md:text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-custom-gray">Property ID:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold text-primary-black text-xs">{property.zpid}</span>
+                        <button
+                          onClick={copyPropertyId}
+                          className="text-accent-yellow hover:text-yellow-600"
+                          title="Copy Property ID"
+                        >
+                          <Copy size={12} className="md:w-3.5 md:h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    {property.status && (
+                      <div className="flex justify-between">
+                        <span className="text-custom-gray">Status:</span>
+                        <span className="font-semibold text-primary-black">{property.status}</span>
+                      </div>
+                    )}
+                    {property.propertyType && (
+                      <div className="flex justify-between">
+                        <span className="text-custom-gray">Type:</span>
+                        <span className="font-semibold text-primary-black">{property.propertyType}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contact Leo Jo */}
+                <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4 border border-gray-200">
+                  <h3 className="text-base md:text-lg font-semibold text-primary-black mb-3 md:mb-4">CONTACT</h3>
+                  <div className="space-y-3 md:space-y-4">
+                    <div>
+                      <div className="text-sm md:text-base font-bold text-primary-black mb-2">Leo Jo</div>
+                      <a
+                        href={`mailto:${leoJoEmail}`}
+                        className="flex items-center gap-2 text-accent-yellow hover:text-yellow-600 transition-colors text-sm md:text-base break-all mb-2"
+                      >
+                        <Mail size={18} className="md:w-5 md:h-5 flex-shrink-0" />
+                        <span>{leoJoEmail}</span>
+                      </a>
+                      <a
+                        href={`tel:${leoJoPhone.replace(/\s/g, '')}`}
+                        className="flex items-center gap-2 text-accent-yellow hover:text-yellow-600 transition-colors text-sm md:text-base"
+                      >
+                        <Phone size={18} className="md:w-5 md:h-5 flex-shrink-0" />
+                        <span>{leoJoPhone}</span>
+                      </a>
+                    </div>
                     <a
-                      href={`mailto:${leoJoEmail}`}
-                      className="flex items-center gap-2 text-accent-yellow hover:text-yellow-600 transition-colors text-sm md:text-base break-all mb-2"
+                      href={`https://wa.me/${leoJoPhone.replace(/[^\d]/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-green-500 text-white px-4 md:px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
                     >
-                      <Mail size={18} className="md:w-5 md:h-5 flex-shrink-0" />
-                      <span>{leoJoEmail}</span>
-                    </a>
-                    <a
-                      href={`tel:${leoJoPhone.replace(/\s/g, '')}`}
-                      className="flex items-center gap-2 text-accent-yellow hover:text-yellow-600 transition-colors text-sm md:text-base"
-                    >
-                      <Phone size={18} className="md:w-5 md:h-5 flex-shrink-0" />
-                      <span>{leoJoPhone}</span>
+                      <Phone size={18} className="md:w-5 md:h-5" />
+                      WhatsApp Leo Jo
                     </a>
                   </div>
-                  <a
-                    href={`https://wa.me/${leoJoPhone.replace(/[^\d]/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full bg-green-500 text-white px-4 md:px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
-                  >
-                    <Phone size={18} className="md:w-5 md:h-5" />
-                    WhatsApp Leo Jo
-                  </a>
                 </div>
-              </div>
 
-              {/* Back to Home */}
-              <button
-                onClick={() => router.push('/')}
-                className="w-full border-2 border-accent-yellow text-accent-yellow px-4 md:px-6 py-3 rounded-lg font-semibold hover:bg-accent-yellow hover:text-primary-black transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
-              >
-                <ArrowLeft size={18} className="md:w-5 md:h-5" />
-                Back to Home
-              </button>
+                {/* Back to Home */}
+                <button
+                  onClick={() => router.push('/')}
+                  className="w-full border-2 border-accent-yellow text-accent-yellow px-4 md:px-6 py-3 rounded-lg font-semibold hover:bg-accent-yellow hover:text-primary-black transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+                >
+                  <ArrowLeft size={18} className="md:w-5 md:h-5" />
+                  Back to Home
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* About This Property - Full Width Section */}
+        {property.description && (
+          <section className="w-full bg-white border-t border-gray-200 py-6 md:py-8">
+            <div className="w-full px-4 md:px-5 lg:px-6 xl:px-8">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-primary-black mb-4 md:mb-6 px-0">ABOUT THIS PROPERTY</h2>
+              <PropertyDetailsSections description={property.description} />
+            </div>
+          </section>
+        )}
       </div>
 
       <Footer />

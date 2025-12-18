@@ -52,16 +52,28 @@ export default function CommercialPropertyCard({ property, isSelected, onClick }
 
       {/* Content */}
       <div className="p-4">
-        {/* Price */}
-        <div className="text-xl font-bold text-primary-black mb-2">
-          {formatPrice(property.price, property.priceText)}
+        {/* Price and State Badge */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xl font-bold text-primary-black">
+            {formatPrice(property.price, property.priceText)}
+          </div>
+          {/* State Badge - Shows "Lease" or "Sale" from JSON file (if available) */}
+          {(property as any).listingState && (
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+              (property as any).listingState === 'Lease' 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-orange-100 text-orange-800'
+            }`}>
+              {(property as any).listingState}
+            </span>
+          )}
         </div>
 
         {/* Address */}
         <div className="flex items-start gap-2 mb-2">
           <MapPin size={16} className="text-orange-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-custom-gray">
-            <div className="font-semibold">{getAddressString(property.address)}</div>
+            <div className="font-semibold">{getAddressString(property.address, property.city, property.state, property.zipcode)}</div>
             <div>
               {getCommercialCity(property)}, {getCommercialState(property)} {getCommercialZipcode(property)}
             </div>

@@ -23,19 +23,19 @@ const CITY_DATASET_MAP: Record<string, string[]> = {
   'manhattan': ['dataset_manhattan_ny.json', 'commercial_dataset_ny.json'],
   'brooklyn': ['commercial_dataset_ny.json'],
   
-  // Miami
-  'miami': ['dataset_miami_sale.json', 'dataset_miami_beach.json', 'dataset_miamibeach_lease.json'],
-  'miami beach': ['dataset_miami_beach.json', 'dataset_miamibeach_lease.json'],
+  // Miami - REMOVED: Use new residential/sale and residential/lease folders instead
+  // 'miami': ['dataset_miami_sale.json', 'dataset_miami_beach.json', 'dataset_miamibeach_lease.json'],
+  // 'miami beach': ['dataset_miami_beach.json', 'dataset_miamibeach_lease.json'],
   
-  // Philadelphia
-  'philadelphia': ['dataset_philadelphia.json', 'dataset_philadelphia_sale.json'],
-  'philly': ['dataset_philadelphia.json', 'dataset_philadelphia_sale.json'],
+  // Philadelphia - REMOVED: Use new residential/sale and residential/lease folders instead
+  // 'philadelphia': ['dataset_philadelphia.json', 'dataset_philadelphia_sale.json'],
+  // 'philly': ['dataset_philadelphia.json', 'dataset_philadelphia_sale.json'],
   
-  // Phoenix
-  'phoenix': ['dataset_phoenix.json'],
+  // Phoenix - REMOVED: Use new residential/sale and residential/lease folders instead
+  // 'phoenix': ['dataset_phoenix.json'],
   
-  // San Antonio
-  'san antonio': ['dataset_san_antonio_sale.json', 'dataset_son_antonio_lease.json'],
+  // San Antonio - REMOVED: Use new residential/sale and residential/lease folders instead
+  // 'san antonio': ['dataset_san_antonio_sale.json', 'dataset_son_antonio_lease.json'],
 };
 
 // State abbreviation to full name mapping
@@ -79,9 +79,19 @@ export function parseLocation(searchLocation: string): { city: string; state: st
 
 /**
  * Get the dataset files for a given search location
+ * NOTE: Residential cities (Miami, Miami Beach, Philadelphia, Phoenix, San Antonio) 
+ * should use new residential/sale and residential/lease folders, NOT legacy datasets
  */
 export function getDatasetFilesForLocation(searchLocation: string): string[] {
   const { city } = parseLocation(searchLocation);
+  
+  // Cities that use NEW residential dataset structure - return empty array
+  const residentialCities = ['miami', 'miami beach', 'philadelphia', 'philly', 'phoenix', 'san antonio', 
+                             'chicago', 'houston', 'las vegas', 'los angeles', 'la', 'new york', 'nyc'];
+  if (residentialCities.includes(city)) {
+    console.log(`⏭️ City "${city}" uses new residential dataset structure - skipping legacy datasets`);
+    return []; // Return empty - use residential/sale and residential/lease folders instead
+  }
   
   // Check exact match first
   if (CITY_DATASET_MAP[city]) {
@@ -95,12 +105,13 @@ export function getDatasetFilesForLocation(searchLocation: string): string[] {
     }
   }
   
-  // If no specific dataset, use the main combined dataset
+  // If no specific dataset, use the main combined dataset (only for commercial)
   return ['commercial_dataset_17nov2025.json'];
 }
 
 /**
  * Check if a property matches the searched location
+ * Enhanced to handle multi-word cities like "Miami Beach" correctly
  */
 export function propertyMatchesLocation(
   property: { city?: string; state?: string; address?: string | { streetAddress?: string } },
@@ -113,11 +124,38 @@ export function propertyMatchesLocation(
   
   // If we have a specific city search
   if (searchCity) {
-    // Exact city match
+    // Exact city match (case-insensitive)
     if (propCity === searchCity) return true;
     
-    // Partial city match (e.g., "Miami Beach" contains "Miami")
-    if (propCity.includes(searchCity) || searchCity.includes(propCity)) return true;
+    // CRITICAL: For multi-word cities, check if either contains the other as a complete phrase
+    // e.g., "miami beach" should match "miami beach" but also handle variations
+    // Check if searchCity is contained in propCity as a complete word/phrase
+    if (propCity.includes(searchCity)) {
+      // Additional check: ensure it's not a partial word match
+      // e.g., "miami" should match "miami beach" but "miam" shouldn't
+      const searchWords = searchCity.split(/\s+/);
+      const propWords = propCity.split(/\s+/);
+      
+      // If searchCity is a single word, check if it matches the first word of propCity
+      // This handles "miami" matching "miami beach"
+      if (searchWords.length === 1 && propWords.length > 1) {
+        if (propWords[0] === searchWords[0]) return true;
+      }
+      
+      // If searchCity is multiple words, check if propCity starts with searchCity
+      // This handles "miami beach" matching "miami beach"
+      if (searchWords.length > 1) {
+        if (propCity.startsWith(searchCity) || searchCity.startsWith(propCity)) return true;
+      }
+      
+      // Fallback: simple includes check
+      return true;
+    }
+    
+    // Reverse check: propCity contains searchCity
+    if (searchCity.includes(propCity)) {
+      return true;
+    }
   }
   
   // If we have a state search
@@ -126,6 +164,11 @@ export function propertyMatchesLocation(
     if (propState === searchState || propState === fullState) {
       // If only state is specified, match any city in that state
       if (!searchCity) return true;
+      // If city is also specified, we already checked city above
+      // If city check passed, return true
+      if (searchCity && (propCity === searchCity || propCity.includes(searchCity) || searchCity.includes(propCity))) {
+        return true;
+      }
     }
   }
   
@@ -140,7 +183,13 @@ export async function loadPropertiesForLocation(searchLocation: string): Promise
   const allProperties: CommercialProperty[] = [];
   const seenIds = new Set<string>();
   
-  console.log(`📂 Loading datasets for "${searchLocation}":`, datasetFiles);
+  // SKIP loading if no dataset files found (means city uses new residential dataset structure)
+  if (datasetFiles.length === 0 || datasetFiles[0] === 'commercial_dataset_17nov2025.json') {
+    console.log(`⏭️ Skipping legacy datasets for "${searchLocation}" - using new residential dataset structure`);
+    return [];
+  }
+  
+  console.log(`📂 Loading COMMERCIAL datasets for "${searchLocation}":`, datasetFiles);
   
   for (const file of datasetFiles) {
     try {
@@ -183,7 +232,9 @@ export async function loadPropertiesForLocation(searchLocation: string): Promise
           
           seenIds.add(propId);
           
-          // Convert to CommercialProperty format (can be used for residential too)
+          // Convert to CommercialProperty format (ONLY for commercial properties)
+          // NOTE: This function should NOT be used for residential properties
+          // Residential properties should use residential/sale and residential/lease folders
           allProperties.push({
             zpid: propId,
             address: prop.address || prop.addressStreet || '',
@@ -191,9 +242,9 @@ export async function loadPropertiesForLocation(searchLocation: string): Promise
             state: prop.addressState || 'NY',
             zipcode: prop.addressZipcode || '',
             price: 0, // Manhattan dataset doesn't have price
-            propertyType: 'Residential',
-            propertyCategory: 'residential',
-            status: 'For Sale',
+            propertyType: 'Commercial', // Changed from Residential - this loader is for commercial only
+            propertyCategory: 'commercial',
+            status: prop.listingType?.includes('Lease') ? 'For Lease' : 'For Sale', // Use actual listing type
             imgSrc: prop.imageSource || null,
             images: prop.photoUrls && prop.photoUrls.length > 0 
               ? prop.photoUrls 

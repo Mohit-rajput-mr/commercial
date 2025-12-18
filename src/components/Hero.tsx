@@ -16,6 +16,7 @@ const tabs = ['Sale', 'Lease'] as const;
 export default function Hero() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'Lease' | 'Sale'>('Sale');
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState<'Residential' | 'Commercial'>('Residential');
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -87,9 +88,19 @@ export default function Hero() {
     // Pass activeTab (Lease/Sale) to search
     const status = activeTab === 'Sale' ? 'ForSale' : 'ForRent';
     params.set('status', status);
+    // Pass property type filter
+    params.set('propertyType', propertyTypeFilter);
     setDropdownOpen(false);
     setSelectedIndex(-1);
-    window.location.href = `/unified-search?${params.toString()}`;
+    
+    // Route to different pages based on property type filter
+    if (propertyTypeFilter === 'Commercial') {
+      // Commercial properties go to commercial-search page
+      window.location.href = `/commercial-search?${params.toString()}`;
+    } else {
+      // Residential goes to unified-search page
+      window.location.href = `/unified-search?${params.toString()}`;
+    }
   };
 
   const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
@@ -182,7 +193,7 @@ export default function Hero() {
           className="w-full max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-lg md:rounded-xl p-4 sm:p-5 md:p-6 shadow-2xl border border-white/20"
         >
           {/* Tabs - Only Lease and Sale, centered */}
-          <div className="flex gap-2 mb-6 sm:mb-6 md:mb-4 pb-3 sm:pb-3 md:pb-2 border-b border-white/20 justify-center">
+          <div className="flex gap-2 mb-4 pb-3 border-b border-white/20 justify-center">
             {tabs.map((tab) => (
               <button
                 key={tab}
@@ -200,6 +211,23 @@ export default function Hero() {
                     className="absolute bottom-[-13px] sm:bottom-[-13px] md:bottom-[-17px] left-0 right-0 h-0.5 sm:h-0.5 md:h-1 bg-accent-yellow shadow-[0_0_10px_rgba(255,215,0,0.5)]"
                   />
                 )}
+              </button>
+            ))}
+          </div>
+
+          {/* Property Type Filters - Residential, Commercial */}
+          <div className="flex flex-wrap gap-2 mb-4 justify-center">
+            {(['Residential', 'Commercial'] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setPropertyTypeFilter(type)}
+                className={`px-4 sm:px-5 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-sm transition-all rounded-md ${
+                  propertyTypeFilter === type
+                    ? 'text-primary-black bg-accent-yellow shadow-lg'
+                    : 'text-white bg-white/10 hover:bg-white/20'
+                }`}
+              >
+                {type}
               </button>
             ))}
           </div>

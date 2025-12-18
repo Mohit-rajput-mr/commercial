@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden"
+        className="w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[600px] lg:max-w-[650px] bg-white rounded-xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <div className="bg-gradient-to-r from-primary-black to-secondary-black p-6 text-center">

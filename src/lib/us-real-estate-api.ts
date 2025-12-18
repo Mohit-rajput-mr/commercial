@@ -201,13 +201,76 @@ export interface CommercialSearchResponse {
   _params?: string;
 }
 
+/**
+ * Clean and normalize address string
+ * Removes invalid addresses like "7 Land Properties", "6 Properties", etc.
+ * Extracts actual street address from strings that have extra text appended
+ */
+function normalizeAddress(address: string | null | undefined, city: string, state: string, zip: string): string {
+  if (!address) {
+    // Build address from available components
+    if (city && state) {
+      return `${city}, ${state}${zip ? ` ${zip}` : ''}`;
+    }
+    return 'Address not available';
+  }
+  
+  const addr = address.trim();
+  
+  // Check for invalid addresses (like "7 Land Properties", "6 Properties", etc.)
+  const invalidPatterns = [
+    /^\d+\s+(Properties?|Land\s+Properties?)$/i,
+    /^(Properties?|Land\s+Properties?)$/i,
+    /^\d+\s*Properties?$/i,
+  ];
+  
+  for (const pattern of invalidPatterns) {
+    if (pattern.test(addr)) {
+      // Invalid address - build from city/state/zip
+      if (city && state) {
+        return `${city}, ${state}${zip ? ` ${zip}` : ''}`;
+      }
+      return 'Address not available';
+    }
+  }
+  
+  // Clean up addresses that have extra text appended (like "12049 Retail Dr1.56 AC Commercial Lot")
+  // Extract just the street address part (before numbers/units/acres/etc.)
+  const cleaned = addr
+    .replace(/\d+\.\d+\s*AC?\s*(Commercial|Residential|Industrial)?\s*Lot?/i, '') // Remove "1.56 AC Commercial Lot"
+    .replace(/\d+\s*AC?\s*(Commercial|Residential|Industrial)?\s*Lot?/i, '') // Remove "167 AC Commercial Lot"
+    .replace(/\d+\s*(bedrooms?|baths?|sq\s*ft|sqft|units?)/i, '') // Remove "3 bedrooms", "2 baths", etc.
+    .trim();
+  
+  // If cleaned address is too short or still invalid, use original or build from components
+  if (cleaned.length < 5) {
+    // Try to extract street number and name
+    const streetMatch = addr.match(/^(\d+\s+[A-Za-z\s]+?)(?:\d|AC|Commercial|Residential|Industrial|Lot)/i);
+    if (streetMatch && streetMatch[1]) {
+      return streetMatch[1].trim();
+    }
+    
+    // If still invalid, build from city/state
+    if (city && state) {
+      return `${city}, ${state}${zip ? ` ${zip}` : ''}`;
+    }
+    
+    return addr; // Return original if we can't improve it
+  }
+  
+  return cleaned;
+}
+
 function normalizeProperty(item: RawCommercialData): CommercialProperty {
   const propertyType = item.propertyType || item.propertyTypeDetailed || '';
   const category = categorizePropertyType(propertyType);
   
+  // Normalize address to ensure it's valid
+  const normalizedAddress = normalizeAddress(item.address, item.city || '', item.state || '', item.zip || '');
+  
   return {
     zpid: item.propertyId || String(Math.random()),
-    address: item.address || '',
+    address: normalizedAddress,
     city: item.city || '',
     state: item.state || '',
     zipcode: item.zip || '',
@@ -449,10 +512,83 @@ export async function getCommercialImages(id: string): Promise<string[]> {
   }
 }
 
-export function getAddressString(address: string | CommercialAddress | undefined): string {
-  if (!address) return 'Address not available';
-  if (typeof address === 'string') return address;
-  return address.streetAddress || address.community || address.neighborhood || 'Address not available';
+export function getAddressString(address: string | CommercialAddress | undefined, city?: string, state?: string, zipcode?: string): string {
+  if (!address) {
+    // Build address from available components
+    if (city && state) {
+      return `${city}, ${state}${zipcode ? ` ${zipcode}` : ''}`;
+    }
+    return 'Address not available';
+  }
+  
+  if (typeof address === 'string') {
+    const addr = address.trim();
+    
+    // Check for invalid addresses (like "7 Land Properties", "6 Properties", etc.)
+    const invalidPatterns = [
+      /^\d+\s+(Properties?|Land\s+Properties?)$/i,
+      /^(Properties?|Land\s+Properties?)$/i,
+      /^\d+\s*Properties?$/i,
+    ];
+    
+    const isInvalidAddress = invalidPatterns.some(pattern => pattern.test(addr));
+    
+    if (isInvalidAddress || addr.length < 5) {
+      // Build address from city/state/zip
+      if (city && state) {
+        return `${city}, ${state}${zipcode ? ` ${zipcode}` : ''}`;
+      }
+      return 'Address not available';
+    }
+    
+    // Clean up addresses that have extra text appended
+    const cleaned = addr
+      .replace(/\d+\.\d+\s*AC?\s*(Commercial|Residential|Industrial)?\s*Lot?/i, '')
+      .replace(/\d+\s*AC?\s*(Commercial|Residential|Industrial)?\s*Lot?/i, '')
+      .trim();
+    
+    if (cleaned.length < 5) {
+      // Try to extract street number and name
+      const streetMatch = addr.match(/^(\d+\s+[A-Za-z\s]+?)(?:\d|AC|Commercial|Residential|Industrial|Lot)/i);
+      if (streetMatch && streetMatch[1]) {
+        return streetMatch[1].trim();
+      }
+      
+      // If still invalid, build from city/state
+      if (city && state) {
+        return `${city}, ${state}${zipcode ? ` ${zipcode}` : ''}`;
+      }
+      
+      return addr;
+    }
+    
+    return cleaned;
+  }
+  
+  // Handle CommercialAddress object
+  const streetAddr = address.streetAddress || address.community || address.neighborhood;
+  if (streetAddr) {
+    // Apply same cleaning logic
+    const cleaned = streetAddr
+      .replace(/\d+\.\d+\s*AC?\s*(Commercial|Residential|Industrial)?\s*Lot?/i, '')
+      .replace(/\d+\s*AC?\s*(Commercial|Residential|Industrial)?\s*Lot?/i, '')
+      .trim();
+    
+    if (cleaned.length >= 5) {
+      return cleaned;
+    }
+  }
+  
+  // Fallback to city/state if available
+  const addrCity = address.city || city;
+  const addrState = address.state || state;
+  const addrZip = address.zipcode || zipcode;
+  
+  if (addrCity && addrState) {
+    return `${addrCity}, ${addrState}${addrZip ? ` ${addrZip}` : ''}`;
+  }
+  
+  return 'Address not available';
 }
 
 export function getCity(property: CommercialProperty): string {

@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { searchPropertiesByLocation, ZillowProperty, searchCommercial, CommercialProperty } from "@/lib/us-real-estate-api";
 import { searchProperties, APIProperty } from '@/lib/property-api';
+import { searchResidentialProperties } from '@/lib/residential-dataset-loader';
 import { Search } from "lucide-react";
 import { PropertyGridSkeleton } from '@/components/SkeletonLoader';
 import Navigation from '@/components/Navigation';
@@ -110,62 +111,54 @@ function SearchPageContent() {
           console.error('❌ Database search error:', err);
         }
 
-        // Search external APIs
-        const [residentialRes, commercialRes, residentialFromDatasets] = await Promise.all([
+        // Load residential properties from new datasets (sale)
+        const residentialFromNewDatasets = await searchResidentialProperties(locationQuery, 'sale').catch((err) => {
+          console.error('Residential dataset search error:', err);
+          return [];
+        });
+        console.log('📊 Residential from new datasets:', residentialFromNewDatasets.length);
+
+        // Search external APIs (optional fallbacks)
+        const [residentialRes, commercialRes] = await Promise.all([
           searchPropertiesByLocation(locationQuery, 'ForSale').catch((err) => {
-            console.error('Residential search error:', err);
+            console.error('Residential API search error:', err);
             return [];
           }),
           searchCommercial(locationQuery, 'sale', undefined, 'commercial').catch((err) => {
             console.error('Commercial search error:', err);
             return { props: [] };
           }),
-          searchCommercial(locationQuery, 'sale', undefined, 'residential').catch((err) => {
-            console.error('Residential from datasets search error:', err);
-            return { props: [] };
-          }),
         ]);
 
         // Combine results, removing duplicates
-        const allResidential: (ZillowProperty | APIProperty)[] = [...(Array.isArray(residentialRes) ? residentialRes : [])];
-        const existingZpids = new Set(allResidential.map(p => p.zpid));
+        const allResidential: (ZillowProperty | APIProperty)[] = [];
+        const existingZpids = new Set<string>();
         
-        // Add residential from datasets (multifamily, etc.)
-        if (residentialFromDatasets.props && residentialFromDatasets.props.length > 0) {
-          console.log('📊 Residential from datasets:', residentialFromDatasets.props.length);
-          residentialFromDatasets.props.forEach(prop => {
-            if (prop.zpid && !existingZpids.has(prop.zpid)) {
-              allResidential.push({
-                zpid: prop.zpid,
-                address: typeof prop.address === 'string' ? prop.address : (prop.address?.streetAddress || ''),
-                city: prop.city || '',
-                state: prop.state || '',
-                zipcode: prop.zipcode || '',
-                price: prop.price,
-                bedrooms: prop.bedrooms,
-                bathrooms: prop.bathrooms,
-                livingArea: prop.livingArea,
-                lotSize: prop.lotSize,
-                yearBuilt: prop.yearBuilt,
-                propertyType: prop.propertyType,
-                status: prop.status,
-                imgSrc: prop.imgSrc,
-                images: prop.images,
-                description: prop.description,
-                latitude: prop.latitude,
-                longitude: prop.longitude,
-              } as ZillowProperty);
-              existingZpids.add(prop.zpid);
-            }
-          });
-        }
+        // Add residential from new datasets FIRST (most reliable)
+        residentialFromNewDatasets.forEach(prop => {
+          if (prop.zpid && !existingZpids.has(prop.zpid)) {
+            allResidential.push(prop);
+            existingZpids.add(prop.zpid);
+          }
+        });
         
+        // Add database residential properties
         databaseResidential.forEach(prop => {
           if (prop.zpid && !existingZpids.has(prop.zpid)) {
             allResidential.push(prop);
             existingZpids.add(prop.zpid);
           }
         });
+        
+        // Add API results (fallback)
+        if (Array.isArray(residentialRes)) {
+          residentialRes.forEach(prop => {
+            if (prop.zpid && !existingZpids.has(prop.zpid)) {
+              allResidential.push(prop);
+              existingZpids.add(prop.zpid);
+            }
+          });
+        }
 
         const allCommercial = [...(commercialRes.props || [])];
         const existingAddresses = new Set(allCommercial.map(p => {

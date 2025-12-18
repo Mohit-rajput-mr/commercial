@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-type TabType = 'For Sale' | 'For Lease' | 'Auctions';
+type TabType = 'For Sale' | 'For Lease';
 
 interface TrendingProperty {
   id: string;
@@ -15,26 +16,25 @@ interface TrendingProperty {
   sizeLabel?: string;
   typeLabel: string;
   imageUrl: string;
-  link: string;
-  isExternal?: boolean;
+  rawData?: any;
 }
 
 async function loadCommercialDatasets(): Promise<any[]> {
   const datasetUrls = [
-    '/commercial_dataset_17nov2025.json',
-    '/commercial_dataset2.json',
-    '/commercial_dataset_Chicago.json',
-    '/commercial_dataset_houston.json',
-    '/commercial_dataset_LA.json',
-    '/commercial_dataset_ny.json',
-    '/dataset_miami_beach.json',
-    '/dataset_miami_sale.json',
-    '/dataset_miamibeach_lease.json',
-    '/dataset_philadelphia_sale.json',
-    '/dataset_philadelphia.json',
-    '/dataset_phoenix.json',
-    '/dataset_san_antonio_sale.json',
-    '/dataset_son_antonio_lease.json'
+    '/commercial/commercial_dataset_17nov2025.json',
+    '/commercial/commercial_dataset2.json',
+    '/commercial/commercial_dataset_Chicago.json',
+    '/commercial/commercial_dataset_houston.json',
+    '/commercial/commercial_dataset_LA.json',
+    '/commercial/commercial_dataset_ny.json',
+    '/commercial/dataset_miami_beach.json',
+    '/commercial/dataset_miami_sale.json',
+    '/commercial/dataset_miamibeach_lease.json',
+    '/commercial/dataset_philadelphia_sale.json',
+    '/commercial/dataset_philadelphia.json',
+    '/commercial/dataset_phoenix.json',
+    '/commercial/dataset_san_antonio_sale.json',
+    '/commercial/dataset_son_antonio_lease.json'
   ];
   let combined: any[] = [];
 
@@ -44,145 +44,194 @@ async function loadCommercialDatasets(): Promise<any[]> {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
+          console.log(`📦 Loaded ${data.length} properties from ${url}`);
           combined = [...combined, ...data];
         }
+      } else {
+        console.warn(`⚠️ Failed to fetch ${url}: ${res.status}`);
       }
     } catch (error) {
-      console.warn(`Failed to load dataset ${url}`, error);
+      console.warn(`❌ Error loading ${url}:`, error);
     }
   }
 
+  console.log(`📊 Total commercial properties loaded: ${combined.length}`);
   return combined;
 }
 
 async function fetchForSaleTrendingFromData(allData: any[], usedPropertyIds: Set<string>, limit = 8): Promise<TrendingProperty[]> {
+  // Helper to check for valid images
+  const getValidImageCount = (images: any): number => {
+    if (!images || !Array.isArray(images)) return 0;
+    return images.filter((img: any) => img && typeof img === 'string' && img.startsWith('http')).length;
+  };
+
   const forSale = allData
     .filter((item) => {
-      // Skip if already used
-      if (usedPropertyIds.has(item.propertyId)) return false;
+      // Skip if already used or no propertyId
+      if (!item.propertyId || usedPropertyIds.has(item.propertyId)) return false;
       
       const listingType = String(item.listingType || '').toLowerCase();
-      // Exclude only lease/rent properties - include everything else (sale, auction, etc.)
-      const isLease = listingType.includes('lease') || listingType.includes('rent') || listingType.includes('sublease');
-      // Must have a price
-      const hasPrice = item.price || item.priceNumeric;
-      return !isLease && hasPrice;
+      // Exclude lease/rent properties - everything else is considered "for sale"
+      const isLease = listingType.includes('lease') || listingType.includes('rent') || listingType.includes('sublease') || listingType.includes('coworking');
+      // Must have at least one valid image
+      const imageCount = getValidImageCount(item.images);
+      return !isLease && imageCount > 0;
     })
     .sort((a, b) => {
-      // Prioritize properties with images
-      const aHasImages = a.images && a.images.length > 0 ? 1 : 0;
-      const bHasImages = b.images && b.images.length > 0 ? 1 : 0;
-      if (bHasImages !== aHasImages) {
-        return bHasImages - aHasImages;
+      // Prioritize properties with more images
+      const aImageCount = getValidImageCount(a.images);
+      const bImageCount = getValidImageCount(b.images);
+      if (bImageCount !== aImageCount) {
+        return bImageCount - aImageCount;
       }
       // Then sort by price (highest first)
       return (b.priceNumeric || 0) - (a.priceNumeric || 0);
     })
     .slice(0, limit);
+
+  console.log(`✅ Found ${forSale.length} For Sale properties with images (from ${allData.length} total)`);
 
   // Mark these properties as used
   forSale.forEach(item => usedPropertyIds.add(item.propertyId));
 
-  return forSale.map((item, index) => ({
-    id: item.propertyId || `sale-${index}`,
-    priceLabel: item.price || (item.priceNumeric ? `$${item.priceNumeric.toLocaleString()}` : 'Price on request'),
-    addressLine: item.address || 'Address not available',
-    locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
-    sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
-    typeLabel: item.propertyTypeDetailed || item.propertyType || 'Commercial Property',
-    imageUrl: (item.images && item.images.length > 0 && item.images[0] && item.images[0].startsWith('http')) 
-      ? item.images[0] 
-      : '/assets/logoRE.png',
-    link: `/property/commercial/${item.propertyId || `sale-${index}`}`,
-    isExternal: false,
-  }));
+  return forSale.map((item, index) => {
+    // Clean address - remove appended SF/Unit/AC patterns
+    const cleanAddress = (addr: string): string => {
+      if (!addr) return '';
+      return addr
+        .replace(/\d{1,3}(,\d{3})*\s*SF\s*(Office|Retail|Industrial|Multifamily|Available|Property|Commercial|Coworking)?\s*(Available)?/gi, '')
+        .replace(/\d+\s*Unit\s*(Multifamily|Apartment|Residential)?/gi, '')
+        .replace(/\d+\.\d+\s*AC\s*(Commercial|Residential|Industrial)?\s*(Lot)?/gi, '')
+        .replace(/\d+\s*AC\s*(Commercial|Residential|Industrial)?\s*(Lot)?/gi, '')
+        .trim();
+    };
+    
+    let addressLine = cleanAddress(item.address || '');
+    
+    // Check for invalid addresses
+    const invalidPatterns = [
+      /^\d+\s+(Properties?|Land\s+Properties?)$/i,
+      /^(Properties?|Land\s+Properties?)$/i,
+      /^\d+\s*Properties?$/i,
+    ];
+    
+    const isInvalidAddress = invalidPatterns.some(pattern => pattern.test(addressLine)) || !addressLine || addressLine.length < 5;
+    
+    if (isInvalidAddress) {
+      const locationParts = [item.city, item.state, item.zip].filter(Boolean);
+      addressLine = locationParts.length > 0 ? locationParts.join(', ') : 'Address not available';
+    }
+    
+    return {
+      id: item.propertyId || `sale-${index}`,
+      priceLabel: item.price || (item.priceNumeric ? `$${item.priceNumeric.toLocaleString()}` : 'Price on request'),
+      addressLine: addressLine,
+      locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
+      sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
+      typeLabel: item.propertyTypeDetailed || item.propertyType || 'Commercial Property',
+      imageUrl: (() => {
+        // Find first valid image URL
+        if (item.images && Array.isArray(item.images)) {
+          const validImage = item.images.find((img: string) => img && typeof img === 'string' && img.startsWith('http'));
+          if (validImage) return validImage;
+        }
+        return '/assets/logoRE.png';
+      })(),
+      rawData: item,
+    };
+  });
 }
 
 async function fetchForLeaseTrendingFromData(allData: any[], usedPropertyIds: Set<string>, limit = 8): Promise<TrendingProperty[]> {
+  // Helper to check for valid images
+  const getValidImageCount = (images: any): number => {
+    if (!images || !Array.isArray(images)) return 0;
+    return images.filter((img: any) => img && typeof img === 'string' && img.startsWith('http')).length;
+  };
+
   const forLease = allData
     .filter((item) => {
-      // Skip if already used
-      if (usedPropertyIds.has(item.propertyId)) return false;
+      // Skip if already used or no propertyId
+      if (!item.propertyId || usedPropertyIds.has(item.propertyId)) return false;
       
       const listingType = String(item.listingType || '').toLowerCase();
-      const isLease = listingType.includes('lease') || listingType.includes('rent') || listingType.includes('sublease');
-      return isLease;
+      // Include lease/rent/coworking properties
+      const isLease = listingType.includes('lease') || listingType.includes('rent') || listingType.includes('sublease') || listingType.includes('coworking');
+      // Must have at least one valid image
+      const imageCount = getValidImageCount(item.images);
+      return isLease && imageCount > 0;
     })
     .sort((a, b) => {
-      // Prioritize properties with images
-      const aHasImages = a.images && a.images.length > 0 ? 1 : 0;
-      const bHasImages = b.images && b.images.length > 0 ? 1 : 0;
-      if (bHasImages !== aHasImages) {
-        return bHasImages - aHasImages;
+      // Prioritize properties with more images
+      const aImageCount = getValidImageCount(a.images);
+      const bImageCount = getValidImageCount(b.images);
+      if (bImageCount !== aImageCount) {
+        return bImageCount - aImageCount;
       }
       // Then sort by price (highest first)
       return (b.priceNumeric || 0) - (a.priceNumeric || 0);
     })
     .slice(0, limit);
+
+  console.log(`✅ Found ${forLease.length} For Lease properties with images (from ${allData.length} total)`);
 
   // Mark these properties as used
   forLease.forEach(item => usedPropertyIds.add(item.propertyId));
 
-  return forLease.map((item, index) => ({
-    id: item.propertyId || `lease-${index}`,
-    priceLabel: item.price || (item.priceNumeric ? `$${item.priceNumeric.toLocaleString()}` : 'Price on request'),
-    addressLine: item.address || 'Address not available',
-    locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
-    sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
-    typeLabel: item.propertyTypeDetailed || item.propertyType || 'Commercial Property',
-    imageUrl: (item.images && item.images.length > 0 && item.images[0] && item.images[0].startsWith('http')) 
-      ? item.images[0] 
-      : '/assets/logoRE.png',
-    link: `/property/commercial/${item.propertyId || `lease-${index}`}`,
-    isExternal: false,
-  }));
-}
-
-async function fetchAuctionTrendingFromData(allData: any[], usedPropertyIds: Set<string>, limit = 8): Promise<TrendingProperty[]> {
-  const auctions = allData
-    .filter((item) => {
-      // Skip if already used
-      if (usedPropertyIds.has(item.propertyId)) return false;
-      
-      // Only show properties explicitly marked as auctions
-      const isAuction = item.isAuction === true || String(item.listingType || '').toLowerCase().includes('auction');
-      return isAuction;
-    })
-    .sort((a, b) => {
-      // Prioritize properties with images
-      const aHasImages = a.images && a.images.length > 0 ? 1 : 0;
-      const bHasImages = b.images && b.images.length > 0 ? 1 : 0;
-      if (bHasImages !== aHasImages) {
-        return bHasImages - aHasImages;
-      }
-      // Then sort by price (highest first)
-      return (b.priceNumeric || 0) - (a.priceNumeric || 0);
-    })
-    .slice(0, limit);
-
-  // Mark these properties as used
-  auctions.forEach(item => usedPropertyIds.add(item.propertyId));
-
-  return auctions.map((item, index) => ({
-    id: item.propertyId || `auction-${index}`,
-    priceLabel: item.price || (item.priceNumeric ? `Starting bid $${item.priceNumeric.toLocaleString()}` : 'Starting bid TBD'),
-    addressLine: item.address || 'Address not available',
-    locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
-    sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
-    typeLabel: item.propertyTypeDetailed || item.propertyType || 'Auction Property',
-    imageUrl: (item.images && item.images.length > 0 && item.images[0] && item.images[0].startsWith('http')) 
-      ? item.images[0] 
-      : '/assets/logoRE.png',
-    link: `/property/commercial/${item.propertyId || `auction-${index}`}`,
-    isExternal: false,
-  }));
+  return forLease.map((item, index) => {
+    // Clean address - remove appended SF/Unit/AC patterns
+    const cleanAddress = (addr: string): string => {
+      if (!addr) return '';
+      return addr
+        .replace(/\d{1,3}(,\d{3})*\s*SF\s*(Office|Retail|Industrial|Multifamily|Available|Property|Commercial|Coworking)?\s*(Available)?/gi, '')
+        .replace(/\d+\s*Unit\s*(Multifamily|Apartment|Residential)?/gi, '')
+        .replace(/\d+\.\d+\s*AC\s*(Commercial|Residential|Industrial)?\s*(Lot)?/gi, '')
+        .replace(/\d+\s*AC\s*(Commercial|Residential|Industrial)?\s*(Lot)?/gi, '')
+        .trim();
+    };
+    
+    let addressLine = cleanAddress(item.address || '');
+    
+    // Check for invalid addresses
+    const invalidPatterns = [
+      /^\d+\s+(Properties?|Land\s+Properties?)$/i,
+      /^(Properties?|Land\s+Properties?)$/i,
+      /^\d+\s*Properties?$/i,
+    ];
+    
+    const isInvalidAddress = invalidPatterns.some(pattern => pattern.test(addressLine)) || !addressLine || addressLine.length < 5;
+    
+    if (isInvalidAddress) {
+      const locationParts = [item.city, item.state, item.zip].filter(Boolean);
+      addressLine = locationParts.length > 0 ? locationParts.join(', ') : 'Address not available';
+    }
+    
+    return {
+      id: item.propertyId || `lease-${index}`,
+      priceLabel: item.price || (item.priceNumeric ? `$${item.priceNumeric.toLocaleString()}` : 'Price on request'),
+      addressLine: addressLine,
+      locationLine: [item.city, item.state, item.zip].filter(Boolean).join(', '),
+      sizeLabel: item.squareFootage ? `${item.squareFootage} sq ft` : item.buildingSize || undefined,
+      typeLabel: item.propertyTypeDetailed || item.propertyType || 'Commercial Property',
+      imageUrl: (() => {
+        // Find first valid image URL
+        if (item.images && Array.isArray(item.images)) {
+          const validImage = item.images.find((img: string) => img && typeof img === 'string' && img.startsWith('http'));
+          if (validImage) return validImage;
+        }
+        return '/assets/logoRE.png';
+      })(),
+      rawData: item,
+    };
+  });
 }
 
 export default function Listings() {
-  const [activeTab, setActiveTab] = useState<TabType>('Auctions');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabType>('For Sale');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [propertiesByTab, setPropertiesByTab] = useState<Record<TabType, TrendingProperty[]>>({
-    Auctions: [],
     'For Sale': [],
     'For Lease': [],
   });
@@ -211,10 +260,7 @@ export default function Listings() {
         // Track used property IDs to ensure no duplicates across tabs
         const usedPropertyIds = new Set<string>();
         
-        // Get auction properties first (most specific)
-        const auctionProps = await fetchAuctionTrendingFromData(allData, usedPropertyIds);
-        
-        // Get sale properties (excluding auctions already shown)
+        // Get sale properties first
         const saleProps = await fetchForSaleTrendingFromData(allData, usedPropertyIds);
         
         // Get lease properties (excluding any already shown)
@@ -224,7 +270,6 @@ export default function Listings() {
           setPropertiesByTab({
             'For Sale': saleProps,
             'For Lease': leaseProps,
-            Auctions: auctionProps,
           });
         }
       } catch (err: any) {
@@ -259,6 +304,15 @@ export default function Listings() {
     localStorage.setItem('favorites', JSON.stringify([...newFavorites]));
   };
 
+  const handlePropertyClick = (property: TrendingProperty) => {
+    // Store property data in sessionStorage and navigate to commercial-detail page
+    if (property.rawData) {
+      sessionStorage.setItem(`commercial_property_${property.id}`, JSON.stringify(property.rawData));
+      sessionStorage.setItem('commercial_source', 'trending');
+    }
+    router.push(`/commercial-detail?id=${encodeURIComponent(property.id)}`);
+  };
+
   return (
     <div className="py-20 px-5 bg-light-gray">
       <div className="max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
@@ -269,7 +323,7 @@ export default function Listings() {
               Trending Properties
             </h2>
             <div className="flex gap-2 md:gap-4 overflow-x-auto scrollbar-hide -mx-4 md:mx-0 px-4 md:px-0">
-              {(['Auctions', 'For Sale', 'For Lease'] as const).map((tab) => (
+              {(['For Sale', 'For Lease'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -284,12 +338,12 @@ export default function Listings() {
               ))}
             </div>
           </div>
-          <a
-            href="#"
+          <Link
+            href="/commercial-search"
             className="text-primary-black font-semibold border-b-2 border-accent-yellow hover:text-accent-yellow transition-colors flex items-center gap-2"
           >
             See More <ArrowRight size={20} />
-          </a>
+          </Link>
         </div>
 
         {/* Listings Grid */}
@@ -319,76 +373,55 @@ export default function Listings() {
 
             {!isLoading &&
               !error &&
-              visibleProperties.map((property, index) => {
-                const CardContent = (
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    whileHover={{ y: -10 }}
-                    className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all relative group flex-shrink-0 w-[calc(50vw-1.5rem)] md:w-auto cursor-pointer"
-                  >
-                    <div className="relative h-52 overflow-hidden">
-                      <div
-                        className="w-full h-full bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
-                        style={{ backgroundImage: `url(${property.imageUrl})` }}
-                      />
-                      <div className="absolute top-4 left-4 bg-white px-4 py-2 rounded-full text-sm font-semibold text-primary-black">
-                        {property.typeLabel}
-                      </div>
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleFavorite(property.id);
-                        }}
-                        className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all z-20 ${
-                          favorites.has(property.id)
-                            ? 'bg-accent-yellow text-primary-black'
-                            : 'bg-white text-primary-black hover:bg-accent-yellow'
-                        }`}
-                      >
-                        <Heart size={20} fill={favorites.has(property.id) ? 'currentColor' : 'none'} />
-                      </motion.button>
+              visibleProperties.map((property, index) => (
+                <motion.div
+                  key={property.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  whileHover={{ y: -10 }}
+                  onClick={() => handlePropertyClick(property)}
+                  className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all relative group flex-shrink-0 w-[calc(50vw-1.5rem)] md:w-auto cursor-pointer"
+                >
+                  <div className="relative h-52 overflow-hidden">
+                    <div
+                      className="w-full h-full bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
+                      style={{ backgroundImage: `url(${property.imageUrl})` }}
+                    />
+                    <div className="absolute top-4 left-4 bg-white px-4 py-2 rounded-full text-sm font-semibold text-primary-black">
+                      {property.typeLabel}
                     </div>
-                    <div className="p-5">
-                      <div className="text-2xl font-bold text-primary-black mb-2">{property.priceLabel}</div>
-                      <div className="text-base text-custom-gray mb-1">{property.addressLine}</div>
-                      <div className="text-base text-custom-gray mb-3">{property.locationLine}</div>
-                      {property.sizeLabel && (
-                        <div className="text-sm font-semibold text-primary-black">{property.sizeLabel}</div>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-
-                if (property.isExternal) {
-                  return (
-                    <a
-                      key={property.id}
-                      href={property.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFavorite(property.id);
+                      }}
+                      className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all z-20 ${
+                        favorites.has(property.id)
+                          ? 'bg-accent-yellow text-primary-black'
+                          : 'bg-white text-primary-black hover:bg-accent-yellow'
+                      }`}
                     >
-                      {CardContent}
-                    </a>
-                  );
-                }
-
-                return (
-                  <Link key={property.id} href={property.link} className="block">
-                    {CardContent}
-                  </Link>
-                );
-              })}
+                      <Heart size={20} fill={favorites.has(property.id) ? 'currentColor' : 'none'} />
+                    </motion.button>
+                  </div>
+                  <div className="p-5">
+                    <div className="text-2xl font-bold text-primary-black mb-2">{property.priceLabel}</div>
+                    <div className="text-base text-custom-gray mb-1">{property.addressLine}</div>
+                    <div className="text-base text-custom-gray mb-3">{property.locationLine}</div>
+                    {property.sizeLabel && (
+                      <div className="text-sm font-semibold text-primary-black">{property.sizeLabel}</div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

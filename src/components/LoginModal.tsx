@@ -250,7 +250,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-[500px] md:max-w-[500px] overflow-hidden pointer-events-auto my-auto"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[900px] xl:max-w-[1000px] overflow-hidden pointer-events-auto my-auto"
               style={{
                 position: 'relative',
                 maxHeight: '90vh',
@@ -274,7 +274,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                           setPhone('');
                         }
                       }}
-                      className="text-accent-yellow hover:underline font-semibold"
+                      className={`${isLogin ? 'text-primary-black' : 'text-accent-yellow'} hover:underline font-semibold`}
                     >
                       {isLogin ? 'Sign Up' : 'Log In'}
                     </button>
@@ -291,8 +291,8 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
 
               <div className="flex flex-col md:flex-row overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
                 {/* Left Column - Carousel */}
-                <div className="w-full md:w-1/2 bg-light-gray p-4 md:p-6 relative overflow-hidden min-h-[250px] md:min-h-[400px] flex-shrink-0">
-                  <div className="relative h-56 md:h-80">
+                <div className="w-full md:w-1/2 lg:w-[45%] bg-light-gray p-4 md:p-6 lg:p-8 relative overflow-hidden min-h-[200px] sm:min-h-[250px] md:min-h-[400px] lg:min-h-[450px] flex-shrink-0">
+                  <div className="relative h-44 sm:h-56 md:h-72 lg:h-80">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={currentSlide}
@@ -342,7 +342,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                 </div>
 
                 {/* Right Column - Form */}
-                <div className="w-full md:w-1/2 p-4 md:p-6 flex flex-col justify-center">
+                <div className="w-full md:w-1/2 lg:w-[55%] p-4 md:p-6 lg:p-8 flex flex-col justify-center">
                   <p className="text-sm text-custom-gray mb-4 md:mb-6">
                     {isLogin ? 'Enter your credentials to log in' : 'Create a free account to get started'}
                   </p>

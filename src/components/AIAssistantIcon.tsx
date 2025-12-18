@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, User } from 'lucide-react';
 
-const DEEPSEEK_API_KEY = 'sk-a8605ba2f76f44a2aaf690037a2d3189';
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+// API route for AI chat (server-side proxy)
+const AI_CHAT_API_URL = '/api/ai-chat';
 
 const SYSTEM_PROMPT = `You are an intelligent AI assistant for Cap Rate, the world's #1 commercial real estate marketplace. You have comprehensive knowledge about the entire platform, all its features, components, and how everything works. 
 
@@ -196,6 +196,133 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
+
+// Function to format message content with bold highlighting
+const formatMessageContent = (content: string): React.ReactNode => {
+  const parts: Array<{ text: string; bold: boolean }> = [];
+  let remaining = content;
+  let keyCounter = 0;
+
+  // First, extract markdown bold **text** and replace with placeholders
+  const boldSections: string[] = [];
+  remaining = remaining.replace(/\*\*(.+?)\*\*/g, (match, text) => {
+    const placeholder = `__BOLD_${boldSections.length}__`;
+    boldSections.push(text);
+    return placeholder;
+  });
+
+  // Important patterns to highlight
+  const patterns = [
+    /\$[\d,]+(?:\.\d{2})?(?:K|M|B)?/gi, // Prices
+    /\d+%/g, // Percentages
+    /\b\d+[\d,]*\s*(Properties?|Listings?|Visitors?|B|M|K|USD|sqft|sq\s*ft|acres?|bedrooms?|baths?)\b/gi, // Numbers with units
+    /\b(Office|Retail|Industrial|Flex|Coworking|Medical|Restaurant|Land|Multifamily|Hospitality)\b/gi, // Property types
+    /\b(For Lease|For Sale|Auctions?|Featured|Premium|Exclusive|New|Available|Contact|Schedule|Viewing)\b/gi, // Keywords
+    /\b\+?\d{1,3}[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g, // Phone numbers
+  ];
+
+  // Find all matches
+  const allMatches: Array<{ start: number; end: number; text: string }> = [];
+  patterns.forEach((pattern) => {
+    let match;
+    while ((match = pattern.exec(remaining)) !== null) {
+      // Skip if already inside a placeholder
+      const beforeMatch = remaining.substring(0, match.index);
+      const afterMatch = remaining.substring(match.index, match.index + match[0].length);
+      if (!beforeMatch.includes('__BOLD_') || !afterMatch.includes('__BOLD_')) {
+        allMatches.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          text: match[0],
+        });
+      }
+    }
+  });
+
+  // Sort and merge overlapping matches
+  allMatches.sort((a, b) => a.start - b.start);
+  const mergedMatches: Array<{ start: number; end: number; text: string }> = [];
+  allMatches.forEach((match) => {
+    const last = mergedMatches[mergedMatches.length - 1];
+    if (!last || match.start > last.end) {
+      mergedMatches.push(match);
+    } else if (match.end > last.end) {
+      last.end = match.end;
+      last.text = remaining.substring(last.start, last.end);
+    }
+  });
+
+  // Build parts array
+  let lastIndex = 0;
+  mergedMatches.forEach((match) => {
+    // Add text before match
+    if (match.start > lastIndex) {
+      const beforeText = remaining.substring(lastIndex, match.start);
+      if (beforeText) {
+        parts.push({ text: beforeText, bold: false });
+      }
+    }
+    // Add match as bold
+    parts.push({ text: match.text, bold: true });
+    lastIndex = match.end;
+  });
+
+  // Add remaining text
+  if (lastIndex < remaining.length) {
+    parts.push({ text: remaining.substring(lastIndex), bold: false });
+  }
+
+  // If no matches, add entire content
+  if (parts.length === 0) {
+    parts.push({ text: remaining, bold: false });
+  }
+
+  // Convert to React elements and restore bold placeholders
+  const result: React.ReactNode[] = [];
+  parts.forEach((part) => {
+    let text = part.text;
+    
+    // Restore bold placeholders
+    if (text.includes('__BOLD_')) {
+      const segments = text.split(/(__BOLD_\d+__)/g);
+      segments.forEach((segment) => {
+        const placeholderMatch = segment.match(/__BOLD_(\d+)__/);
+        if (placeholderMatch) {
+          const boldText = boldSections[parseInt(placeholderMatch[1])];
+          if (boldText) {
+            result.push(
+              <strong key={`bold-${keyCounter++}`} className="font-bold">
+                {boldText}
+              </strong>
+            );
+          }
+        } else if (segment) {
+          if (part.bold) {
+            result.push(
+              <strong key={`highlight-${keyCounter++}`} className="font-bold">
+                {segment}
+              </strong>
+            );
+          } else {
+            result.push(segment);
+          }
+        }
+      });
+    } else {
+      if (part.bold) {
+        result.push(
+          <strong key={`highlight-${keyCounter++}`} className="font-bold">
+            {text}
+          </strong>
+        );
+      } else {
+        result.push(text);
+      }
+    }
+  });
+
+  return result.length > 0 ? <>{result}</> : content;
+};
 
 export default function AIAssistantIcon() {
   const [isOpen, setIsOpen] = useState(false);
@@ -452,11 +579,10 @@ export default function AIAssistantIcon() {
       // Add streaming assistant message placeholder
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
 
-      const response = await fetch(DEEPSEEK_API_URL, {
+      const response = await fetch(AI_CHAT_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
         },
         body: JSON.stringify({
           model: 'deepseek-chat',
@@ -468,7 +594,9 @@ export default function AIAssistantIcon() {
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('AI Chat API Error:', response.status, errorData);
+        throw new Error(`API Error: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
 
       const reader = response.body?.getReader();
@@ -544,9 +672,12 @@ export default function AIAssistantIcon() {
       // Remove the empty assistant message and add error message
       setMessages((prev) => {
         const updated = prev.slice(0, -1);
+        const errorMessage = error?.message?.includes('API Error') 
+          ? `I'm having trouble connecting to the AI service right now (${error.message}). Please try again in a moment, or call us at +1 (917) 209-6200 for immediate assistance.`
+          : 'I apologize, I encountered an error. Please feel free to call us at +1 (917) 209-6200 or use the WhatsApp button for immediate assistance. I can also help with property searches, viewing schedules, and answering questions about our listings!';
         updated.push({
           role: 'assistant',
-          content: 'I apologize, I encountered an error. Please feel free to call us at +1 (917) 209-6200 or use the WhatsApp button for immediate assistance. I can also help with property searches, viewing schedules, and answering questions about our listings!'
+          content: errorMessage
         });
         return updated;
       });
@@ -579,7 +710,7 @@ export default function AIAssistantIcon() {
       {/* AI Assistant Icon Button */}
       <motion.div
         ref={iconRef}
-        className="fixed bottom-[9.5rem] sm:bottom-[11rem] md:bottom-[12rem] right-4 sm:right-5 md:right-6 w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 z-50 cursor-pointer"
+        className="fixed bottom-[12rem] sm:bottom-[14rem] md:bottom-[15rem] right-4 sm:right-5 md:right-6 w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 z-[60] cursor-pointer"
         onClick={handleIconClick}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -703,23 +834,32 @@ export default function AIAssistantIcon() {
         ))}
       </motion.div>
 
-      {/* Chat Widget - Positioned on the right side */}
+      {/* Chat Widget - Independent and properly positioned */}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop for mobile */}
+            {/* Backdrop for mobile - full screen */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[55] md:hidden"
             />
+            {/* Backdrop for desktop - subtle */}
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:inset-auto md:top-auto md:left-auto md:translate-x-0 md:translate-y-0 md:bottom-20 md:right-6 w-[90%] max-w-[400px] h-[75vh] max-h-[550px] md:w-96 md:h-[500px] bg-white rounded-2xl shadow-2xl z-50 flex flex-col border border-gray-200"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="hidden md:block fixed inset-0 bg-black/20 backdrop-blur-sm z-[55]"
+            />
+            {/* Chat Widget - Perfectly centered on mobile (all 4 axes), positioned on desktop */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="ai-chat-widget fixed w-[90%] max-w-[400px] h-[75vh] max-h-[550px] md:w-96 md:h-[500px] bg-white rounded-2xl shadow-2xl z-[60] flex flex-col border border-gray-200"
             >
             <div className="bg-accent-yellow px-4 py-3 rounded-t-2xl flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -748,7 +888,12 @@ export default function AIAssistantIcon() {
                         : 'bg-gray-100 text-primary-black'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                      {message.role === 'assistant' 
+                        ? formatMessageContent(message.content)
+                        : message.content
+                      }
+                    </p>
                   </div>
                 </div>
               ))}

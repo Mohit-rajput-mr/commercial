@@ -26,7 +26,7 @@ export interface APIProperty {
   zpid: string;
   address: string | APIAddress;
   city: string;
-  state: string;
+  state: string; // US state (FL, CA, etc.)
   zipcode: string;
   price: number;
   bedrooms?: number;
@@ -35,13 +35,22 @@ export interface APIProperty {
   lotSize?: number;
   yearBuilt?: number;
   propertyType?: string;
+  propertySubtype?: string;
   status?: string;
+  listingState?: string; // NEW: Listing state from JSON files ("Lease" or "Sale")
   imgSrc?: string;
   images?: string[];
   description?: string;
   zestimate?: number;
   latitude?: number;
   longitude?: number;
+  // Additional residential property fields
+  hoaFees?: number;
+  hoaFrequency?: string;
+  parkingFeatures?: string;
+  heatingFeatures?: string;
+  coolingFeatures?: string;
+  yearBuiltText?: string;
 }
 
 // Helper function to extract address string
