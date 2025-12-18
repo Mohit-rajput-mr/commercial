@@ -17,6 +17,7 @@ export default function Hero() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'Lease' | 'Sale'>('Sale');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<'Residential' | 'Commercial'>('Residential');
+  const [specificPropertyType, setSpecificPropertyType] = useState<string>('All'); // New: specific type filter
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -90,6 +91,10 @@ export default function Hero() {
     params.set('status', status);
     // Pass property type filter
     params.set('propertyType', propertyTypeFilter);
+    // Pass specific property type filter (Office, Retail, etc.)
+    if (specificPropertyType !== 'All') {
+      params.set('specificType', specificPropertyType);
+    }
     setDropdownOpen(false);
     setSelectedIndex(-1);
     
@@ -220,7 +225,10 @@ export default function Hero() {
             {(['Residential', 'Commercial'] as const).map((type) => (
               <button
                 key={type}
-                onClick={() => setPropertyTypeFilter(type)}
+                onClick={() => {
+                  setPropertyTypeFilter(type);
+                  setSpecificPropertyType('All'); // Reset specific type when switching
+                }}
                 className={`px-4 sm:px-5 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-sm transition-all rounded-md ${
                   propertyTypeFilter === type
                     ? 'text-primary-black bg-accent-yellow shadow-lg'
@@ -231,6 +239,32 @@ export default function Hero() {
               </button>
             ))}
           </div>
+
+          {/* Specific Property Type Filter (only for Commercial) */}
+          {propertyTypeFilter === 'Commercial' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4"
+            >
+              <div className="flex flex-wrap gap-2 justify-center">
+                {['All', 'Office', 'Retail', 'Multifamily', 'Industrial', 'Land', 'Hospitality', 'Healthcare', 'Mixed Use'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setSpecificPropertyType(type)}
+                    className={`px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 font-medium text-[10px] sm:text-xs md:text-sm transition-all rounded-md ${
+                      specificPropertyType === type
+                        ? 'text-primary-black bg-accent-yellow/90 shadow-md'
+                        : 'text-white bg-white/5 hover:bg-white/15 border border-white/10'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           {/* Search Box */}
           <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex flex-col sm:flex-row gap-3 sm:gap-2 md:gap-2 w-full">

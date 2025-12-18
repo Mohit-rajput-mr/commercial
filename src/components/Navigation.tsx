@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Database, Building2, BookOpen, ChevronDown, LogOut, User } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Menu, Database } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNavbarScroll } from '@/hooks/useNavbarScroll';
 import logoRE from '../../assets/logoRE.png';
@@ -11,8 +11,6 @@ import logoRE from '../../assets/logoRE.png';
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const isVisible = useNavbarScroll({
     hideOnScrollDown: true,
@@ -29,21 +27,8 @@ export default function Navigation() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     setCurrentUser(null);
-    setShowUserDropdown(false);
     window.location.reload();
   };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowUserDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleSidebarClick = () => {
     // Dispatch custom event to trigger sidebar menu in Hero
@@ -120,79 +105,29 @@ export default function Navigation() {
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-3">
-          <motion.button
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => router.push('/commercial-search')}
-            className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-all duration-300 text-xs flex items-center gap-1.5"
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            Commercial
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => router.push('/cre-explained')}
-            className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-semibold transition-all duration-300 text-xs flex items-center gap-1.5"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Learn
-          </motion.button>
+        <div className="hidden md:flex items-center gap-4">
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => router.push('/database-properties')}
-            className="px-3 py-1.5 bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg font-semibold transition-all duration-300 text-xs flex items-center gap-1.5"
+            className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg font-semibold transition-all duration-300 text-xs md:text-sm flex items-center gap-2"
           >
-            <Database className="w-3.5 h-3.5" />
-            Database
+            <Database className="w-4 h-4" />
+            Database Properties
           </motion.button>
           {currentUser ? (
-            <div className="relative" ref={dropdownRef}>
+            <div className="flex items-center gap-3">
+              <span className="text-white font-medium text-sm">
+                Welcome, {currentUser.full_name || 'User'}
+              </span>
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300"
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
+                className="px-4 md:px-[19.2px] py-1.5 md:py-[8px] border-2 border-red-500 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-red-500 hover:text-white text-xs md:text-sm"
               >
-                <div className="w-8 h-8 bg-accent-yellow rounded-full flex items-center justify-center">
-                  <User size={16} className="text-primary-black" />
-                </div>
-                <span className="text-white font-medium text-sm max-w-[120px] truncate">
-                  {currentUser.full_name || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User'}
-                </span>
-                <ChevronDown size={16} className={`text-white transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
+                Log Out
               </motion.button>
-
-              {/* User Dropdown */}
-              <AnimatePresence>
-                {showUserDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-[9999]"
-                  >
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-sm font-semibold text-primary-black truncate">
-                        {currentUser.full_name || currentUser.user_metadata?.full_name || 'User'}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {currentUser.email || ''}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors text-sm font-medium"
-                    >
-                      <LogOut size={16} />
-                      Log Out
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           ) : (
             <motion.button
@@ -207,26 +142,19 @@ export default function Navigation() {
         </div>
 
         {/* Mobile Menu - Hamburger */}
-        <div className="md:hidden flex items-center gap-1.5">
-          <button
-            onClick={() => router.push('/commercial-search')}
-            className="text-white p-1.5 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
-            title="Commercial Properties"
-          >
-            <Building2 size={18} />
-          </button>
+        <div className="md:hidden flex items-center gap-2">
           <button
             onClick={() => router.push('/database-properties')}
-            className="text-primary-black p-1.5 bg-accent-yellow hover:bg-yellow-400 rounded-lg transition-colors"
+            className="text-primary-black p-2 bg-accent-yellow hover:bg-yellow-400 rounded-lg transition-colors"
             title="Database Properties"
           >
-            <Database size={18} />
+            <Database size={20} />
           </button>
           <button
             onClick={handleSidebarClick}
-            className="text-white p-1.5"
+            className="text-white p-2"
           >
-            <Menu size={22} />
+            <Menu size={24} />
           </button>
         </div>
       </div>

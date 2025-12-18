@@ -392,21 +392,19 @@ function UnifiedSearchPageContent() {
 
   const activeFiltersCount = [selectedBeds, selectedBaths, selectedPriceRange, selectedSqftRange].filter(v => v !== null).length;
 
-  // Handle marker click - scroll to property in list
+  // Handle marker click - navigate to property detail page (same as card click)
   const handleMarkerClick = useCallback((propertyId: string) => {
-    setHighlightedPropertyId(propertyId);
-    
-    setTimeout(() => {
-      const propertyElement = propertyRefs.current.get(propertyId);
-      if (propertyElement) {
-        propertyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        propertyElement.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75');
-        setTimeout(() => {
-          propertyElement.classList.remove('ring-4', 'ring-blue-500', 'ring-opacity-75');
-        }, 3000);
-      }
-    }, 100);
-  }, []);
+    // Find property by zpid in current page
+    const propertyIndex = currentProperties.findIndex(p => (p.zpid || `prop-${filteredProperties.indexOf(p)}`) === propertyId);
+    if (propertyIndex !== -1) {
+      const property = currentProperties[propertyIndex];
+      // Use same logic as handlePropertyClick to ensure consistency
+      const detailId = `${listingType}_${location}_${startIndex + propertyIndex}`;
+      sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(property));
+      sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
+      router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
+    }
+  }, [currentProperties, filteredProperties, listingType, location, startIndex, router]);
 
   const handlePropertyHover = useCallback((propertyId: string | null) => {
     setHighlightedPropertyId(propertyId);
@@ -420,7 +418,7 @@ function UnifiedSearchPageContent() {
       <div className="h-[50px] md:h-[68px] w-full flex-shrink-0"></div>
       
       {/* Header Section with Always-Visible Filters */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-3 md:px-6 flex-shrink-0">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-3 md:px-6 flex-shrink-0 relative z-[100]">
         <div className="max-w-[1920px] mx-auto">
           {/* Title Row */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
@@ -472,7 +470,7 @@ function UnifiedSearchPageContent() {
               </button>
               
               {priceDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
               <button
                     onClick={() => {
                       setSelectedPriceRange(null);
@@ -523,7 +521,7 @@ function UnifiedSearchPageContent() {
               </button>
               
               {bedsDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
                   {BEDROOM_OPTIONS.map((option) => (
                     <button
                       key={option.value ?? 'any'}
@@ -563,7 +561,7 @@ function UnifiedSearchPageContent() {
               </button>
               
               {bathsDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
                   {BATHROOM_OPTIONS.map((option) => (
                     <button
                       key={option.value ?? 'any'}
@@ -605,7 +603,7 @@ function UnifiedSearchPageContent() {
               </button>
               
               {sqftDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-2 w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
                   <button
                     onClick={() => {
                       setSelectedSqftRange(null);
@@ -652,7 +650,7 @@ function UnifiedSearchPageContent() {
       {/* Main Content - Split Screen */}
       <div className="flex-1 flex overflow-hidden">
         {/* LEFT SIDE - Map */}
-        <div className="hidden md:block w-1/2 h-full relative">
+        <div className="hidden md:block w-1/2 h-full relative z-[1]">
           {loading ? (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
               <div className="text-center">

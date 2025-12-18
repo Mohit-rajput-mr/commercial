@@ -51,7 +51,7 @@ interface CommercialProperty {
   [key: string]: any;
 }
 
-// All commercial files to load
+// All commercial files to load (including miami_all_crexi.json)
 const COMMERCIAL_FILES = [
   'commercial_dataset_17nov2025.json',
   'commercial_dataset_Chicago.json',
@@ -69,6 +69,10 @@ const COMMERCIAL_FILES = [
   'dataset_san_antonio_sale.json',
   'dataset_son_antonio_lease.json',
 ];
+
+// Crexi dataset files (loaded separately from root public folder)
+const CREXI_SALE_FILE = 'miami_all_crexi_sale.json';
+const CREXI_LEASE_FILE = 'miami_all_crexi_lease.json';
 
 // Property types for filter
 const PROPERTY_TYPE_OPTIONS = [
@@ -112,6 +116,7 @@ function CommercialSearchPageContent() {
   // URL parameters
   const locationParam = searchParams.get('location') || '';
   const statusParam = searchParams.get('status') || '';
+  const specificTypeParam = searchParams.get('specificType') || ''; // New: specific property type from hero
 
   // Normalize location for matching
   const normalizeLocation = (input: string): string => {
@@ -149,7 +154,9 @@ function CommercialSearchPageContent() {
   );
   
   // Filter states
-  const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(null);
+  const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(
+    specificTypeParam && specificTypeParam !== 'All' ? specificTypeParam : null
+  );
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
   const [selectedSqftRange, setSelectedSqftRange] = useState<string | null>(null);
 
@@ -244,7 +251,7 @@ function CommercialSearchPageContent() {
     return score;
   };
 
-  // Load all commercial properties
+  // Load all commercial properties (including Crexi dataset)
   useEffect(() => {
     const loadAllProperties = async () => {
       setLoading(true);
@@ -253,6 +260,7 @@ function CommercialSearchPageContent() {
       try {
         const allProps: CommercialProperty[] = [];
         
+        // Load regular commercial files from /commercial folder
         for (const file of COMMERCIAL_FILES) {
           try {
             const response = await fetch(`/commercial/${file}`);
@@ -289,7 +297,194 @@ function CommercialSearchPageContent() {
           }
         }
 
-        console.log(`✅ Loaded ${allProps.length} commercial properties from ${COMMERCIAL_FILES.length} files`);
+        // Load Crexi SALE dataset from root public folder (miami_all_crexi_sale.json)
+        // Only load when selectedListingType is 'sale' or null (all properties)
+        if (selectedListingType === 'sale' || selectedListingType === null) {
+          try {
+            const crexiResponse = await fetch(`/${CREXI_SALE_FILE}`);
+            if (crexiResponse.ok) {
+              const crexiData = await crexiResponse.json();
+              const crexiProperties: any[] = Array.isArray(crexiData) ? crexiData : [];
+              
+              console.log(`📦 Loading ${crexiProperties.length} SALE properties from ${CREXI_SALE_FILE}`);
+              
+              // Transform Crexi properties to match CommercialProperty interface
+              const transformedCrexi = crexiProperties.map((prop, index) => {
+              // Extract images from media array
+              const mediaImages = prop.media && Array.isArray(prop.media) 
+                ? prop.media.filter((m: any) => m.type === 'Image' && m.imageUrl).map((m: any) => m.imageUrl)
+                : [];
+              
+              const firstImage = mediaImages[0] || prop.thumbnailUrl || null;
+              
+              // Extract location data
+              const location = prop.locations?.[0] || {};
+              const address = location.address || prop.name || '';
+              const city = location.city || '';
+              const state = location.state?.code || '';
+              const zip = location.zip || '';
+              
+              // Extract neighborhood from urlSlug
+              const neighborhood = prop.urlSlug 
+                ? prop.urlSlug.replace(/^florida-/, '').replace(/-/g, ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                : '';
+              
+              return {
+                propertyId: prop.id ? `crexi-${prop.id}` : `crexi-${index}`,
+                listingType: 'For Sale', // Most Crexi properties are for sale
+                propertyType: prop.types?.[0] || 'Commercial',
+                propertyTypeDetailed: prop.types?.join(', ') || null,
+                city: city,
+                state: state,
+                zip: zip,
+                country: 'USA',
+                address: address,
+                addressCleaned: address,
+                description: prop.description || prop.name || '',
+                listingUrl: prop.url || null,
+                images: mediaImages,
+                dataPoints: [],
+                price: prop.askingPrice ? `$${prop.askingPrice.toLocaleString()}` : null,
+                priceNumeric: prop.askingPrice || null,
+                priceCurrency: 'USD',
+                isAuction: false,
+                auctionEndDate: null,
+                squareFootage: null,
+                buildingSize: null,
+                numberOfUnits: prop.numberOfUnits || null,
+                brokerName: null,
+                brokerCompany: prop.brokerageName || null,
+                capRate: prop.capRate ? `${prop.capRate}%` : null,
+                position: index,
+                availability: prop.status || null,
+                // For map and display compatibility
+                zpid: prop.id ? `crexi-${prop.id}` : `crexi-${index}`,
+                imgSrc: firstImage,
+                status: 'For Sale',
+                latitude: location.latitude,
+                longitude: location.longitude,
+                validImageCount: mediaImages.length,
+                // Additional Crexi-specific data
+                crexiData: {
+                  name: prop.name,
+                  urlSlug: prop.urlSlug,
+                  neighborhood: neighborhood,
+                  county: location.county,
+                  numberOfImages: prop.numberOfImages || mediaImages.length,
+                  pricePerSqFt: prop.pricePerSqFt,
+                  pricePerUnit: prop.pricePerUnit,
+                  netOperatingIncome: prop.netOperatingIncome,
+                  lotSizeAcres: prop.lotSizeAcres,
+                  fullData: prop, // Store full Crexi data for detail page
+                },
+              };
+            });
+            
+              allProps.push(...transformedCrexi);
+              console.log(`✅ Added ${transformedCrexi.length} Crexi SALE properties`);
+            }
+          } catch (err) {
+            console.warn(`Failed to load ${CREXI_SALE_FILE}:`, err);
+          }
+        } else {
+          console.log(`⏭️ Skipping Crexi SALE dataset (filter is set to '${selectedListingType}')`);
+        }
+
+        // Load Crexi LEASE dataset from root public folder (miami_all_crexi_lease.json)
+        // Only load when selectedListingType is 'lease' or null (all properties)
+        if (selectedListingType === 'lease' || selectedListingType === null) {
+          try {
+            const crexiLeaseResponse = await fetch(`/${CREXI_LEASE_FILE}`);
+            if (crexiLeaseResponse.ok) {
+              const crexiLeaseData = await crexiLeaseResponse.json();
+              const crexiLeaseProperties: any[] = Array.isArray(crexiLeaseData) ? crexiLeaseData : [];
+              
+              console.log(`📦 Loading ${crexiLeaseProperties.length} LEASE properties from ${CREXI_LEASE_FILE}`);
+              
+              // Transform Crexi LEASE properties to match CommercialProperty interface
+              const transformedCrexiLease = crexiLeaseProperties.map((prop, index) => {
+                // Extract images from media array (if exists) or use thumbnailUrl
+                const mediaImages = prop.media && Array.isArray(prop.media) 
+                  ? prop.media.filter((m: any) => m.type === 'Image' && m.imageUrl).map((m: any) => m.imageUrl)
+                  : [];
+                
+                const firstImage = mediaImages[0] || prop.thumbnailUrl || null;
+                
+                // Extract location data (lease structure uses "location" not "locations")
+                const location = prop.location || {};
+                const address = location.address || prop.name || '';
+                const city = location.city || '';
+                const state = location.state?.code || '';
+                const zip = location.zip || '';
+                
+                // Extract neighborhood from urlSlug
+                const neighborhood = prop.urlSlug 
+                  ? prop.urlSlug.replace(/^florida-/, '').replace(/-/g, ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                  : '';
+                
+                return {
+                  propertyId: prop.id ? `crexi-lease-${prop.id}` : `crexi-lease-${index}`,
+                  listingType: 'For Lease',
+                  propertyType: prop.types?.[0] || 'Commercial',
+                  propertyTypeDetailed: prop.types?.join(', ') || null,
+                  city: city,
+                  state: state,
+                  zip: zip,
+                  country: 'USA',
+                  address: address,
+                  addressCleaned: address,
+                  description: prop.description || prop.name || '',
+                  listingUrl: prop.url || null,
+                  images: mediaImages.length > 0 ? mediaImages : (firstImage ? [firstImage] : []),
+                  dataPoints: [],
+                  price: prop.rentMin || prop.rentMax ? `$${(prop.rentMin || prop.rentMax || 0).toLocaleString()}/mo` : null,
+                  priceNumeric: prop.rentMin || prop.rentMax || null,
+                  priceCurrency: 'USD',
+                  isAuction: false,
+                  auctionEndDate: null,
+                  squareFootage: prop.rentableSqftMin || prop.rentableSqftMax || null,
+                  buildingSize: prop.rentableSqftMin && prop.rentableSqftMax ? `${prop.rentableSqftMin.toLocaleString()} - ${prop.rentableSqftMax.toLocaleString()} SF` : null,
+                  numberOfUnits: prop.numberOfSuites || null,
+                  brokerName: null,
+                  brokerCompany: prop.brokerageName || null,
+                  capRate: null,
+                  position: index,
+                  availability: prop.status || null,
+                  // For map and display compatibility
+                  zpid: prop.id ? `crexi-lease-${prop.id}` : `crexi-lease-${index}`,
+                  imgSrc: firstImage,
+                  status: 'For Lease',
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                  validImageCount: mediaImages.length > 0 ? mediaImages.length : (firstImage ? 1 : 0),
+                  // Additional Crexi-specific data
+                  crexiData: {
+                    name: prop.name,
+                    urlSlug: prop.urlSlug,
+                    neighborhood: neighborhood,
+                    county: location.county,
+                    numberOfImages: prop.numberOfImages || mediaImages.length,
+                    rentableSqftMin: prop.rentableSqftMin,
+                    rentableSqftMax: prop.rentableSqftMax,
+                    rateType: prop.rateType,
+                    numberOfSuites: prop.numberOfSuites,
+                    fullData: prop, // Store full Crexi data for detail page
+                  },
+                };
+              });
+              
+              allProps.push(...transformedCrexiLease);
+              console.log(`✅ Added ${transformedCrexiLease.length} Crexi LEASE properties`);
+            }
+          } catch (err) {
+            console.warn(`Failed to load ${CREXI_LEASE_FILE}:`, err);
+          }
+        } else {
+          console.log(`⏭️ Skipping Crexi LEASE dataset (filter is set to '${selectedListingType}')`);
+        }
+
+        const crexiCount = allProps.filter(p => p.propertyId?.startsWith('crexi-')).length;
+        console.log(`✅ Total loaded: ${allProps.length} commercial properties (${COMMERCIAL_FILES.length} regular files${crexiCount > 0 ? ` + ${crexiCount} Crexi properties` : ''})`);
         setAllProperties(allProps);
         
       } catch (err) {
@@ -301,7 +496,7 @@ function CommercialSearchPageContent() {
     };
 
     loadAllProperties();
-  }, []);
+  }, [selectedListingType]); // Reload when listing type filter changes (to load/skip Crexi SALE dataset)
 
   // Get price range object from selected value
   const getPriceRange = (value: string | null) => {
@@ -437,9 +632,10 @@ function CommercialSearchPageContent() {
   };
 
   // Format square footage
-  const formatSqft = (sqft?: string | null) => {
+  const formatSqft = (sqft?: string | number | null) => {
     if (!sqft) return null;
-    return sqft.includes('SF') ? sqft : `${sqft} SF`;
+    const sqftStr = String(sqft);
+    return sqftStr.includes('SF') ? sqftStr : `${sqftStr} SF`;
   };
 
   // Get listing type badge color
@@ -482,19 +678,15 @@ function CommercialSearchPageContent() {
 
   // Handle marker click - scroll to property in list
   const handleMarkerClick = useCallback((propertyId: string) => {
-    setHighlightedPropertyId(propertyId);
-    
-    setTimeout(() => {
-      const propertyElement = propertyRefs.current.get(propertyId);
-      if (propertyElement) {
-        propertyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        propertyElement.classList.add('ring-4', 'ring-orange-500', 'ring-opacity-75');
-        setTimeout(() => {
-          propertyElement.classList.remove('ring-4', 'ring-orange-500', 'ring-opacity-75');
-        }, 3000);
-      }
-    }, 100);
-  }, []);
+    // Navigate directly to property detail page
+    const property = filteredProperties.find(p => p.zpid === propertyId || p.propertyId === propertyId);
+    if (property) {
+      // Store in sessionStorage for detail page
+      sessionStorage.setItem(`commercial_property_${propertyId}`, JSON.stringify(property));
+      // Navigate to detail page
+      router.push(`/commercial-detail?id=${propertyId}`);
+    }
+  }, [filteredProperties, router]);
 
   const handlePropertyHover = useCallback((propertyId: string | null) => {
     setHighlightedPropertyId(propertyId);

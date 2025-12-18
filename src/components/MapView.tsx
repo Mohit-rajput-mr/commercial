@@ -38,11 +38,14 @@ const isCommercialProperty = (property: APIProperty | CommercialProperty): boole
   return commercialTypes.some(type => propType.includes(type));
 };
 
-// Create custom marker icon SVG
-const createMarkerIcon = (isCommercial: boolean, isHighlighted: boolean = false): string => {
+// Create custom marker icon SVG (mobile-first: smaller on mobile, normal on desktop)
+const createMarkerIcon = (isCommercial: boolean, isHighlighted: boolean = false, isMobile: boolean = false): string => {
   const color = isCommercial ? '#f59e0b' : '#3b82f6';
-  const scale = isHighlighted ? 'transform: scale(1.4);' : '';
-  const shadow = isHighlighted ? 'filter: drop-shadow(0 0 12px rgba(0,0,0,0.5));' : 'filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3));';
+  const baseScale = isMobile ? 0.75 : 1; // 25% smaller on mobile
+  const highlightScale = isHighlighted ? 1.3 : 1;
+  const finalScale = baseScale * highlightScale;
+  const scale = `transform: scale(${finalScale});`;
+  const shadow = isHighlighted ? 'filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));' : 'filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));';
   
   return `<div style="${scale} ${shadow} transition: transform 0.2s ease;">
     <svg width="36" height="44" viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -83,6 +86,17 @@ export default function MapView({
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [geocodingStatus, setGeocodingStatus] = useState({ done: 0, total: 0, phase: 'idle' as 'idle' | 'geocoding' | 'rendering' | 'complete' });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -130,14 +144,18 @@ export default function MapView({
           maxZoom: 20,
         }).addTo(map);
 
-        // Cluster group with NO animation for instant display
+        // Cluster group with NO animation for instant display (mobile-first: smaller clusters on mobile)
+        const clusterSize = window.innerWidth < 768 ? 36 : 44; // Smaller on mobile
+        const clusterFontSize = window.innerWidth < 768 ? 12 : 14; // Smaller font on mobile
+        const clusterBorder = window.innerWidth < 768 ? 2 : 3; // Thinner border on mobile
+        
         const markerClusterGroup = (L as any).markerClusterGroup({
           chunkedLoading: false, // Load all at once
           animate: false, // No animation
           spiderfyOnMaxZoom: true,
           showCoverageOnHover: false,
           zoomToBoundsOnClick: true,
-          maxClusterRadius: 50,
+          maxClusterRadius: window.innerWidth < 768 ? 40 : 50, // Tighter clustering on mobile
           disableClusteringAtZoom: 16, // Show individual pins at zoom 16+
           iconCreateFunction: (cluster: any) => {
             const count = cluster.getChildCount();
@@ -154,19 +172,19 @@ export default function MapView({
               html: `<div style="
                 background: ${bgColor};
                 color: white;
-                width: 44px;
-                height: 44px;
+                width: ${clusterSize}px;
+                height: ${clusterSize}px;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-weight: bold;
-                font-size: 14px;
-                border: 3px solid white;
-                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                font-size: ${clusterFontSize}px;
+                border: ${clusterBorder}px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
               ">${count}</div>`,
               className: 'custom-cluster-icon',
-              iconSize: L.point(44, 44),
+              iconSize: L.point(clusterSize, clusterSize),
             });
           }
         });
@@ -297,13 +315,15 @@ export default function MapView({
 
       const allMarkers: any[] = [];
 
+      const isMobileView = window.innerWidth < 768;
+      
       geocodedList.forEach(({ property, lat, lng }) => {
         const isCommercial = isCommercialProperty(property);
         const propertyId = property.zpid || `prop-${Math.random()}`;
         
         const customIcon = L.divIcon({
           className: 'custom-marker',
-          html: createMarkerIcon(isCommercial, highlightedPropertyId === propertyId),
+          html: createMarkerIcon(isCommercial, highlightedPropertyId === propertyId, isMobileView),
           iconSize: [36, 44],
           iconAnchor: [18, 44],
           popupAnchor: [0, -44],
@@ -323,17 +343,29 @@ export default function MapView({
         const typeLabel = isCommercial ? 'Commercial' : 'Residential';
         const typeBadgeColor = isCommercial ? '#f59e0b' : '#3b82f6';
 
+        // Mobile-first popup: smaller, more compact
+        const popupWidth = isMobileView ? 180 : 220;
+        const imgHeight = isMobileView ? 90 : 120;
+        const badgeFontSize = isMobileView ? 10 : 11;
+        const nameFontSize = isMobileView ? 12 : 13;
+        const cityFontSize = isMobileView ? 10 : 11;
+        const priceFontSize = isMobileView ? 14 : 16;
+        
         marker.bindPopup(`
-          <div style="min-width: 220px; font-family: system-ui, sans-serif;">
-            ${imgSrc ? `<img src="${imgSrc}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" onerror="this.style.display='none'" />` : ''}
-            <span style="background: ${typeBadgeColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${typeLabel}</span>
-            <div style="font-weight: 600; font-size: 13px; margin: 6px 0 4px;">${propertyName}</div>
-            <div style="font-size: 11px; color: #666; margin-bottom: 4px;">${property.city || ''}, ${property.state || ''}</div>
-            <div style="font-weight: 700; font-size: 16px; color: ${typeBadgeColor};">${price}</div>
+          <div style="min-width: ${popupWidth}px; font-family: system-ui, sans-serif;">
+            ${imgSrc ? `<img src="${imgSrc}" style="width: 100%; height: ${imgHeight}px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" onerror="this.style.display='none'" />` : ''}
+            <span style="background: ${typeBadgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: ${badgeFontSize}px; font-weight: 600;">${typeLabel}</span>
+            <div style="font-weight: 600; font-size: ${nameFontSize}px; margin: 5px 0 3px; line-height: 1.3;">${propertyName}</div>
+            <div style="font-size: ${cityFontSize}px; color: #666; margin-bottom: 3px;">${property.city || ''}, ${property.state || ''}</div>
+            <div style="font-weight: 700; font-size: ${priceFontSize}px; color: ${typeBadgeColor};">${price}</div>
+            <div style="font-size: ${cityFontSize}px; color: #3b82f6; margin-top: 4px; cursor: pointer;">👉 Click to view details</div>
           </div>
-        `, { maxWidth: 280 });
+        `, { maxWidth: isMobileView ? 200 : 280 });
 
-        marker.on('click', () => onMarkerClick?.(propertyId));
+        marker.on('click', () => { 
+          marker.openPopup(); // Show popup on click
+          onMarkerClick?.(propertyId); 
+        });
         marker.on('mouseover', () => { onMarkerHover?.(propertyId); marker.openPopup(); });
         marker.on('mouseout', () => onMarkerHover?.(null));
 
@@ -360,20 +392,25 @@ export default function MapView({
 
     const L = leafletRef.current;
 
+    const isMobileView = window.innerWidth < 768;
+    
     markersRef.current.forEach((marker, propertyId) => {
       const isHighlighted = highlightedPropertyId === propertyId;
       const isCommercial = marker.options.isCommercial;
       
       marker.setIcon(L.divIcon({
         className: 'custom-marker',
-        html: createMarkerIcon(isCommercial, isHighlighted),
+        html: createMarkerIcon(isCommercial, isHighlighted, isMobileView),
         iconSize: [36, 44],
         iconAnchor: [18, 44],
         popupAnchor: [0, -44],
       }));
       
       if (isHighlighted && mapInstanceRef.current) {
-        marker.openPopup();
+        // Check if marker has a popup before trying to open it
+        if (marker.getPopup()) {
+          marker.openPopup();
+        }
         mapInstanceRef.current.panTo(marker.getLatLng(), { animate: true, duration: 0.3 });
       }
     });
@@ -384,7 +421,7 @@ export default function MapView({
   const visibleResidential = properties.filter(p => !isCommercialProperty(p) && showResidential).length;
 
   return (
-    <div className="relative w-full h-full bg-gray-100">
+    <div className="relative w-full h-full bg-gray-100 z-[1]">
       <div ref={mapRef} className="w-full h-full" />
 
       {/* Loading Overlay */}
@@ -397,22 +434,22 @@ export default function MapView({
         </div>
       )}
 
-      {/* Geocoding Progress */}
+      {/* Geocoding Progress - Mobile-first: smaller, more compact */}
       {!isLoading && geocodingStatus.phase !== 'complete' && geocodingStatus.phase !== 'idle' && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg px-5 py-3 z-[1000]">
-          <div className="flex items-center gap-3">
-            <Loader2 className="animate-spin text-blue-500" size={20} />
+        <div className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg px-3 md:px-5 py-2 md:py-3 z-[1000] max-w-[90%] md:max-w-none">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Loader2 className="animate-spin text-blue-500" size={16} />
             <div>
-              <div className="text-sm font-medium text-gray-700">
-                {geocodingStatus.phase === 'geocoding' ? 'Loading addresses...' : 'Rendering pins...'}
+              <div className="text-xs md:text-sm font-medium text-gray-700">
+                {geocodingStatus.phase === 'geocoding' ? 'Loading...' : 'Rendering...'}
               </div>
-              <div className="text-xs text-gray-500">
-                {geocodingStatus.done} / {geocodingStatus.total} properties
+              <div className="text-[10px] md:text-xs text-gray-500">
+                {geocodingStatus.done} / {geocodingStatus.total}
               </div>
             </div>
           </div>
           {/* Progress bar */}
-          <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div className="mt-1.5 md:mt-2 h-1 md:h-1.5 bg-gray-200 rounded-full overflow-hidden">
             <div 
               className="h-full bg-blue-500 transition-all duration-300"
               style={{ width: `${(geocodingStatus.done / geocodingStatus.total) * 100}%` }}
@@ -421,21 +458,21 @@ export default function MapView({
         </div>
       )}
 
-      {/* Legend */}
+      {/* Legend - Mobile-first: smaller, more compact */}
       {!isLoading && geocodingStatus.phase === 'complete' && (
-        <div className="absolute bottom-4 left-4 bg-white rounded-xl shadow-lg px-4 py-3 z-[1000]">
-          <div className="text-xs text-gray-500 mb-2">{pinsOnMap} pins displayed</div>
-          <div className="flex items-center gap-4 text-sm">
+        <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 bg-white rounded-lg md:rounded-xl shadow-lg px-2.5 md:px-4 py-2 md:py-3 z-[1000]">
+          <div className="text-[10px] md:text-xs text-gray-500 mb-1 md:mb-2">{pinsOnMap} pins</div>
+          <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
             {showCommercial && (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-amber-500"></div>
-                <span className="font-medium text-gray-700">{visibleCommercial}</span>
+              <div className="flex items-center gap-1 md:gap-2">
+                <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-amber-500"></div>
+                <span className="font-medium text-gray-700 text-[11px] md:text-sm">{visibleCommercial}</span>
               </div>
             )}
             {showResidential && (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                <span className="font-medium text-gray-700">{visibleResidential}</span>
+              <div className="flex items-center gap-1 md:gap-2">
+                <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-blue-500"></div>
+                <span className="font-medium text-gray-700 text-[11px] md:text-sm">{visibleResidential}</span>
               </div>
             )}
           </div>
