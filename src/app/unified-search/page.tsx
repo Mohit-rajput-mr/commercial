@@ -73,6 +73,12 @@ function UnifiedSearchPageContent() {
   const statusParam = searchParams.get('status') || 'ForSale';
   const propertyTypeParam = searchParams.get('propertyType') || 'Residential';
   
+  // Read filter params from URL
+  const bedsParam = searchParams.get('beds');
+  const bathsParam = searchParams.get('baths');
+  const priceParam = searchParams.get('price');
+  const sqftParam = searchParams.get('sqft');
+  
   // Determine if it's for rent or sale
   const isForRent = statusParam.toLowerCase().includes('rent') || statusParam.toLowerCase().includes('lease');
   const listingType: 'lease' | 'sale' = isForRent ? 'lease' : 'sale';
@@ -84,11 +90,11 @@ function UnifiedSearchPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [highlightedPropertyId, setHighlightedPropertyId] = useState<string | null>(null);
   
-  // Filter states - using preset values
-  const [selectedBeds, setSelectedBeds] = useState<number | null>(null); // null = Any, 1 = 1+, 2 = 2+, etc.
-  const [selectedBaths, setSelectedBaths] = useState<number | null>(null); // null = Any, 1 = 1+, 2 = 2+, etc.
-  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null); // null = Any
-  const [selectedSqftRange, setSelectedSqftRange] = useState<string | null>(null); // null = Any
+  // Filter states - initialize from URL params
+  const [selectedBeds, setSelectedBeds] = useState<number | null>(bedsParam ? parseInt(bedsParam) : null);
+  const [selectedBaths, setSelectedBaths] = useState<number | null>(bathsParam ? parseInt(bathsParam) : null);
+  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(priceParam || null);
+  const [selectedSqftRange, setSelectedSqftRange] = useState<string | null>(sqftParam || null);
 
   // Price range options (different for sale vs rent)
   const SALE_PRICE_RANGES = [
@@ -383,14 +389,69 @@ function UnifiedSearchPageContent() {
     router.push(`/jsondetailinfo?id=${encodeURIComponent(propertyId)}`);
   };
 
+  // Update URL params when filters change
+  const updateURLWithFilters = useCallback((filters: {
+    beds?: number | null;
+    baths?: number | null;
+    price?: string | null;
+    sqft?: string | null;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Update or remove filter params
+    if (filters.beds !== undefined) {
+      if (filters.beds !== null) {
+        params.set('beds', filters.beds.toString());
+      } else {
+        params.delete('beds');
+      }
+    }
+    if (filters.baths !== undefined) {
+      if (filters.baths !== null) {
+        params.set('baths', filters.baths.toString());
+      } else {
+        params.delete('baths');
+      }
+    }
+    if (filters.price !== undefined) {
+      if (filters.price !== null) {
+        params.set('price', filters.price);
+      } else {
+        params.delete('price');
+      }
+    }
+    if (filters.sqft !== undefined) {
+      if (filters.sqft !== null) {
+        params.set('sqft', filters.sqft);
+      } else {
+        params.delete('sqft');
+      }
+    }
+    
+    // Update URL without reload
+    router.replace(`/unified-search?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
   const clearFilters = () => {
     setSelectedBeds(null);
     setSelectedBaths(null);
     setSelectedPriceRange(null);
     setSelectedSqftRange(null);
+    // Clear URL params
+    updateURLWithFilters({ beds: null, baths: null, price: null, sqft: null });
   };
 
   const activeFiltersCount = [selectedBeds, selectedBaths, selectedPriceRange, selectedSqftRange].filter(v => v !== null).length;
+
+  // Update URL when filters change
+  useEffect(() => {
+    updateURLWithFilters({
+      beds: selectedBeds,
+      baths: selectedBaths,
+      price: selectedPriceRange,
+      sqft: selectedSqftRange
+    });
+  }, [selectedBeds, selectedBaths, selectedPriceRange, selectedSqftRange, updateURLWithFilters]);
 
   // Handle marker click - navigate to property detail page (same as card click)
   const handleMarkerClick = useCallback((propertyId: string) => {

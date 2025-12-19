@@ -117,6 +117,11 @@ function CommercialSearchPageContent() {
   const locationParam = searchParams.get('location') || '';
   const statusParam = searchParams.get('status') || '';
   const specificTypeParam = searchParams.get('specificType') || ''; // New: specific property type from hero
+  
+  // Read filter params from URL
+  const priceParam = searchParams.get('price');
+  const sqftParam = searchParams.get('sqft');
+  const propertyTypeParam = searchParams.get('propertyType');
 
   // Normalize location for matching
   const normalizeLocation = (input: string): string => {
@@ -153,12 +158,21 @@ function CommercialSearchPageContent() {
     statusParam.toLowerCase().includes('sale') ? 'sale' : null
   );
   
-  // Filter states
-  const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(
-    specificTypeParam && specificTypeParam !== 'All' ? specificTypeParam : null
-  );
-  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
-  const [selectedSqftRange, setSelectedSqftRange] = useState<string | null>(null);
+  // Filter states - initialize from URL params
+  // Priority: specificType (from hero) > propertyType (from URL persistence)
+  const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(() => {
+    // If specificType exists and is not 'All' or 'Commercial', use it
+    if (specificTypeParam && specificTypeParam !== 'All' && specificTypeParam !== 'Commercial') {
+      return specificTypeParam;
+    }
+    // Otherwise use propertyType if it's not 'Commercial'
+    if (propertyTypeParam && propertyTypeParam !== 'Commercial') {
+      return propertyTypeParam;
+    }
+    return null;
+  });
+  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(priceParam || null);
+  const [selectedSqftRange, setSelectedSqftRange] = useState<string | null>(sqftParam || null);
 
   // Dropdown open states
   const [listingTypeDropdownOpen, setListingTypeDropdownOpen] = useState(false);
@@ -251,51 +265,18 @@ function CommercialSearchPageContent() {
     return score;
   };
 
-  // Load all commercial properties (including Crexi dataset)
+  // Optimized: Load only Crexi datasets (skip small commercial files for speed)
   useEffect(() => {
-    const loadAllProperties = async () => {
+    const loadPropertiesOptimized = async () => {
       setLoading(true);
       setError(null);
 
       try {
         const allProps: CommercialProperty[] = [];
         
-        // Load regular commercial files from /commercial folder
-        for (const file of COMMERCIAL_FILES) {
-          try {
-            const response = await fetch(`/commercial/${file}`);
-            if (response.ok) {
-              const data = await response.json();
-              const properties: CommercialProperty[] = Array.isArray(data) ? data : [];
-              
-              // Transform and normalize properties
-              const transformed = properties.map((prop, index) => {
-                const validImages = getValidImages(prop.images);
-                const cleanedAddress = cleanAddress(prop.address);
-                
-                return {
-                  ...prop,
-                  // Clean the address
-                  addressCleaned: cleanedAddress,
-                  // For map compatibility
-                  zpid: prop.propertyId || `commercial-${file}-${index}`,
-                  imgSrc: validImages[0] || null,
-                  status: getListingCategory(prop.listingType) === 'lease' ? 'For Lease' : 'For Sale',
-                  latitude: undefined,
-                  longitude: undefined,
-                  // Normalize property type
-                  propertyType: prop.propertyType || prop.propertyTypeDetailed || 'Commercial',
-                  // Store valid images count for sorting
-                  validImageCount: validImages.length,
-                };
-              });
-              
-              allProps.push(...transformed);
-            }
-          } catch (err) {
-            console.warn(`Failed to load ${file}:`, err);
-          }
-        }
+        // OPTIMIZATION: Skip loading small commercial files - they're too slow
+        // Only load the large Crexi datasets which have most properties
+        console.log('⚡ Optimized loading: Loading only Crexi datasets for faster performance');
 
         // Load Crexi SALE dataset from root public folder (miami_all_crexi_sale.json)
         // Only load when selectedListingType is 'sale' or null (all properties)
@@ -483,8 +464,7 @@ function CommercialSearchPageContent() {
           console.log(`⏭️ Skipping Crexi LEASE dataset (filter is set to '${selectedListingType}')`);
         }
 
-        const crexiCount = allProps.filter(p => p.propertyId?.startsWith('crexi-')).length;
-        console.log(`✅ Total loaded: ${allProps.length} commercial properties (${COMMERCIAL_FILES.length} regular files${crexiCount > 0 ? ` + ${crexiCount} Crexi properties` : ''})`);
+        console.log(`✅ Optimized load complete: ${allProps.length} commercial properties from Crexi datasets`);
         setAllProperties(allProps);
         
       } catch (err) {
@@ -495,7 +475,7 @@ function CommercialSearchPageContent() {
       }
     };
 
-    loadAllProperties();
+    loadPropertiesOptimized();
   }, [selectedListingType]); // Reload when listing type filter changes (to load/skip Crexi SALE dataset)
 
   // Get price range object from selected value
@@ -677,6 +657,50 @@ function CommercialSearchPageContent() {
   const activeFiltersCount = [selectedListingType, selectedPropertyType, selectedPriceRange, selectedSqftRange, searchQuery].filter(v => v !== null && v !== '').length;
 
   // Handle marker click - scroll to property in list
+  // Update URL params when filters change
+  const updateURLWithFilters = useCallback((filters: {
+    propertyType?: string | null;
+    price?: string | null;
+    sqft?: string | null;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Update or remove filter params
+    if (filters.propertyType !== undefined) {
+      if (filters.propertyType !== null) {
+        params.set('propertyType', filters.propertyType);
+      } else {
+        params.delete('propertyType');
+      }
+    }
+    if (filters.price !== undefined) {
+      if (filters.price !== null) {
+        params.set('price', filters.price);
+      } else {
+        params.delete('price');
+      }
+    }
+    if (filters.sqft !== undefined) {
+      if (filters.sqft !== null) {
+        params.set('sqft', filters.sqft);
+      } else {
+        params.delete('sqft');
+      }
+    }
+    
+    // Update URL without reload
+    router.replace(`/commercial-search?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    updateURLWithFilters({
+      propertyType: selectedPropertyType,
+      price: selectedPriceRange,
+      sqft: selectedSqftRange
+    });
+  }, [selectedPropertyType, selectedPriceRange, selectedSqftRange, updateURLWithFilters]);
+
   const handleMarkerClick = useCallback((propertyId: string) => {
     // Navigate directly to property detail page
     const property = filteredProperties.find(p => p.zpid === propertyId || p.propertyId === propertyId);
