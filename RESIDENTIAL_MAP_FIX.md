@@ -85,3 +85,4 @@ const handleMarkerClick = (propertyId: string) => {
 
 ## Status
 ✅ **FIXED** - Residential map pins now use the exact same navigation logic as property cards!
+

@@ -190,3 +190,4 @@ interface CommercialProperty {
 - ✅ Seamless user experience
 
 **Visit:** `http://localhost:3001/commercial-search` to see all properties!
+

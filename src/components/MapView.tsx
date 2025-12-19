@@ -360,7 +360,11 @@ export default function MapView({
             <div style="font-weight: 700; font-size: ${priceFontSize}px; color: ${typeBadgeColor};">${price}</div>
             <div style="font-size: ${cityFontSize}px; color: #3b82f6; margin-top: 4px; cursor: pointer;">👉 Click to view details</div>
           </div>
-        `, { maxWidth: isMobileView ? 200 : 280 });
+        `, { 
+          maxWidth: isMobileView ? 200 : 280,
+          autoPan: false, // Disable auto-pan when popup opens
+          closeButton: false // Remove close button for cleaner look
+        });
 
         marker.on('click', () => { 
           marker.openPopup(); // Show popup on click
@@ -406,12 +410,13 @@ export default function MapView({
         popupAnchor: [0, -44],
       }));
       
+      // Only open popup when highlighted, but DON'T move the map
       if (isHighlighted && mapInstanceRef.current) {
         // Check if marker has a popup before trying to open it
         if (marker.getPopup()) {
           marker.openPopup();
         }
-        mapInstanceRef.current.panTo(marker.getLatLng(), { animate: true, duration: 0.3 });
+        // REMOVED: mapInstanceRef.current.panTo() - no auto-adjustment
       }
     });
   }, [highlightedPropertyId, mapReady]);

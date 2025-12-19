@@ -290,3 +290,4 @@ const handleMarkerClick = useCallback((propertyId: string) => {
 ---
 
 **Visit:** `http://localhost:3001/commercial-search` to see all improvements! 🚀
+

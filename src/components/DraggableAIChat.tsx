@@ -590,3 +590,4 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     </div>
   );
 }
+

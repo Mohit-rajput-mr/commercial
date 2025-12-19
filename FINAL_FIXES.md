@@ -186,3 +186,4 @@ if (isHighlighted && mapInstanceRef.current) {
 **Test it now:** `http://localhost:3001/unified-search?location=Miami&status=ForSale` 🚀
 
 **Both issues completely resolved! ✅**
+

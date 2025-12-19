@@ -259,3 +259,4 @@ const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(
 ---
 
 **Try it now:** `http://localhost:3001/` → Click "Commercial" → Select property type → Search! 🚀
+
