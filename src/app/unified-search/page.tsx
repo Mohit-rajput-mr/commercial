@@ -77,7 +77,6 @@ function UnifiedSearchPageContent() {
   const bedsParam = searchParams.get('beds');
   const bathsParam = searchParams.get('baths');
   const priceParam = searchParams.get('price');
-  const sqftParam = searchParams.get('sqft');
   
   // Determine if it's for rent or sale
   const isForRent = statusParam.toLowerCase().includes('rent') || statusParam.toLowerCase().includes('lease');
@@ -94,7 +93,6 @@ function UnifiedSearchPageContent() {
   const [selectedBeds, setSelectedBeds] = useState<number | null>(bedsParam ? parseInt(bedsParam) : null);
   const [selectedBaths, setSelectedBaths] = useState<number | null>(bathsParam ? parseInt(bathsParam) : null);
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(priceParam || null);
-  const [selectedSqftRange, setSelectedSqftRange] = useState<string | null>(sqftParam || null);
 
   // Price range options (different for sale vs rent)
   const SALE_PRICE_RANGES = [
@@ -115,13 +113,6 @@ function UnifiedSearchPageContent() {
     { value: '10000+', label: '$10K+', min: 10000, max: Infinity },
   ];
 
-  const SQFT_RANGES = [
-    { value: '0-1000', label: 'Under 1,000', min: 0, max: 1000 },
-    { value: '1000-2000', label: '1,000 - 2,000', min: 1000, max: 2000 },
-    { value: '2000-3000', label: '2,000 - 3,000', min: 2000, max: 3000 },
-    { value: '3000-5000', label: '3,000 - 5,000', min: 3000, max: 5000 },
-    { value: '5000+', label: '5,000+', min: 5000, max: Infinity },
-  ];
 
   const BEDROOM_OPTIONS = [
     { value: null, label: 'Any' },
@@ -159,7 +150,6 @@ function UnifiedSearchPageContent() {
   const [priceDropdownOpen, setPriceDropdownOpen] = useState(false);
   const [bedsDropdownOpen, setBedsDropdownOpen] = useState(false);
   const [bathsDropdownOpen, setBathsDropdownOpen] = useState(false);
-  const [sqftDropdownOpen, setSqftDropdownOpen] = useState(false);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -169,7 +159,6 @@ function UnifiedSearchPageContent() {
         setPriceDropdownOpen(false);
         setBedsDropdownOpen(false);
         setBathsDropdownOpen(false);
-        setSqftDropdownOpen(false);
       }
     };
     document.addEventListener('click', handleClickOutside);
@@ -291,11 +280,6 @@ function UnifiedSearchPageContent() {
     return ranges.find(r => r.value === value) || null;
   };
 
-  // Get sqft range object from selected value
-  const getSqftRange = (value: string | null) => {
-    if (!value) return null;
-    return SQFT_RANGES.find(r => r.value === value) || null;
-  };
 
   // Apply filters and sorting
   useEffect(() => {
@@ -320,21 +304,12 @@ function UnifiedSearchPageContent() {
       });
     }
 
-    // Apply sqft filter
-    const sqftRange = getSqftRange(selectedSqftRange);
-    if (sqftRange) {
-      filtered = filtered.filter(p => {
-        const sqft = p.sqft || 0;
-        return sqft >= sqftRange.min && sqft <= sqftRange.max;
-      });
-    }
-
     // Sort by price (high to low) by default
     filtered.sort((a, b) => (b.listPrice || 0) - (a.listPrice || 0));
 
     setFilteredProperties(filtered);
     setCurrentPage(1);
-  }, [allProperties, selectedBeds, selectedBaths, selectedPriceRange, selectedSqftRange, isForRent]);
+  }, [allProperties, selectedBeds, selectedBaths, selectedPriceRange, isForRent]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProperties.length / propertiesPerPage);
@@ -394,7 +369,6 @@ function UnifiedSearchPageContent() {
     beds?: number | null;
     baths?: number | null;
     price?: string | null;
-    sqft?: string | null;
   }) => {
     const params = new URLSearchParams(searchParams.toString());
     
@@ -420,13 +394,6 @@ function UnifiedSearchPageContent() {
         params.delete('price');
       }
     }
-    if (filters.sqft !== undefined) {
-      if (filters.sqft !== null) {
-        params.set('sqft', filters.sqft);
-      } else {
-        params.delete('sqft');
-      }
-    }
     
     // Update URL without reload
     router.replace(`/unified-search?${params.toString()}`, { scroll: false });
@@ -436,22 +403,20 @@ function UnifiedSearchPageContent() {
     setSelectedBeds(null);
     setSelectedBaths(null);
     setSelectedPriceRange(null);
-    setSelectedSqftRange(null);
     // Clear URL params
-    updateURLWithFilters({ beds: null, baths: null, price: null, sqft: null });
+    updateURLWithFilters({ beds: null, baths: null, price: null });
   };
 
-  const activeFiltersCount = [selectedBeds, selectedBaths, selectedPriceRange, selectedSqftRange].filter(v => v !== null).length;
+  const activeFiltersCount = [selectedBeds, selectedBaths, selectedPriceRange].filter(v => v !== null).length;
 
   // Update URL when filters change
   useEffect(() => {
     updateURLWithFilters({
       beds: selectedBeds,
       baths: selectedBaths,
-      price: selectedPriceRange,
-      sqft: selectedSqftRange
+      price: selectedPriceRange
     });
-  }, [selectedBeds, selectedBaths, selectedPriceRange, selectedSqftRange, updateURLWithFilters]);
+  }, [selectedBeds, selectedBaths, selectedPriceRange, updateURLWithFilters]);
 
   // Handle marker click - navigate to property detail page (same as card click)
   const handleMarkerClick = useCallback((propertyId: string) => {
@@ -516,7 +481,6 @@ function UnifiedSearchPageContent() {
                   setPriceDropdownOpen(!priceDropdownOpen);
                   setBedsDropdownOpen(false);
                   setBathsDropdownOpen(false);
-                  setSqftDropdownOpen(false);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
                   selectedPriceRange
@@ -568,7 +532,6 @@ function UnifiedSearchPageContent() {
                   setBedsDropdownOpen(!bedsDropdownOpen);
                   setPriceDropdownOpen(false);
                   setBathsDropdownOpen(false);
-                  setSqftDropdownOpen(false);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
                   selectedBeds !== null
@@ -608,7 +571,6 @@ function UnifiedSearchPageContent() {
                   setBathsDropdownOpen(!bathsDropdownOpen);
                   setPriceDropdownOpen(false);
                   setBedsDropdownOpen(false);
-                  setSqftDropdownOpen(false);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
                   selectedBaths !== null
@@ -635,59 +597,6 @@ function UnifiedSearchPageContent() {
                       }`}
                     >
                       {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Square Feet Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setSqftDropdownOpen(!sqftDropdownOpen);
-                  setPriceDropdownOpen(false);
-                  setBedsDropdownOpen(false);
-                  setBathsDropdownOpen(false);
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
-                  selectedSqftRange
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <Square size={16} />
-                Sq.Ft: {selectedSqftRange 
-                  ? SQFT_RANGES.find(r => r.value === selectedSqftRange)?.label 
-                  : 'Any'}
-                <ChevronDown size={16} className={`transition-transform ${sqftDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {sqftDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
-                  <button
-                    onClick={() => {
-                      setSelectedSqftRange(null);
-                      setSqftDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                      selectedSqftRange === null ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                    }`}
-                  >
-                    Any Size
-                  </button>
-                  {SQFT_RANGES.map((range) => (
-                    <button
-                      key={range.value}
-                      onClick={() => {
-                        setSelectedSqftRange(range.value);
-                        setSqftDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        selectedSqftRange === range.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {range.label}
                     </button>
                   ))}
                 </div>

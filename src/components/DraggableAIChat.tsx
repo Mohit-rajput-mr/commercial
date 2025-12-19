@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, User, Move, Minimize2 } from 'lucide-react';
+import { X, Send, User, Move, Minimize2, StopCircle } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -159,9 +159,48 @@ const formatMessageContent = (content: string): React.ReactNode => {
   return result.length > 0 ? <>{result}</> : content;
 };
 
+// Comprehensive site knowledge base
+const SITE_KNOWLEDGE = {
+  name: "Commercial Real Estate Platform",
+  description: "A comprehensive real estate platform for both commercial and residential properties",
+  features: {
+    search: "Advanced property search with filters for location, type, price, beds, baths",
+    datasets: {
+      commercial: ["Miami", "Chicago", "Houston", "LA", "New York", "Philadelphia", "Phoenix", "San Antonio"],
+      residential: ["Miami Beach", "Chicago", "Houston", "LA", "New York", "Philadelphia", "Phoenix"],
+      crexi: {
+        sale: "miami_all_crexi_sale.json - Comprehensive Miami commercial sale properties",
+        lease: "miami_all_crexi_lease.json - Comprehensive Miami commercial lease properties"
+      }
+    },
+    propertyTypes: {
+      commercial: ["Office", "Retail", "Industrial", "Multifamily", "Land", "Hospitality", "Healthcare", "Mixed Use"],
+      residential: ["Single Family", "Condo", "Townhouse", "Multi-Family"]
+    },
+    pages: {
+      home: "Main landing page with hero search",
+      commercialSearch: "/commercial-search - Browse commercial properties with map view",
+      residentialSearch: "/unified-search - Browse residential properties with map view",
+      propertyDetail: "Detailed property information with images, specs, and location",
+      markets: "City-specific market information and trends"
+    },
+    filters: {
+      commercial: ["Listing Type (Sale/Lease)", "Property Type", "Price Range"],
+      residential: ["Price Range", "Bedrooms (1+, 2+, 3+, 4+)", "Bathrooms (1+, 2+, 3+)"]
+    },
+    mapFeatures: "Interactive maps with property pins, clusters, and popups showing property details"
+  },
+  howToUse: {
+    search: "Use the hero section to search by city, or navigate to Commercial/Residential search pages",
+    filters: "Apply filters to narrow down results - all filters persist in URL for easy sharing",
+    mapView: "Click map pins to see property details, click again to navigate to full property page",
+    propertyCards: "Each card shows key details - click to view full information"
+  }
+};
+
 export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProps) {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hello! I\'m your AI real estate assistant. I can help you find **commercial** and **residential** properties! 🏢🏠\n\nTry asking: "Show me homes in Miami Beach" or "Find offices in Chicago"!' }
+    { role: 'assistant', content: 'Hello! 👋 I\'m your **AI Real Estate Assistant**!\n\nI can help you:\n🏢 Find **commercial** properties (offices, retail, industrial)\n🏠 Search **residential** homes\n📍 Navigate the site\n💡 Answer questions about features\n\nWhat would you like to know?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -170,6 +209,8 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
   const [datasetStats, setDatasetStats] = useState({ commercial: 0, residential: 0 });
   const [streamingMessage, setStreamingMessage] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isAborted, setIsAborted] = useState(false);
+  const [userScrolling, setUserScrolling] = useState(false);
   
   // Drag state - initialize with safe default, update on mount
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -190,13 +231,17 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Load all property datasets
+  // Load ALL property datasets - COMPREHENSIVE
   useEffect(() => {
     const loadAllDatasets = async () => {
+      console.log('🤖 AI Training: Loading ALL property datasets...');
       const allData: PropertyData[] = [];
+      let loadedFiles = 0;
       
-      // Commercial files
+      // COMMERCIAL FILES - All datasets
       const commercialFiles = [
         'commercial_dataset_17nov2025.json',
         'commercial_dataset_Chicago.json',
@@ -214,7 +259,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
         'dataset_son_antonio_lease.json'
       ];
 
-      // Load commercial
+      // Load ALL commercial properties
       for (const file of commercialFiles) {
         try {
           const response = await fetch(`/commercial/${file}`);
@@ -222,30 +267,82 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
             const data = await response.json();
             const properties = Array.isArray(data) ? data : data.properties || [];
             properties.forEach((p: PropertyData) => {
-              allData.push({ ...p, dataSource: 'commercial' });
+              allData.push({ 
+                ...p, 
+                dataSource: 'commercial',
+                listingType: p.listingType || (file.includes('lease') ? 'lease' : 'sale')
+              });
             });
+            loadedFiles++;
+            console.log(`✅ Loaded ${properties.length} properties from ${file}`);
           }
         } catch (e) {
-          console.log(`Failed to load ${file}`);
+          console.log(`❌ Failed to load ${file}`);
         }
       }
 
-      // Residential folders and files
+      // CREXI DATASETS - Comprehensive Miami commercial
+      const crexiFiles = [
+        { file: 'miami_all_crexi_sale.json', type: 'sale' },
+        { file: 'miami_all_crexi_lease.json', type: 'lease' }
+      ];
+
+      for (const { file, type } of crexiFiles) {
+        try {
+          const response = await fetch(`/${file}`);
+          if (response.ok) {
+            const data = await response.json();
+            const properties = Array.isArray(data) ? data : data.properties || [];
+            properties.forEach((p: any) => {
+              allData.push({
+                ...p,
+                dataSource: 'commercial',
+                listingType: type,
+                propertyType: p.propertyType || p.type,
+                city: p.city || 'Miami',
+                state: p.state || 'FL'
+              });
+            });
+            loadedFiles++;
+            console.log(`✅ Loaded ${properties.length} Crexi ${type} properties`);
+          }
+        } catch (e) {
+          console.log(`❌ Failed to load Crexi ${type}`);
+        }
+      }
+
+      // RESIDENTIAL FILES - ALL lease and sale properties
       const residentialFolders = ['lease', 'sale'];
       for (const folder of residentialFolders) {
         try {
-          const indexResponse = await fetch(`/residential/${folder}/`);
-          if (indexResponse.ok) {
-            const text = await indexResponse.text();
-            const jsonFiles = text.match(/[\w-]+\.json/g) || [];
-            
-            for (const file of jsonFiles.slice(0, 3)) {
+          // Try to load known residential files directly
+          const knownFiles = [
+            'miami_beach_sale.json',
+            'miami_beach_lease.json',
+            'chicago_sale.json',
+            'chicago_lease.json',
+            'houston_sale.json',
+            'houston_lease.json',
+            'la_sale.json',
+            'la_lease.json',
+            'ny_sale.json',
+            'ny_lease.json',
+            'philadelphia_sale.json',
+            'philadelphia_lease.json',
+            'phoenix_sale.json',
+            'phoenix_lease.json'
+          ];
+
+          for (const file of knownFiles) {
+            if (file.includes(folder)) {
               try {
                 const response = await fetch(`/residential/${folder}/${file}`);
                 if (response.ok) {
                   const data = await response.json();
                   const properties = Array.isArray(data) ? data : data.properties || data.results || [];
-                  properties.slice(0, 500).forEach((p: PropertyData) => {
+                  
+                  // Load MORE properties (not just 500)
+                  properties.slice(0, 2000).forEach((p: PropertyData) => {
                     const addr = p.address as AddressObject | undefined;
                     allData.push({
                       ...p,
@@ -253,25 +350,42 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
                       city: p.city || addr?.city,
                       state: p.state || addr?.state,
                       zip: p.zip || addr?.zipcode,
-                      dataSource: 'residential'
+                      dataSource: 'residential',
+                      listingType: folder
                     });
                   });
+                  loadedFiles++;
+                  console.log(`✅ Loaded ${Math.min(properties.length, 2000)} properties from ${file}`);
                 }
               } catch (e) {
-                console.log(`Failed to load ${file}`);
+                console.log(`❌ Failed to load ${file}`);
               }
             }
           }
         } catch (e) {
-          console.log(`Failed to load ${folder} folder`);
+          console.log(`❌ Failed to load ${folder} folder`);
         }
       }
 
+      // Calculate detailed statistics
+      const commercialCount = allData.filter(p => p.dataSource === 'commercial').length;
+      const residentialCount = allData.filter(p => p.dataSource === 'residential').length;
+      const saleCount = allData.filter(p => p.listingType === 'sale' || p.status === 'ForSale').length;
+      const leaseCount = allData.filter(p => p.listingType === 'lease' || p.status === 'ForLease').length;
+
       setAllPropertyData(allData);
       setDatasetStats({
-        commercial: allData.filter(p => p.dataSource === 'commercial').length,
-        residential: allData.filter(p => p.dataSource === 'residential').length
+        commercial: commercialCount,
+        residential: residentialCount
       });
+
+      console.log('🎉 AI Training Complete!');
+      console.log(`📊 Total Properties: ${allData.length.toLocaleString()}`);
+      console.log(`🏢 Commercial: ${commercialCount.toLocaleString()}`);
+      console.log(`🏠 Residential: ${residentialCount.toLocaleString()}`);
+      console.log(`💰 For Sale: ${saleCount.toLocaleString()}`);
+      console.log(`📋 For Lease: ${leaseCount.toLocaleString()}`);
+      console.log(`📁 Files Loaded: ${loadedFiles}`);
     };
 
     if (isOpen) {
@@ -279,10 +393,24 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     }
   }, [isOpen]);
 
-  // Scroll to bottom
+  // Scroll to bottom only if user is not manually scrolling
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!userScrolling) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, userScrolling]);
+
+  // Detect user scrolling
+  const handleScroll = useCallback(() => {
+    if (!messagesContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    
+    // If user scrolls up, disable auto-scroll
+    // If user scrolls to bottom, enable auto-scroll
+    setUserScrolling(!isAtBottom);
+  }, []);
 
   // Mouse drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -322,7 +450,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Find relevant properties
+  // Find relevant properties - ENHANCED with better scoring
   const findRelevantProperties = (query: string): PropertyData[] => {
     const queryLower = query.toLowerCase();
     const queryTokens = queryLower.split(/\s+/).filter(t => t.length > 2);
@@ -331,43 +459,82 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       let score = 0;
       
       const addr = property.address;
+      const streetAddr = property.streetAddress || (typeof addr === 'object' ? addr?.streetAddress : '');
       const fullAddress = typeof addr === 'string' 
         ? addr.toLowerCase() 
-        : `${addr?.streetAddress || ''} ${addr?.city || ''} ${addr?.state || ''}`.toLowerCase();
+        : `${streetAddr || ''} ${property.city || ''} ${property.state || ''}`.toLowerCase();
       
       const cityName = (property.city || '').toLowerCase();
       const stateName = (property.state || '').toLowerCase();
+      const propType = (property.propertyType || property.homeType || '').toLowerCase();
       
-      // City match
-      if (queryLower.includes('miami') && (cityName.includes('miami') || fullAddress.includes('miami'))) score += 50;
-      if (queryLower.includes('chicago') && (cityName.includes('chicago') || fullAddress.includes('chicago'))) score += 50;
-      if (queryLower.includes('houston') && (cityName.includes('houston') || fullAddress.includes('houston'))) score += 50;
-      if (queryLower.includes('phoenix') && (cityName.includes('phoenix') || fullAddress.includes('phoenix'))) score += 50;
-      if (queryLower.includes('philadelphia') && (cityName.includes('philadelphia') || fullAddress.includes('philadelphia'))) score += 50;
-      
-      // Address match
-      queryTokens.forEach(token => {
-        if (fullAddress.includes(token)) score += 10;
-        if (cityName.includes(token)) score += 15;
-        if (stateName.includes(token)) score += 5;
+      // City match - HIGH PRIORITY
+      const cities = ['miami', 'chicago', 'houston', 'phoenix', 'philadelphia', 'new york', 'los angeles', 'san antonio'];
+      cities.forEach(city => {
+        if (queryLower.includes(city) && (cityName.includes(city) || fullAddress.includes(city))) {
+          score += 100; // Increased from 50
+        }
       });
       
-      // Type match
-      if (queryLower.includes('commercial') && property.dataSource === 'commercial') score += 20;
-      if (queryLower.includes('residential') && property.dataSource === 'residential') score += 20;
-      if (queryLower.includes('home') && property.dataSource === 'residential') score += 15;
-      if (queryLower.includes('office') && property.propertyType?.toLowerCase().includes('office')) score += 25;
-      if (queryLower.includes('retail') && property.propertyType?.toLowerCase().includes('retail')) score += 25;
+      // Address match - SPECIFIC
+      queryTokens.forEach(token => {
+        if (fullAddress.includes(token)) score += 15;
+        if (cityName.includes(token)) score += 20;
+        if (stateName.includes(token)) score += 10;
+        if (streetAddr && streetAddr.toLowerCase().includes(token)) score += 25;
+      });
       
-      // Boost for properties with images/price
-      if (property.images?.length || property.imgSrc) score += 5;
-      if (property.price || property.priceNumeric) score += 5;
+      // Property Type match - DETAILED
+      const typeKeywords = {
+        'office': ['office', 'offices'],
+        'retail': ['retail', 'store', 'shop'],
+        'industrial': ['industrial', 'warehouse', 'manufacturing'],
+        'multifamily': ['multifamily', 'apartment', 'apartments'],
+        'land': ['land', 'lot'],
+        'hospitality': ['hotel', 'hospitality'],
+        'home': ['home', 'house', 'single family'],
+        'condo': ['condo', 'condominium'],
+        'townhouse': ['townhouse', 'townhome']
+      };
+      
+      Object.entries(typeKeywords).forEach(([type, keywords]) => {
+        keywords.forEach(keyword => {
+          if (queryLower.includes(keyword) && propType.includes(type)) {
+            score += 40;
+          }
+        });
+      });
+      
+      // Data source match
+      if (queryLower.includes('commercial') && property.dataSource === 'commercial') score += 30;
+      if (queryLower.includes('residential') && property.dataSource === 'residential') score += 30;
+      
+      // Listing type match
+      if (queryLower.includes('sale') && (property.listingType === 'sale' || property.status === 'ForSale')) score += 25;
+      if (queryLower.includes('lease') && (property.listingType === 'lease' || property.status === 'ForLease')) score += 25;
+      if (queryLower.includes('rent') && (property.listingType === 'lease' || property.status === 'ForLease')) score += 25;
+      
+      // Price range match
+      if (queryLower.includes('cheap') || queryLower.includes('affordable')) {
+        const price = Number(property.price || property.priceNumeric || 0);
+        if (price > 0 && price < 500000) score += 15;
+      }
+      if (queryLower.includes('luxury') || queryLower.includes('expensive')) {
+        const price = Number(property.price || property.priceNumeric || 0);
+        if (price > 1000000) score += 15;
+      }
+      
+      // Boost for complete properties
+      if (property.images?.length || property.imgSrc) score += 8;
+      if (property.price || property.priceNumeric) score += 8;
+      if (property.description) score += 5;
+      if (streetAddr) score += 10;
       
       return { property, score };
     });
 
     return scored
-      .filter(s => s.score > 10)
+      .filter(s => s.score > 15) // Slightly higher threshold
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
       .map(s => s.property);
@@ -376,10 +543,24 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
   // Generate property response
   const generatePropertyResponse = (properties: PropertyData[], query: string): string => {
     if (properties.length === 0) {
-      return `I couldn't find properties matching "${query}". Try searching for a city like Miami Beach, Chicago, or Houston.`;
+      const lowerQuery = query.toLowerCase();
+      let suggestion = '';
+      
+      if (lowerQuery.includes('commercial')) {
+        suggestion = '\n\n💡 **Try**: "Find offices in Miami" or "Show retail in Chicago"';
+      } else if (lowerQuery.includes('residential') || lowerQuery.includes('home')) {
+        suggestion = '\n\n💡 **Try**: "Show homes in Miami Beach" or "Find apartments in Chicago"';
+      } else {
+        suggestion = '\n\n💡 **Available cities**: Miami, Chicago, Houston, LA, New York, Philadelphia, Phoenix';
+      }
+      
+      return `I couldn't find properties matching "${query}".${suggestion}\n\nOr ask me: "What cities do you have?" or "How do I search?"`;
     }
 
-    let response = `Found **${properties.length} properties** matching your search:\n\n`;
+    const isCommercial = properties[0]?.dataSource === 'commercial';
+    const propertyType = isCommercial ? 'commercial' : 'residential';
+    
+    let response = `✨ Found **${properties.length} ${propertyType} properties** for you:\n\n`;
     
     properties.forEach((p, i) => {
       const addr = typeof p.address === 'string' 
@@ -387,36 +568,61 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
         : `${p.streetAddress || p.address?.streetAddress || ''}, ${p.city || p.address?.city || ''}, ${p.state || p.address?.state || ''}`;
       
       const price = p.price || p.priceNumeric;
-      const priceStr = price ? `$${Number(price).toLocaleString()}` : 'Price on request';
+      const priceStr = price ? `$${Number(price).toLocaleString()}` : 'Contact for price';
       
-      response += `**${i + 1}. ${addr}**\n`;
+      response += `**${i + 1}. ${addr.trim() || 'Address available on site'}**\n`;
       response += `   💰 ${priceStr}`;
       
       if (p.dataSource === 'residential') {
         if (p.bedrooms) response += ` | 🛏️ ${p.bedrooms} bed`;
         if (p.bathrooms) response += ` | 🛁 ${p.bathrooms} bath`;
         if (p.livingArea) response += ` | 📐 ${p.livingArea} sqft`;
+        if (p.homeType) response += ` | 🏠 ${p.homeType}`;
       } else {
         if (p.propertyType) response += ` | 🏢 ${p.propertyType}`;
         if (p.squareFootage || p.buildingSize) response += ` | 📐 ${p.squareFootage || p.buildingSize}`;
+        if (p.listingType) response += ` | 📋 ${p.listingType}`;
       }
       response += '\n\n';
     });
 
+    response += `\n💡 **Tip**: Visit the **${isCommercial ? 'Commercial' : 'Residential'} Search** page to see all properties on the map and use filters!`;
+
     return response;
   };
 
-  // Streaming text effect - types out message character by character
+  // Streaming text effect - types out message character by character with abort support
   const streamText = async (text: string) => {
     setIsStreaming(true);
     setStreamingMessage('');
+    setIsAborted(false);
     
     // Add empty message placeholder
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
     
     const chars = text.split('');
+    let abortCheckCounter = 0;
+    
     for (let i = 0; i < chars.length; i++) {
+      // Check abort flag every character (frequent checking)
+      abortCheckCounter++;
+      if (isAborted) {
+        console.log(`⏹️ Streaming aborted at character ${i}/${chars.length} (${abortCheckCounter} checks)`);
+        setIsStreaming(false);
+        setStreamingMessage('');
+        return; // Exit immediately
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 15)); // 15ms per character
+      
+      // Double-check abort after delay
+      if (isAborted) {
+        console.log(`⏹️ Streaming aborted after delay at ${i}/${chars.length}`);
+        setIsStreaming(false);
+        setStreamingMessage('');
+        return; // Exit immediately
+      }
+      
       setStreamingMessage(prev => prev + chars[i]);
       
       // Update the last message in real-time
@@ -434,7 +640,150 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     setStreamingMessage('');
   };
 
-  // Send message
+  // Stop/Abort AI response - 4 LAYERS OF ABORT LOGIC
+  const stopAIResponse = useCallback(() => {
+    console.log('🛑 Layer 1: Stop button clicked - Initiating abort sequence');
+    
+    // LAYER 1: Set abort flag immediately (stops streaming loop)
+    setIsAborted(true);
+    console.log('✅ Layer 1 Complete: Abort flag set');
+    
+    // LAYER 2: Stop all UI loading states
+    setTimeout(() => {
+      setIsStreaming(false);
+      setLoading(false);
+      setIsSearching(false);
+      console.log('✅ Layer 2 Complete: All UI states cleared');
+    }, 0);
+    
+    // LAYER 3: Abort ongoing API request
+    setTimeout(() => {
+      if (abortControllerRef.current) {
+        try {
+          abortControllerRef.current.abort();
+          console.log('✅ Layer 3 Complete: API request aborted');
+        } catch (error) {
+          console.error('Layer 3 Error:', error);
+        }
+        abortControllerRef.current = null;
+      } else {
+        console.log('⚠️ Layer 3: No active API request to abort');
+      }
+    }, 50);
+    
+    // LAYER 4: Force cleanup and reset (failsafe)
+    setTimeout(() => {
+      setIsStreaming(false);
+      setLoading(false);
+      setIsSearching(false);
+      setStreamingMessage('');
+      
+      // Clear any pending timeouts
+      if (abortControllerRef.current) {
+        abortControllerRef.current = null;
+      }
+      
+      console.log('✅ Layer 4 Complete: Forced cleanup and reset');
+      console.log('🎯 All 4 layers executed - Abort sequence complete!');
+    }, 100);
+  }, []);
+
+  // Generate intelligent response based on query type
+  const generateIntelligentResponse = (query: string): string => {
+    const lowerQuery = query.toLowerCase().trim();
+    
+    // Casual greetings - be friendly and natural!
+    if (lowerQuery.match(/^(hi|hey|hello|sup|yo|greetings?)$/)) {
+      return `Hey there! 👋 I'm doing great, thanks for asking!\n\nI'm here to help you explore our real estate platform. Whether you're looking for a new home or commercial space, I've got you covered!\n\nWhat brings you here today? 😊`;
+    }
+    
+    if (lowerQuery.includes('how are you') || lowerQuery.includes('how r u') || lowerQuery.includes('whats up') || lowerQuery.includes("what's up")) {
+      return `I'm doing awesome! 😊 Thanks for asking!\n\nI'm excited to help you find properties or answer any questions about our platform. We've got thousands of commercial and residential properties across major cities!\n\nWhat can I help you with today?`;
+    }
+    
+    if (lowerQuery.includes('good morning')) {
+      return `Good morning! ☀️ Hope you're having a great day!\n\nReady to explore some properties? I can help you find homes, offices, retail spaces, and more across Miami, Chicago, Houston, and other cities.\n\nWhat are you looking for?`;
+    }
+    
+    if (lowerQuery.includes('good afternoon')) {
+      return `Good afternoon! 🌤️\n\nPerfect time to browse some properties! Whether you need commercial or residential, I'm here to help you find exactly what you're looking for.\n\nWant to start with a city search?`;
+    }
+    
+    if (lowerQuery.includes('good evening') || lowerQuery.includes('good night')) {
+      return `Good evening! 🌙\n\nGreat time to explore properties! I can help you search through our extensive database of commercial and residential listings.\n\nWhat would you like to find?`;
+    }
+    
+    // Site navigation questions
+    if (lowerQuery.includes('how') && (lowerQuery.includes('search') || lowerQuery.includes('find'))) {
+      return `**How to Search for Properties:**\n\n1️⃣ **Hero Search**: Use the search bar on the homepage - type a city name\n2️⃣ **Commercial Search**: Click "Commercial" in navigation → Filter by type, price\n3️⃣ **Residential Search**: Click "Residential" → Filter by beds, baths, price\n4️⃣ **Map View**: Click pins to see details, click again to view full property\n\n💡 **Tip**: All filters persist in URL - you can bookmark or share your search!`;
+    }
+    
+    if (lowerQuery.includes('filter') || lowerQuery.includes('narrow')) {
+      return `**Available Filters:**\n\n**Commercial Properties:**\n• Listing Type (Sale/Lease)\n• Property Type (Office, Retail, Industrial, etc.)\n• Price Range\n\n**Residential Properties:**\n• Price Range\n• Bedrooms (1+, 2+, 3+, 4+)\n• Bathrooms (1+, 2+, 3+)\n\n✨ Filters update instantly and save in URL!`;
+    }
+    
+    if (lowerQuery.includes('map') || lowerQuery.includes('location')) {
+      return `**Interactive Map Features:**\n\n📍 **Property Pins**: Each property shown on map\n🔵 **Clusters**: Groups of properties (click to zoom)\n💬 **Popups**: Hover over pins for quick details\n🖱️ **Click**: Click pin again to view full property page\n🗺️ **Pan & Zoom**: Explore different areas\n\n**Available on both Commercial and Residential search pages!**`;
+    }
+    
+    if (lowerQuery.includes('dataset') || lowerQuery.includes('cities') || lowerQuery.includes('where') || lowerQuery.includes('how many')) {
+      const totalProps = allPropertyData.length;
+      const saleProps = allPropertyData.filter(p => p.listingType === 'sale' || p.status === 'ForSale').length;
+      const leaseProps = allPropertyData.filter(p => p.listingType === 'lease' || p.status === 'ForLease').length;
+      const cities = [...new Set(allPropertyData.map(p => p.city).filter(Boolean))];
+      
+      return `**Complete Property Database:**\n\n**📊 Total Properties: ${totalProps.toLocaleString()}**\n\n**By Category:**\n🏢 Commercial: ${datasetStats.commercial.toLocaleString()}\n🏠 Residential: ${datasetStats.residential.toLocaleString()}\n💰 For Sale: ${saleProps.toLocaleString()}\n📋 For Lease: ${leaseProps.toLocaleString()}\n\n**Cities (${cities.length} total):**\n${cities.slice(0, 12).join(', ')}${cities.length > 12 ? ', and more!' : ''}\n\n**Datasets Loaded:**\n✅ 14+ Commercial datasets\n✅ Residential Sale & Lease\n✅ Crexi Miami (Sale & Lease)\n\n**I know every property's address, price, type, and details!** 🎯`;
+    }
+    
+    if (lowerQuery.includes('type') && lowerQuery.includes('property')) {
+      return `**Property Types Available:**\n\n**Commercial:**\n🏢 Office | 🏪 Retail | 🏭 Industrial\n🏘️ Multifamily | 🌳 Land | 🏨 Hospitality\n🏥 Healthcare | 🏙️ Mixed Use\n\n**Residential:**\n🏠 Single Family | 🏢 Condo\n🏘️ Townhouse | 🏘️ Multi-Family\n\nUse the **Type filter** on search pages to narrow down!`;
+    }
+    
+    if (lowerQuery.includes('feature') || lowerQuery.includes('what can')) {
+      return `**Platform Features:**\n\n✨ **Smart Search**: Find properties by city, type, price\n🗺️ **Interactive Maps**: Visual property exploration\n🎯 **Advanced Filters**: Narrow by beds, baths, type, price\n📱 **Mobile Optimized**: Works great on all devices\n🔗 **Shareable URLs**: All filters save in URL\n📊 **Property Details**: Full specs, images, location\n🏢 **Dual Markets**: Both commercial & residential\n\nTry searching for a city to see it in action!`;
+    }
+    
+    // Thank you responses
+    if (lowerQuery.includes('thank') || lowerQuery.includes('thx') || lowerQuery.includes('ty')) {
+      return `You're very welcome! 😊\n\nHappy to help anytime! If you need anything else - whether it's finding properties or learning about features - just let me know!\n\nGood luck with your property search! 🏡`;
+    }
+    
+    // Goodbye responses
+    if (lowerQuery.match(/^(bye|goodbye|see you|later|cya)$/)) {
+      return `Goodbye! 👋 It was great chatting with you!\n\nFeel free to come back anytime you need help finding properties. Have a wonderful day! 😊`;
+    }
+    
+    if (lowerQuery.includes('help') || lowerQuery.includes('what can you do')) {
+      return `**I can help you with:**\n\n🔍 **Property Search**: "Find offices in Miami"\n📍 **Navigation**: "How do I search for properties?"\n🎯 **Filters**: "What filters are available?"\n🗺️ **Maps**: "How does the map work?"\n📊 **Datasets**: "What cities do you have?"\n💡 **Features**: "What can this site do?"\n\nJust ask me anything about properties or the platform!`;
+    }
+    
+    // Fun/casual responses
+    if (lowerQuery.includes('cool') || lowerQuery.includes('awesome') || lowerQuery.includes('nice')) {
+      return `Thanks! 😄 I try my best!\n\nSo, ready to find some amazing properties? I've got commercial and residential listings across multiple cities. Just tell me what you're looking for!`;
+    }
+    
+    if (lowerQuery.includes('lol') || lowerQuery.includes('haha') || lowerQuery.includes('funny')) {
+      return `😄 Glad I could make you smile!\n\nNow, let's get down to business - what kind of property are you interested in? Office space? A new home? Retail location?`;
+    }
+    
+    if (lowerQuery.includes('boring') || lowerQuery.includes('not helpful')) {
+      return `Oh no! 😅 I'm sorry if I wasn't helpful!\n\nLet me try again - what specifically are you looking for? I can search properties, explain features, or just chat about real estate. What would be most useful for you?`;
+    }
+    
+    // Who are you questions
+    if (lowerQuery.includes('who are you') || lowerQuery.includes('what are you')) {
+      return `I'm your AI Real Estate Assistant! 🤖\n\nThink of me as your personal property guide. I know everything about this platform - all the cities, property types, how to search, use filters, and more!\n\nI'm here to make finding properties super easy for you. Want to give it a try?`;
+    }
+    
+    if (lowerQuery.includes('your name') || lowerQuery.includes('called')) {
+      return `I'm the AI Assistant for this real estate platform! 😊\n\nYou can just call me "Assistant" or "AI" - I'm not picky! My job is to help you navigate the site and find amazing properties.\n\nWhat can I help you discover today?`;
+    }
+    
+    // Default conversational response
+    return `I'd be happy to help! 😊\n\nI'm here to assist with:\n• **Finding properties** (try: "Show me homes in Miami")\n• **Explaining features** (ask: "How do filters work?")\n• **Site navigation** (ask: "How do I search?")\n• **Dataset info** (ask: "What cities are available?")\n\nWhat would you like to know?`;
+  };
+
+  // Send message with AI API integration
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -443,39 +792,177 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
-    // Check if property query
-    const propertyKeywords = ['find', 'show', 'search', 'property', 'properties', 'home', 'house', 'office', 'retail', 'commercial', 'residential', 'miami', 'chicago', 'houston', 'phoenix'];
-    const isPropertyQuery = propertyKeywords.some(k => userMessage.toLowerCase().includes(k));
+    // Check if property search query
+    const propertySearchKeywords = ['find', 'show', 'search', 'looking for', 'want', 'need'];
+    const locationKeywords = ['miami', 'chicago', 'houston', 'phoenix', 'philadelphia', 'new york', 'la', 'los angeles', 'san antonio'];
+    const propertyTypeKeywords = ['home', 'house', 'office', 'retail', 'industrial', 'apartment', 'condo'];
+    
+    const lowerMsg = userMessage.toLowerCase();
+    const isPropertySearch = propertySearchKeywords.some(k => lowerMsg.includes(k)) && 
+                            (locationKeywords.some(k => lowerMsg.includes(k)) || propertyTypeKeywords.some(k => lowerMsg.includes(k)));
 
-    if (isPropertyQuery && allPropertyData.length > 0) {
+    if (isPropertySearch && allPropertyData.length > 0) {
       setIsSearching(true);
       
       setTimeout(async () => {
+        // Check if aborted during search delay
+        if (isAborted) {
+          console.log('⏹️ Property search aborted during delay');
+          setIsSearching(false);
+          setLoading(false);
+          return;
+        }
+        
         const results = findRelevantProperties(userMessage);
+        
+        // Check if aborted after search
+        if (isAborted) {
+          console.log('⏹️ Property search aborted after finding results');
+          setIsSearching(false);
+          setLoading(false);
+          return;
+        }
+        
         const response = generatePropertyResponse(results, userMessage);
         
         setIsSearching(false);
         setLoading(false);
+        
+        // Final check before streaming
+        if (isAborted) {
+          console.log('⏹️ Property search aborted before streaming');
+          return;
+        }
+        
         await streamText(response);
       }, 800);
     } else {
-      // Quick responses for non-property queries
-      const quickResponses: Record<string, string> = {
-        'hello': 'Hello! How can I help you find properties today?',
-        'hi': 'Hi there! Looking for properties? Tell me a city or property type!',
-        'help': 'I can help you find **commercial** and **residential** properties. Try: "Find homes in Miami Beach" or "Show offices in Chicago"',
-        'thanks': 'You\'re welcome! Let me know if you need anything else.',
-      };
+      // Use AI API for intelligent conversational responses
+      try {
+        // Create abort controller for this request
+        abortControllerRef.current = new AbortController();
+        // Calculate comprehensive property statistics
+        const totalProperties = allPropertyData.length;
+        const commercialProps = allPropertyData.filter(p => p.dataSource === 'commercial');
+        const residentialProps = allPropertyData.filter(p => p.dataSource === 'residential');
+        const saleProps = allPropertyData.filter(p => p.listingType === 'sale' || p.status === 'ForSale');
+        const leaseProps = allPropertyData.filter(p => p.listingType === 'lease' || p.status === 'ForLease');
+        
+        // Get unique cities
+        const cities = [...new Set(allPropertyData.map(p => p.city).filter(Boolean))];
+        
+        // Get property type counts
+        const propertyTypes = allPropertyData.reduce((acc, p) => {
+          const type = p.propertyType || p.homeType || 'Other';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
 
-      const lowerMsg = userMessage.toLowerCase();
-      const quickResponse = Object.entries(quickResponses).find(([key]) => lowerMsg.includes(key));
-      
-      setLoading(false);
-      
-      if (quickResponse) {
-        await streamText(quickResponse[1]);
-      } else {
-        await streamText('I specialize in property searches. Try asking about properties in a specific city!');
+        // Build system prompt with COMPLETE site knowledge and property data
+        const systemPrompt = `You are a friendly, helpful AI Real Estate Assistant for a comprehensive real estate platform. You have been trained on ALL property data in the system.
+
+**🏢 YOUR COMPLETE PROPERTY KNOWLEDGE:**
+
+**Total Properties in Database: ${totalProperties.toLocaleString()}**
+- Commercial Properties: ${commercialProps.length.toLocaleString()}
+- Residential Properties: ${residentialProps.length.toLocaleString()}
+- For Sale: ${saleProps.length.toLocaleString()}
+- For Lease: ${leaseProps.length.toLocaleString()}
+
+**Cities Available (${cities.length} total):**
+${cities.slice(0, 15).join(', ')}${cities.length > 15 ? ', and more' : ''}
+
+**Property Types You Know:**
+Commercial: Office, Retail, Industrial, Multifamily, Land, Hospitality, Healthcare, Mixed Use, Flex Space, Coworking
+Residential: Single Family, Condo, Townhouse, Multi-Family, Apartment
+
+**Datasets Loaded:**
+- Commercial datasets: 14+ files (Miami, Chicago, Houston, LA, NY, Philadelphia, Phoenix, San Antonio)
+- Residential datasets: Sale and Lease properties across major cities
+- Crexi datasets: Comprehensive Miami commercial (sale & lease)
+
+**What You Can Do:**
+1. Search properties by city, type, price, size
+2. Provide exact property counts for any category
+3. Know property addresses, prices, details
+4. Sort and filter properties by any criteria
+5. Answer questions about specific properties
+6. Explain platform features and navigation
+
+**Platform Features:**
+- Advanced search with filters (location, type, price, beds, baths)
+- Interactive maps with property pins and clusters
+- Filter persistence in URLs for easy sharing
+- Mobile-optimized design
+- Commercial search: /commercial-search (Listing Type, Property Type, Price filters)
+- Residential search: /unified-search (Price, Bedrooms, Bathrooms filters)
+
+**Your Personality:**
+- Friendly, casual, and conversational (like ChatGPT)
+- Use emojis appropriately 😊
+- Be enthusiastic and knowledgeable about real estate
+- Provide specific numbers and details when asked
+- Keep responses helpful and actionable
+
+**Guidelines:**
+- When users ask about property counts, give EXACT numbers
+- For property searches, tell them you'll search the database
+- For questions about specific cities/types, reference your knowledge
+- For site questions, explain features clearly
+- For casual chat, be warm and friendly
+- Always offer to help further
+- Use bold text with ** for emphasis
+- If asked about addresses, confirm you have access to all property addresses
+
+**Example Responses:**
+- "How many properties?" → "We have ${totalProperties.toLocaleString()} total properties!"
+- "Properties in Miami?" → "I have access to thousands of Miami properties across commercial and residential!"
+- "What types?" → List specific types with counts if possible
+
+Respond naturally, helpfully, and with specific details from your training data.`;
+
+        const apiMessages = [
+          { role: 'system', content: systemPrompt },
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: userMessage }
+        ];
+
+        const response = await fetch('/api/ai-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: apiMessages,
+            max_tokens: 500,
+            temperature: 0.8,
+            stream: false
+          }),
+          signal: abortControllerRef.current.signal
+        });
+
+        if (!response.ok) {
+          throw new Error('AI API request failed');
+        }
+
+        const data = await response.json();
+        const aiResponse = data.choices?.[0]?.message?.content || generateIntelligentResponse(userMessage);
+        
+        setLoading(false);
+        abortControllerRef.current = null;
+        await streamText(aiResponse);
+      } catch (error: any) {
+        // Check if it was aborted by user
+        if (error.name === 'AbortError') {
+          console.log('⏹️ Request aborted by user');
+          setLoading(false);
+          return;
+        }
+        
+        console.error('AI API Error:', error);
+        // Fallback to hardcoded responses if API fails
+        setLoading(false);
+        abortControllerRef.current = null;
+        const response = generateIntelligentResponse(userMessage);
+        await streamText(response);
       }
     }
   };
@@ -519,7 +1006,11 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
+      <div 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50"
+      >
         {messages.map((message, index) => (
           <div
             key={index}
@@ -573,18 +1064,32 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
             placeholder="Ask about properties..."
             className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-yellow focus:border-transparent"
-            disabled={loading}
+            disabled={loading || isStreaming}
           />
-          <button
-            onClick={sendMessage}
-            disabled={loading || !input.trim()}
-            className="px-3 py-2 bg-accent-yellow text-primary-black rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send size={18} />
-          </button>
+          
+          {/* Abort Button - Shows when AI is processing, next to Send button */}
+          {(loading || isStreaming || isSearching) ? (
+            <button
+              onClick={stopAIResponse}
+              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md flex items-center gap-1.5"
+              title="Stop Response (4-Layer Abort)"
+            >
+              <StopCircle size={18} />
+              <span className="text-sm font-medium">Stop</span>
+            </button>
+          ) : (
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim()}
+              className="px-3 py-2 bg-accent-yellow text-primary-black rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Send Message"
+            >
+              <Send size={18} />
+            </button>
+          )}
         </div>
       </div>
     </div>

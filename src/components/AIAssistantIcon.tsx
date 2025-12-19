@@ -6,17 +6,12 @@ import DraggableAIChat from './DraggableAIChat';
 
 export default function AIAssistantIcon() {
   const [isOpen, setIsOpen] = useState(false);
-  const [letterSpacing, setLetterSpacing] = useState(0.5);
   const eyeLeftRef = useRef<HTMLDivElement>(null);
   const eyeRightRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLDivElement>(null);
 
   const handleIconClick = () => {
     setIsOpen(!isOpen);
-    
-    // Letter spacing animation
-    setLetterSpacing(2.5);
-    setTimeout(() => setLetterSpacing(0.5), 800);
     
     // Add bounce animation
     if (iconRef.current) {
@@ -107,28 +102,35 @@ export default function AIAssistantIcon() {
           </motion.div>
         </div>
 
-        {/* Assistant Text as Curved Smile */}
+        {/* Assistant Text as Curved Smile - Animated */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible" viewBox="0 0 56 56">
           <defs>
             <path id="curve-assistant-smile" d="M 3,35 Q 28,61 53,35" fill="transparent" />
           </defs>
-          <text
+          <motion.text
             className="text-primary-black"
             style={{ 
               fontSize: '7px', 
-              letterSpacing: `${letterSpacing}px`,
               textTransform: 'uppercase',
               fontWeight: '900',
               stroke: 'currentColor',
               strokeWidth: '0.3px',
               fill: 'currentColor',
-              transition: 'letter-spacing 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+            animate={{
+              letterSpacing: ['0.5px', '2.5px', '0.5px'],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+              repeatDelay: 1,
             }}
           >
             <textPath href="#curve-assistant-smile" startOffset="50%" textAnchor="middle">
               assistant
             </textPath>
-          </text>
+          </motion.text>
         </svg>
 
         {/* Sparkles - Show when chat is open */}

@@ -99,15 +99,6 @@ const PRICE_RANGES = [
 ];
 
 // Square footage ranges
-const SQFT_RANGES = [
-  { value: null, label: 'Any Size' },
-  { value: '0-5000', label: 'Under 5,000 SF', min: 0, max: 5000 },
-  { value: '5000-10000', label: '5,000 - 10,000 SF', min: 5000, max: 10000 },
-  { value: '10000-25000', label: '10,000 - 25,000 SF', min: 10000, max: 25000 },
-  { value: '25000-50000', label: '25,000 - 50,000 SF', min: 25000, max: 50000 },
-  { value: '50000-100000', label: '50,000 - 100,000 SF', min: 50000, max: 100000 },
-  { value: '100000+', label: '100,000+ SF', min: 100000, max: Infinity },
-];
 
 function CommercialSearchPageContent() {
   const searchParams = useSearchParams();
@@ -120,7 +111,6 @@ function CommercialSearchPageContent() {
   
   // Read filter params from URL
   const priceParam = searchParams.get('price');
-  const sqftParam = searchParams.get('sqft');
   const propertyTypeParam = searchParams.get('propertyType');
 
   // Normalize location for matching
@@ -172,13 +162,11 @@ function CommercialSearchPageContent() {
     return null;
   });
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(priceParam || null);
-  const [selectedSqftRange, setSelectedSqftRange] = useState<string | null>(sqftParam || null);
 
   // Dropdown open states
   const [listingTypeDropdownOpen, setListingTypeDropdownOpen] = useState(false);
   const [propertyTypeDropdownOpen, setPropertyTypeDropdownOpen] = useState(false);
   const [priceDropdownOpen, setPriceDropdownOpen] = useState(false);
-  const [sqftDropdownOpen, setSqftDropdownOpen] = useState(false);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -188,7 +176,6 @@ function CommercialSearchPageContent() {
         setListingTypeDropdownOpen(false);
         setPropertyTypeDropdownOpen(false);
         setPriceDropdownOpen(false);
-        setSqftDropdownOpen(false);
       }
     };
     document.addEventListener('click', handleClickOutside);
@@ -484,11 +471,6 @@ function CommercialSearchPageContent() {
     return PRICE_RANGES.find(r => r.value === value) || null;
   };
 
-  // Get sqft range object from selected value
-  const getSqftRange = (value: string | null) => {
-    if (!value) return null;
-    return SQFT_RANGES.find(r => r.value === value) || null;
-  };
 
   // Apply filters
   useEffect(() => {
@@ -538,15 +520,6 @@ function CommercialSearchPageContent() {
       });
     }
 
-    // Filter by square footage
-    const sqftRange = getSqftRange(selectedSqftRange);
-    if (sqftRange && sqftRange.min !== undefined && sqftRange.max !== undefined) {
-      filtered = filtered.filter(p => {
-        const sqft = parseSqft(p.squareFootage);
-        return sqft >= sqftRange.min! && sqft <= sqftRange.max!;
-      });
-    }
-
     // Sort: City match first, then images, then completeness, then price
     filtered.sort((a, b) => {
       // First: If searching by city, prioritize exact city matches
@@ -591,7 +564,7 @@ function CommercialSearchPageContent() {
 
     setFilteredProperties(filtered);
     setCurrentPage(1);
-  }, [allProperties, searchQuery, selectedListingType, selectedPropertyType, selectedPriceRange, selectedSqftRange]);
+  }, [allProperties, searchQuery, selectedListingType, selectedPropertyType, selectedPriceRange]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProperties.length / propertiesPerPage);
@@ -650,18 +623,16 @@ function CommercialSearchPageContent() {
     setSelectedListingType(null);
     setSelectedPropertyType(null);
     setSelectedPriceRange(null);
-    setSelectedSqftRange(null);
     setSearchQuery('');
   };
 
-  const activeFiltersCount = [selectedListingType, selectedPropertyType, selectedPriceRange, selectedSqftRange, searchQuery].filter(v => v !== null && v !== '').length;
+  const activeFiltersCount = [selectedListingType, selectedPropertyType, selectedPriceRange, searchQuery].filter(v => v !== null && v !== '').length;
 
   // Handle marker click - scroll to property in list
   // Update URL params when filters change
   const updateURLWithFilters = useCallback((filters: {
     propertyType?: string | null;
     price?: string | null;
-    sqft?: string | null;
   }) => {
     const params = new URLSearchParams(searchParams.toString());
     
@@ -680,13 +651,6 @@ function CommercialSearchPageContent() {
         params.delete('price');
       }
     }
-    if (filters.sqft !== undefined) {
-      if (filters.sqft !== null) {
-        params.set('sqft', filters.sqft);
-      } else {
-        params.delete('sqft');
-      }
-    }
     
     // Update URL without reload
     router.replace(`/commercial-search?${params.toString()}`, { scroll: false });
@@ -696,10 +660,9 @@ function CommercialSearchPageContent() {
   useEffect(() => {
     updateURLWithFilters({
       propertyType: selectedPropertyType,
-      price: selectedPriceRange,
-      sqft: selectedSqftRange
+      price: selectedPriceRange
     });
-  }, [selectedPropertyType, selectedPriceRange, selectedSqftRange, updateURLWithFilters]);
+  }, [selectedPropertyType, selectedPriceRange, updateURLWithFilters]);
 
   const handleMarkerClick = useCallback((propertyId: string) => {
     // Navigate directly to property detail page
@@ -778,7 +741,6 @@ function CommercialSearchPageContent() {
                   setListingTypeDropdownOpen(!listingTypeDropdownOpen);
                   setPropertyTypeDropdownOpen(false);
                   setPriceDropdownOpen(false);
-                  setSqftDropdownOpen(false);
                 }}
                 className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
                   selectedListingType
@@ -836,7 +798,6 @@ function CommercialSearchPageContent() {
                   setPropertyTypeDropdownOpen(!propertyTypeDropdownOpen);
                   setListingTypeDropdownOpen(false);
                   setPriceDropdownOpen(false);
-                  setSqftDropdownOpen(false);
                 }}
                 className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
                   selectedPropertyType
@@ -876,7 +837,6 @@ function CommercialSearchPageContent() {
                   setPriceDropdownOpen(!priceDropdownOpen);
                   setListingTypeDropdownOpen(false);
                   setPropertyTypeDropdownOpen(false);
-                  setSqftDropdownOpen(false);
                 }}
                 className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
                   selectedPriceRange
@@ -900,46 +860,6 @@ function CommercialSearchPageContent() {
                       }}
                       className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
                         selectedPriceRange === range.value ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Square Footage Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setSqftDropdownOpen(!sqftDropdownOpen);
-                  setListingTypeDropdownOpen(false);
-                  setPropertyTypeDropdownOpen(false);
-                  setPriceDropdownOpen(false);
-                }}
-                className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
-                  selectedSqftRange
-                    ? 'bg-orange-500 text-white border-orange-500'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <Square size={14} className="hidden md:block" />
-                Size: {selectedSqftRange ? SQFT_RANGES.find(r => r.value === selectedSqftRange)?.label : 'Any'}
-                <ChevronDown size={14} className={`transition-transform ${sqftDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {sqftDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[1000] max-h-64 overflow-y-auto">
-                  {SQFT_RANGES.map((range) => (
-                    <button
-                      key={range.value ?? 'any'}
-                      onClick={() => {
-                        setSelectedSqftRange(range.value);
-                        setSqftDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        selectedSqftRange === range.value ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-700'
                       }`}
                     >
                       {range.label}
