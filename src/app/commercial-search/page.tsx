@@ -192,18 +192,32 @@ function CommercialSearchPageContent() {
     const normalizedCity = city.toLowerCase().trim();
     const normalizedSearch = search.toLowerCase().trim();
     
+    // Exact match first (highest priority)
+    if (normalizedCity === normalizedSearch) return true;
+    
     // Special handling for Las Vegas - match both "Las Vegas" and "North Las Vegas"
     if (normalizedSearch === 'las vegas' || normalizedSearch === 'vegas') {
       if (normalizedCity.includes('las vegas')) {
         return true; // Match "Las Vegas", "North Las Vegas", "Las Vegas Valley", etc.
       }
+      return false; // Don't match other cities when searching for Las Vegas
     }
     
     // Special handling for San Francisco - match "SF", "San Francisco", "San Fran"
+    // IMPORTANT: Must be strict to avoid matching "San Antonio"
     if (normalizedSearch === 'sf' || normalizedSearch === 'san francisco' || normalizedSearch === 'san fran') {
-      if (normalizedCity === 'sf' || normalizedCity.includes('san francisco')) {
-        return true; // Match "SF", "San Francisco"
+      if (normalizedCity === 'sf' || normalizedCity === 'san francisco' || normalizedCity.startsWith('san francisco')) {
+        return true; // Match "SF", "San Francisco" exactly
       }
+      return false; // Don't match other cities when searching for San Francisco
+    }
+    
+    // Special handling for San Antonio - be strict to avoid matching "San Francisco"
+    if (normalizedSearch === 'san antonio' || normalizedSearch === 'san anton') {
+      if (normalizedCity === 'san antonio' || normalizedCity.startsWith('san antonio')) {
+        return true; // Match "San Antonio" exactly
+      }
+      return false; // Don't match other cities when searching for San Antonio
     }
     
     // Special handling: if city is "SF" and search is "san francisco" or vice versa
@@ -212,23 +226,37 @@ function CommercialSearchPageContent() {
       return true;
     }
     
-    // Exact match
-    if (normalizedCity === normalizedSearch) return true;
-    
-    // Contains match (city contains search or search contains city)
-    if (normalizedCity.includes(normalizedSearch) || normalizedSearch.includes(normalizedCity)) return true;
-    
-    // Handle multi-word cities (e.g., "Miami Beach" matches "Miami")
+    // For multi-word cities, check if search is a complete word/phrase match
+    // This prevents "San" from matching both "San Francisco" and "San Antonio"
     const cityWords = normalizedCity.split(/\s+/);
     const searchWords = normalizedSearch.split(/\s+/);
     
-    // Check if any search word matches any city word
-    for (const searchWord of searchWords) {
-      for (const cityWord of cityWords) {
-        if (cityWord === searchWord || cityWord.includes(searchWord) || searchWord.includes(cityWord)) {
-          return true;
-        }
+    // If search has multiple words, city must start with or equal the search
+    if (searchWords.length > 1) {
+      if (normalizedCity.startsWith(normalizedSearch) || normalizedSearch.startsWith(normalizedCity)) {
+        return true;
       }
+      return false; // Don't do partial word matching for multi-word searches
+    }
+    
+    // For single-word searches, check if city starts with that word (but be careful with "San")
+    if (searchWords.length === 1) {
+      const searchWord = searchWords[0];
+      // Special case: "San" alone should not match cities starting with "San"
+      // User should search for "San Francisco" or "San Antonio" specifically
+      if (searchWord === 'san' && cityWords.length > 1) {
+        return false; // Don't match "San Francisco" or "San Antonio" with just "San"
+      }
+      // Check if first word of city matches
+      if (cityWords[0] === searchWord) {
+        return true;
+      }
+    }
+    
+    // Last resort: contains match (but only if it's a meaningful match)
+    // Avoid matching "San" in both "San Francisco" and "San Antonio"
+    if (normalizedSearch.length >= 4 && (normalizedCity.includes(normalizedSearch) || normalizedSearch.includes(normalizedCity))) {
+      return true;
     }
     
     return false;
@@ -889,20 +917,40 @@ function CommercialSearchPageContent() {
           stateStr = stateCode.toLowerCase() || stateName;
         }
         
-        // 1. City matching (enhanced)
+        // 1. City matching (enhanced) - HIGHEST PRIORITY
         if (cityMatchesSearch(city, normalizedSearch)) {
           return true;
         }
         
         // 2. Address matching (full address and individual street names)
+        // But be strict: if search is a known city name, don't match on partial words
+        const isKnownCitySearch = normalizedSearch === 'san francisco' || normalizedSearch === 'sf' || normalizedSearch === 'san fran' ||
+                                   normalizedSearch === 'san antonio' || normalizedSearch === 'las vegas' ||
+                                   normalizedSearch === 'vegas' || normalizedSearch === 'los angeles' ||
+                                   normalizedSearch === 'la' || normalizedSearch === 'new york' ||
+                                   normalizedSearch === 'nyc' || normalizedSearch === 'miami' ||
+                                   normalizedSearch === 'chicago' || normalizedSearch === 'houston' ||
+                                   normalizedSearch === 'austin' || normalizedSearch === 'phoenix' ||
+                                   normalizedSearch === 'philadelphia' || normalizedSearch === 'philly';
+        
+        // Full address match (always allowed)
         if (address.includes(normalizedSearch)) {
           return true;
         }
-        // Check if any word in the search query matches the address
-        const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length >= 2);
-        for (const word of searchWords) {
-          if (address.includes(word)) {
-            return true;
+        
+        // For known city searches, don't match on individual words to avoid false matches
+        // (e.g., "San" matching both "San Francisco" and "San Antonio" properties)
+        if (!isKnownCitySearch) {
+          // Check if any word in the search query matches the address
+          const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length >= 2);
+          for (const word of searchWords) {
+            // Skip common words that might cause false matches
+            if (word === 'san' || word === 'los' || word === 'new' || word.length < 3) {
+              continue;
+            }
+            if (address.includes(word)) {
+              return true;
+            }
           }
         }
         
@@ -930,24 +978,40 @@ function CommercialSearchPageContent() {
           }
         }
         
-        // 5. Description matching
-        if (description.includes(normalizedSearch)) {
+        // 5. Description matching - only if not a known city search (to avoid false matches)
+        // For city searches, we want to match primarily on city, not description
+        if (!isKnownCitySearch && description.includes(normalizedSearch)) {
           return true;
         }
         
         // 6. Full address matching (if property has a fullAddress field)
         const fullAddress = (p as any).fullAddress || '';
         if (fullAddress && typeof fullAddress === 'string') {
-          if (fullAddress.toLowerCase().includes(normalizedSearch)) {
-            return true;
+          const fullAddressLower = fullAddress.toLowerCase();
+          // For known city searches, check if the full address actually contains the city name
+          if (isKnownCitySearch) {
+            // Only match if the full address contains the exact city name
+            if (normalizedSearch === 'sf' || normalizedSearch === 'san fran') {
+              if (fullAddressLower.includes('san francisco')) {
+                return true;
+              }
+            } else if (fullAddressLower.includes(normalizedSearch)) {
+              return true;
+            }
+          } else {
+            if (fullAddressLower.includes(normalizedSearch)) {
+              return true;
+            }
           }
         }
         
-        // 7. Property name/title matching (if available)
-        const propertyName = (p as any).name || (p as any).title || '';
-        if (propertyName && typeof propertyName === 'string') {
-          if (propertyName.toLowerCase().includes(normalizedSearch)) {
-            return true;
+        // 7. Property name/title matching (if available) - only if not a known city search
+        if (!isKnownCitySearch) {
+          const propertyName = (p as any).name || (p as any).title || '';
+          if (propertyName && typeof propertyName === 'string') {
+            if (propertyName.toLowerCase().includes(normalizedSearch)) {
+              return true;
+            }
           }
         }
         
