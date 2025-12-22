@@ -166,11 +166,11 @@ const SITE_KNOWLEDGE = {
   features: {
     search: "Advanced property search with filters for location, type, price, beds, baths",
     datasets: {
-      commercial: ["Miami", "Chicago", "Houston", "LA", "New York", "Philadelphia", "Phoenix", "San Antonio"],
+      commercial: ["Miami", "Chicago", "Houston", "LA", "New York", "Philadelphia", "Phoenix", "San Antonio", "Seattle", "Boston", "Las Vegas"],
       residential: ["Miami Beach", "Chicago", "Houston", "LA", "New York", "Philadelphia", "Phoenix"],
       crexi: {
-        sale: "miami_all_crexi_sale.json - Comprehensive Miami commercial sale properties",
-        lease: "miami_all_crexi_lease.json - Comprehensive Miami commercial lease properties"
+        sale: "Comprehensive Miami commercial sale properties",
+        lease: "Comprehensive Miami commercial lease properties"
       }
     },
     propertyTypes: {
@@ -205,6 +205,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
   const [allPropertyData, setAllPropertyData] = useState<PropertyData[]>([]);
   const [datasetStats, setDatasetStats] = useState({ commercial: 0, residential: 0 });
   const [streamingMessage, setStreamingMessage] = useState('');
@@ -257,7 +258,11 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
         'dataset_philadelphia_sale.json',
         'dataset_phoenix.json',
         'dataset_san_antonio_sale.json',
-        'dataset_son_antonio_lease.json'
+        'dataset_son_antonio_lease.json',
+        'dataset_seattle.json',
+        'dataset_boston.json',
+        'dataset_las_vegas_sale.json',
+        'dataset-las_vegas_lease.json'
       ];
 
       // Load ALL commercial properties
@@ -451,10 +456,14 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Find relevant properties - ENHANCED with better scoring
+  // Find relevant properties - ENHANCED with better scoring and "top N" support
   const findRelevantProperties = (query: string): PropertyData[] => {
     const queryLower = query.toLowerCase();
     const queryTokens = queryLower.split(/\s+/).filter(t => t.length > 2);
+    
+    // Extract "top N" or "best N" number
+    const topNMatch = queryLower.match(/\b(top|best|first|show me)\s+(\d+)\b/);
+    const requestedCount = topNMatch ? parseInt(topNMatch[2]) : 5;
     
     const scored = allPropertyData.map(property => {
       let score = 0;
@@ -470,7 +479,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       const propType = (property.propertyType || property.homeType || '').toLowerCase();
       
       // City match - HIGH PRIORITY
-      const cities = ['miami', 'chicago', 'houston', 'phoenix', 'philadelphia', 'new york', 'los angeles', 'san antonio'];
+      const cities = ['miami', 'chicago', 'houston', 'phoenix', 'philadelphia', 'new york', 'los angeles', 'san antonio', 'las vegas', 'austin', 'san francisco', 'sf'];
       cities.forEach(city => {
         if (queryLower.includes(city) && (cityName.includes(city) || fullAddress.includes(city))) {
           score += 100; // Increased from 50
@@ -531,13 +540,20 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       if (property.description) score += 5;
       if (streetAddr) score += 10;
       
+      // Cap rate boost (if query mentions cap rate)
+      if (queryLower.includes('cap rate') || queryLower.includes('caprate')) {
+        if (property.capRate && property.capRate !== '' && property.capRate !== null) {
+          score += 50; // High boost for properties with cap rates
+        }
+      }
+      
       return { property, score };
     });
 
     return scored
       .filter(s => s.score > 15) // Slightly higher threshold
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
+      .slice(0, requestedCount) // Use requested count instead of fixed 5
       .map(s => s.property);
   };
 
@@ -552,7 +568,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       } else if (lowerQuery.includes('residential') || lowerQuery.includes('home')) {
         suggestion = '\n\n💡 **Try**: "Show homes in Miami Beach" or "Find apartments in Chicago"';
       } else {
-        suggestion = '\n\n💡 **Available cities**: Miami, Chicago, Houston, LA, New York, Philadelphia, Phoenix';
+        suggestion = '\n\n💡 **Available cities**: Miami, Chicago, Houston, LA, New York, Philadelphia, Phoenix, Seattle, Boston';
       }
       
       return `I couldn't find properties matching "${query}".${suggestion}\n\nOr ask me: "What cities do you have?" or "How do I search?"`;
@@ -583,6 +599,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
         if (p.propertyType) response += ` | 🏢 ${p.propertyType}`;
         if (p.squareFootage || p.buildingSize) response += ` | 📐 ${p.squareFootage || p.buildingSize}`;
         if (p.listingType) response += ` | 📋 ${p.listingType}`;
+        if (p.capRate) response += ` | 📊 Cap Rate: ${p.capRate}`;
       }
       response += '\n\n';
     });
@@ -697,8 +714,13 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     }
     
     // Site navigation questions
-    if (lowerQuery.includes('how') && (lowerQuery.includes('search') || lowerQuery.includes('find'))) {
+    if (lowerQuery.includes('how') && (lowerQuery.includes('search') || lowerQuery.includes('find') || lowerQuery.includes('use'))) {
       return `**How to Search for Properties:**\n\n1️⃣ **Hero Search**: Use the search bar on the homepage - type a city name\n2️⃣ **Commercial Search**: Click "Commercial" in navigation → Filter by type, price\n3️⃣ **Residential Search**: Click "Residential" → Filter by beds, baths, price\n4️⃣ **Map View**: Click pins to see details, click again to view full property\n\n💡 **Tip**: All filters persist in URL - you can bookmark or share your search!`;
+    }
+    
+    // How to use the site
+    if (lowerQuery.includes('how') && (lowerQuery.includes('use') || lowerQuery.includes('navigate') || lowerQuery.includes('work'))) {
+      return `**How to Use This Platform:**\n\n**🔍 Searching:**\n• Use the search bar on homepage to find properties by city\n• Visit Commercial or Residential pages for advanced search\n• Use filters to narrow down results\n\n**🗺️ Maps:**\n• Properties are shown as pins on the map\n• Click a pin to see property details\n• Click again to view the full property page\n• Zoom and pan to explore different areas\n\n**💾 Saving & Sharing:**\n• All filters save in the URL\n• Bookmark your search results\n• Share links with others\n\n**📱 Mobile:**\n• Fully optimized for mobile devices\n• Touch-friendly interface\n• All features work on phones and tablets\n\nNeed help with something specific? Just ask!`;
     }
     
     if (lowerQuery.includes('filter') || lowerQuery.includes('narrow')) {
@@ -715,15 +737,38 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       const leaseProps = allPropertyData.filter(p => p.listingType === 'lease' || p.status === 'ForLease').length;
       const cities = [...new Set(allPropertyData.map(p => p.city).filter(Boolean))];
       
-      return `**Complete Property Database:**\n\n**📊 Total Properties: ${totalProps.toLocaleString()}**\n\n**By Category:**\n🏢 Commercial: ${datasetStats.commercial.toLocaleString()}\n🏠 Residential: ${datasetStats.residential.toLocaleString()}\n💰 For Sale: ${saleProps.toLocaleString()}\n📋 For Lease: ${leaseProps.toLocaleString()}\n\n**Cities (${cities.length} total):**\n${cities.slice(0, 12).join(', ')}${cities.length > 12 ? ', and more!' : ''}\n\n**Datasets Loaded:**\n✅ 14+ Commercial datasets\n✅ Residential Sale & Lease\n✅ Crexi Miami (Sale & Lease)\n\n**I know every property's address, price, type, and details!** 🎯`;
+      return `**Complete Property Database:**\n\n**📊 Total Properties: ${totalProps.toLocaleString()}**\n\n**By Category:**\n🏢 Commercial: ${datasetStats.commercial.toLocaleString()}\n🏠 Residential: ${datasetStats.residential.toLocaleString()}\n💰 For Sale: ${saleProps.toLocaleString()}\n📋 For Lease: ${leaseProps.toLocaleString()}\n\n**Cities (${cities.length} total):**\n${cities.slice(0, 12).join(', ')}${cities.length > 12 ? ', and more!' : ''}\n\n**I have access to comprehensive property data across:**\n✅ Commercial properties (offices, retail, industrial, multifamily, etc.)\n✅ Residential properties (homes, condos, townhouses)\n✅ Multiple major cities across the US\n\n**I know every property's address, price, type, and details!** 🎯`;
     }
     
     if (lowerQuery.includes('type') && lowerQuery.includes('property')) {
       return `**Property Types Available:**\n\n**Commercial:**\n🏢 Office | 🏪 Retail | 🏭 Industrial\n🏘️ Multifamily | 🌳 Land | 🏨 Hospitality\n🏥 Healthcare | 🏙️ Mixed Use\n\n**Residential:**\n🏠 Single Family | 🏢 Condo\n🏘️ Townhouse | 🏘️ Multi-Family\n\nUse the **Type filter** on search pages to narrow down!`;
     }
     
-    if (lowerQuery.includes('feature') || lowerQuery.includes('what can')) {
-      return `**Platform Features:**\n\n✨ **Smart Search**: Find properties by city, type, price\n🗺️ **Interactive Maps**: Visual property exploration\n🎯 **Advanced Filters**: Narrow by beds, baths, type, price\n📱 **Mobile Optimized**: Works great on all devices\n🔗 **Shareable URLs**: All filters save in URL\n📊 **Property Details**: Full specs, images, location\n🏢 **Dual Markets**: Both commercial & residential\n\nTry searching for a city to see it in action!`;
+    if (lowerQuery.includes('feature') || lowerQuery.includes('what can') || lowerQuery.includes('what does')) {
+      return `**Platform Features:**\n\n✨ **Smart Search**: Find properties by city, type, price\n🗺️ **Interactive Maps**: Visual property exploration with pins and clusters\n🎯 **Advanced Filters**: Narrow by beds, baths, type, price, listing type\n📱 **Mobile Optimized**: Works great on all devices\n🔗 **Shareable URLs**: All filters save in URL for easy sharing\n📊 **Property Details**: Full specs, images, location, pricing\n🏢 **Dual Markets**: Both commercial & residential properties\n💰 **Cap Rate Data**: View cap rates for commercial properties\n🔖 **Favorites**: Save properties you like\n📧 **Contact**: Easy contact options for each property\n\nTry searching for a city to see it in action!`;
+    }
+    
+    // Property type questions
+    if (lowerQuery.includes('what type') || lowerQuery.includes('what kind') || (lowerQuery.includes('property') && lowerQuery.includes('type'))) {
+      return `**Property Types Available:**\n\n**🏢 Commercial:**\n• Office Spaces\n• Retail Stores\n• Industrial/Warehouse\n• Multifamily Buildings\n• Land/Lots\n• Hospitality (Hotels)\n• Healthcare Facilities\n• Mixed Use Properties\n• Flex Spaces\n• Coworking Spaces\n\n**🏠 Residential:**\n• Single Family Homes\n• Condos/Condominiums\n• Townhouses\n• Multi-Family Homes\n• Apartments\n\nUse the **Property Type filter** on search pages to find exactly what you need!`;
+    }
+    
+    // Price questions
+    if (lowerQuery.includes('price') || lowerQuery.includes('cost') || lowerQuery.includes('expensive') || lowerQuery.includes('affordable') || lowerQuery.includes('cheap')) {
+      const totalProps = allPropertyData.length;
+      const withPrice = allPropertyData.filter(p => p.price || p.priceNumeric).length;
+      const commercialWithPrice = allPropertyData.filter(p => (p.dataSource === 'commercial') && (p.price || p.priceNumeric)).length;
+      const residentialWithPrice = allPropertyData.filter(p => (p.dataSource === 'residential') && (p.price || p.priceNumeric)).length;
+      
+      return `**Pricing Information:**\n\n**Properties with Pricing:**\n📊 ${withPrice.toLocaleString()} out of ${totalProps.toLocaleString()} properties have pricing information\n🏢 Commercial: ${commercialWithPrice.toLocaleString()} properties\n🏠 Residential: ${residentialWithPrice.toLocaleString()} properties\n\n**Price Filters Available:**\n• Under $500K\n• $500K - $1M\n• $1M - $5M\n• $5M - $10M\n• $10M - $50M\n• $50M+\n\n**💡 Tips:**\n• Use price filters on search pages to narrow results\n• Property prices vary by location, type, and size\n• Some properties may show "Contact for price"\n• Commercial properties often include cap rate data\n\nWant to see properties in a specific price range? Just ask!`;
+    }
+    
+    // Location/City questions
+    if (lowerQuery.includes('where') || lowerQuery.includes('location') || (lowerQuery.includes('city') && !lowerQuery.includes('cities'))) {
+      const cities = [...new Set(allPropertyData.map(p => p.city).filter(Boolean))];
+      const topCities = cities.slice(0, 10);
+      
+      return `**Available Locations:**\n\n**Major Cities (${cities.length} total):**\n${topCities.join(', ')}${cities.length > 10 ? ', and more!' : ''}\n\n**💡 How to Search by Location:**\n1. Type a city name in the homepage search bar\n2. Or visit Commercial/Residential search pages\n3. Use location filters when available\n\n**🗺️ Map Features:**\n• All properties are shown on interactive maps\n• Click pins to see property details\n• Explore different neighborhoods and areas\n\nLooking for properties in a specific city? Just tell me which one!`;
     }
     
     // Thank you responses
@@ -737,7 +782,77 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     }
     
     if (lowerQuery.includes('help') || lowerQuery.includes('what can you do')) {
-      return `**I can help you with:**\n\n🔍 **Property Search**: "Find offices in Miami"\n📍 **Navigation**: "How do I search for properties?"\n🎯 **Filters**: "What filters are available?"\n🗺️ **Maps**: "How does the map work?"\n📊 **Datasets**: "What cities do you have?"\n💡 **Features**: "What can this site do?"\n\nJust ask me anything about properties or the platform!`;
+      return `**I can help you with:**\n\n🔍 **Property Search**: "Find offices in Miami" or "Top 3 properties in Miami"\n📍 **Navigation**: "How do I search for properties?" or "How do I use the site?"\n🎯 **Filters**: "What filters are available?" or "How do filters work?"\n🗺️ **Maps**: "How does the map work?" or "How do I use the map?"\n📊 **Property Info**: "What cities do you have?" or "How many properties are there?"\n💡 **Features**: "What can this site do?" or "What features are available?"\n💰 **Cap Rates**: "What is the cap rate in Miami?" or "Show properties with cap rates"\n🏠 **Property Types**: "What types of properties do you have?"\n💵 **Pricing**: "What's the price range?" or "Show affordable properties"\n\nJust ask me anything about properties, the platform, or real estate in general!`;
+    }
+    
+    // Cap rate questions
+    if (lowerQuery.includes('cap rate') || lowerQuery.includes('caprate') || lowerQuery.includes('cap-rate')) {
+      // Check if asking about specific location
+      const miamiMatch = lowerQuery.includes('miami');
+      const chicagoMatch = lowerQuery.includes('chicago');
+      const houstonMatch = lowerQuery.includes('houston');
+      const phoenixMatch = lowerQuery.includes('phoenix');
+      const philadelphiaMatch = lowerQuery.includes('philadelphia');
+      const nyMatch = lowerQuery.includes('new york') || lowerQuery.includes('nyc');
+      const laMatch = lowerQuery.includes('los angeles') || lowerQuery.includes('la');
+      const sfMatch = lowerQuery.includes('san francisco') || lowerQuery.includes('sf') || lowerQuery === 'san fran';
+      const austinMatch = lowerQuery.includes('austin');
+      
+      const city = miamiMatch ? 'Miami' : chicagoMatch ? 'Chicago' : houstonMatch ? 'Houston' : 
+                   phoenixMatch ? 'Phoenix' : philadelphiaMatch ? 'Philadelphia' : nyMatch ? 'New York' : 
+                   laMatch ? 'Los Angeles' : sfMatch ? 'San Francisco' : austinMatch ? 'Austin' : null;
+      
+      // Find properties with cap rates in the specified city
+      const propertiesWithCapRate = allPropertyData.filter(p => {
+        const hasCapRate = p.capRate && p.capRate !== '' && p.capRate !== null;
+        if (!hasCapRate) return false;
+        if (city) {
+          const cityLower = city.toLowerCase();
+          const propCity = (p.city || '').toLowerCase();
+          return propCity.includes(cityLower) || cityLower.includes(propCity);
+        }
+        return true;
+      });
+      
+      if (propertiesWithCapRate.length > 0) {
+        // Calculate average cap rate
+        const capRates = propertiesWithCapRate
+          .map(p => {
+            const capRateStr = p.capRate || '';
+            const match = capRateStr.match(/(\d+\.?\d*)/);
+            return match ? parseFloat(match[1]) : null;
+          })
+          .filter((r): r is number => r !== null);
+        
+        const avgCapRate = capRates.length > 0 
+          ? (capRates.reduce((a, b) => a + b, 0) / capRates.length).toFixed(2)
+          : 'N/A';
+        
+        const minCapRate = capRates.length > 0 ? Math.min(...capRates).toFixed(2) : 'N/A';
+        const maxCapRate = capRates.length > 0 ? Math.max(...capRates).toFixed(2) : 'N/A';
+        
+        let response = `**Cap Rate Information${city ? ` for ${city}` : ''}:**\n\n`;
+        response += `📊 **Properties with Cap Rates**: ${propertiesWithCapRate.length.toLocaleString()}\n`;
+        response += `📈 **Average Cap Rate**: ${avgCapRate}%\n`;
+        response += `📉 **Range**: ${minCapRate}% - ${maxCapRate}%\n\n`;
+        response += `**What is Cap Rate?**\n`;
+        response += `Cap Rate (Capitalization Rate) is a key metric for commercial real estate investment. It's calculated as:\n\n`;
+        response += `**Cap Rate = Net Operating Income (NOI) / Property Value**\n\n`;
+        response += `💡 **Interpretation:**\n`;
+        response += `• Higher cap rate = Higher potential return (but may indicate higher risk)\n`;
+        response += `• Lower cap rate = Lower return (but may indicate more stable/valuable property)\n`;
+        response += `• Typical range: 4-10% for commercial properties\n\n`;
+        
+        if (city) {
+          response += `Would you like me to show you specific properties in ${city} with their cap rates?`;
+        } else {
+          response += `Would you like me to search for properties with cap rates in a specific city?`;
+        }
+        
+        return response;
+      } else {
+        return `I don't have cap rate data${city ? ` for ${city}` : ''} in the current dataset.\n\n**What is Cap Rate?**\n\nCap Rate (Capitalization Rate) measures the return on a commercial real estate investment:\n\n**Cap Rate = Net Operating Income (NOI) / Property Value**\n\n💡 **Typical Range**: 4-10% for commercial properties\n\nWould you like me to search for properties in a specific city?`;
+      }
     }
     
     // Fun/casual responses
@@ -763,26 +878,94 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     }
     
     // Default conversational response
-    return `I'd be happy to help! 😊\n\nI'm here to assist with:\n• **Finding properties** (try: "Show me homes in Miami")\n• **Explaining features** (ask: "How do filters work?")\n• **Site navigation** (ask: "How do I search?")\n• **Dataset info** (ask: "What cities are available?")\n\nWhat would you like to know?`;
+    return `I'd be happy to help! 😊\n\nI'm here to assist with:\n• **Finding properties** (try: "Show me homes in Miami" or "Top 3 properties in Miami")\n• **Cap Rate Questions** (ask: "What is the cap rate in Miami?")\n• **Explaining features** (ask: "How do filters work?" or "What can this site do?")\n• **Site navigation** (ask: "How do I search?" or "How do I use the map?")\n• **Property information** (ask: "What cities are available?" or "What types of properties do you have?")\n• **Real estate questions** (ask me anything about properties, pricing, locations, etc.)\n\nWhat would you like to know?`;
+  };
+
+  // Simple spell correction for common real estate terms
+  const correctCommonTypos = (text: string): string => {
+    const corrections: Record<string, string> = {
+      // Cities
+      'miam': 'miami',
+      'miama': 'miami',
+      'chicgo': 'chicago',
+      'huston': 'houston',
+      'phoenx': 'phoenix',
+      'phoenex': 'phoenix',
+      'philadelpha': 'philadelphia',
+      'philidelphia': 'philadelphia',
+      'philly': 'philadelphia',
+      'ny': 'new york',
+      'nyc': 'new york',
+      'la': 'los angeles',
+      'sf': 'san francisco',
+      'san fran': 'san francisco',
+      'san antonio': 'san antonio',
+      // Property terms
+      'propert': 'property',
+      'propertys': 'properties',
+      'propertie': 'properties',
+      'offce': 'office',
+      'retial': 'retail',
+      'industrail': 'industrial',
+      'industial': 'industrial',
+      'multifamly': 'multifamily',
+      'multifamliy': 'multifamily',
+      'townhome': 'townhouse',
+      // Cap rate variations
+      'caprate': 'cap rate',
+      'cap-rate': 'cap rate',
+      'caprat': 'cap rate',
+      'cap rat': 'cap rate',
+      // Common words
+      'seach': 'search',
+      'serch': 'search',
+      'fidn': 'find',
+      'fnd': 'find',
+      'shw': 'show',
+      'shwo': 'show',
+    };
+    
+    let corrected = text;
+    // Apply corrections case-insensitively but preserve original case structure
+    Object.entries(corrections).forEach(([wrong, correct]) => {
+      const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
+      corrected = corrected.replace(regex, (match) => {
+        // Preserve original case
+        if (match === match.toUpperCase()) {
+          return correct.toUpperCase();
+        } else if (match[0] === match[0].toUpperCase()) {
+          return correct.charAt(0).toUpperCase() + correct.slice(1);
+        }
+        return correct;
+      });
+    });
+    
+    return corrected;
   };
 
   // Send message with AI API integration
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMessage = input.trim();
+    // Apply spell correction before sending
+    const correctedInput = spellCheckEnabled ? correctCommonTypos(input.trim()) : input.trim();
+    const userMessage = correctedInput;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
-    // Check if property search query
-    const propertySearchKeywords = ['find', 'show', 'search', 'looking for', 'want', 'need'];
-    const locationKeywords = ['miami', 'chicago', 'houston', 'phoenix', 'philadelphia', 'new york', 'la', 'los angeles', 'san antonio'];
-    const propertyTypeKeywords = ['home', 'house', 'office', 'retail', 'industrial', 'apartment', 'condo'];
+    // Check if property search query - EXPANDED to handle more query patterns
+    const propertySearchKeywords = ['find', 'show', 'search', 'looking for', 'want', 'need', 'list', 'tell me', 'let me know', 'top', 'best', 'properties', 'property'];
+    const locationKeywords = ['miami', 'chicago', 'houston', 'phoenix', 'philadelphia', 'new york', 'nyc', 'la', 'los angeles', 'san antonio', 'manhattan', 'brooklyn', 'las vegas', 'vegas', 'austin', 'san francisco', 'sf', 'san fran'];
+    const propertyTypeKeywords = ['home', 'house', 'office', 'retail', 'industrial', 'apartment', 'condo', 'commercial', 'residential'];
     
     const lowerMsg = userMessage.toLowerCase();
-    const isPropertySearch = propertySearchKeywords.some(k => lowerMsg.includes(k)) && 
-                            (locationKeywords.some(k => lowerMsg.includes(k)) || propertyTypeKeywords.some(k => lowerMsg.includes(k)));
+    // Check for property-related queries (expanded patterns)
+    const hasLocation = locationKeywords.some(k => lowerMsg.includes(k));
+    const hasPropertyType = propertyTypeKeywords.some(k => lowerMsg.includes(k));
+    const hasSearchKeyword = propertySearchKeywords.some(k => lowerMsg.includes(k));
+    const hasNumberQuery = /\b(top|best|first|show me)\s+\d+\b/.test(lowerMsg);
+    const isPropertySearch = (hasSearchKeyword || hasNumberQuery) && (hasLocation || hasPropertyType || lowerMsg.includes('properties') || lowerMsg.includes('property'));
 
     if (isPropertySearch && allPropertyData.length > 0) {
       setIsSearching(true);
@@ -859,10 +1042,16 @@ ${cities.slice(0, 15).join(', ')}${cities.length > 15 ? ', and more' : ''}
 Commercial: Office, Retail, Industrial, Multifamily, Land, Hospitality, Healthcare, Mixed Use, Flex Space, Coworking
 Residential: Single Family, Condo, Townhouse, Multi-Family, Apartment
 
-**Datasets Loaded:**
-- Commercial datasets: 14+ files (Miami, Chicago, Houston, LA, NY, Philadelphia, Phoenix, San Antonio)
-- Residential datasets: Sale and Lease properties across major cities
-- Crexi datasets: Comprehensive Miami commercial (sale & lease)
+**Commercial Property Metrics:**
+- Cap Rate (Capitalization Rate): Available for many commercial properties. Formula: NOI / Property Value. Typical range: 4-10%
+- Square Footage / Building Size
+- Number of Units
+- Price per Square Foot
+
+**Data Coverage:**
+- Commercial properties: Miami, Chicago, Houston, LA, New York, Philadelphia, Phoenix, San Antonio, Seattle, Boston, Las Vegas, and more
+- Residential properties: Sale and Lease listings across major cities
+- Comprehensive property data with full details, images, and location information
 
 **What You Can Do:**
 1. Search properties by city, type, price, size
@@ -871,6 +1060,8 @@ Residential: Single Family, Condo, Townhouse, Multi-Family, Apartment
 4. Sort and filter properties by any criteria
 5. Answer questions about specific properties
 6. Explain platform features and navigation
+7. Answer questions about cap rates and provide cap rate statistics
+8. Find "top N" or "best N" properties in any city
 
 **Platform Features:**
 - Advanced search with filters (location, type, price, beds, baths)
@@ -896,11 +1087,17 @@ Residential: Single Family, Condo, Townhouse, Multi-Family, Apartment
 - Always offer to help further
 - Use bold text with ** for emphasis
 - If asked about addresses, confirm you have access to all property addresses
+- NEVER mention specific dataset file names, JSON files, or technical implementation details
+- Focus on what the platform can do, not how it's built
+- Be helpful and conversational about real estate topics
 
 **Example Responses:**
 - "How many properties?" → "We have ${totalProperties.toLocaleString()} total properties!"
 - "Properties in Miami?" → "I have access to thousands of Miami properties across commercial and residential!"
 - "What types?" → List specific types with counts if possible
+- "How do I search?" → Explain the search process clearly
+- "What features do you have?" → List platform features
+- "What's the price range?" → Provide pricing information
 
 Respond naturally, helpfully, and with specific details from your training data.`;
 
@@ -1045,6 +1242,9 @@ Respond naturally, helpfully, and with specific details from your training data.
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            spellCheck={spellCheckEnabled}
+            autoCorrect={spellCheckEnabled ? 'on' : 'off'}
+            autoCapitalize="sentences"
             onKeyPress={(e) => {
               if (e.key === 'Enter' && !loading) {
                 e.preventDefault();
@@ -1076,6 +1276,7 @@ Respond naturally, helpfully, and with specific details from your training data.
             className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-yellow focus:border-transparent"
             disabled={loading || isStreaming}
             style={{ fontSize: '16px' }}
+            title={spellCheckEnabled ? 'Spell check enabled - Common typos will be auto-corrected' : 'Spell check disabled'}
           />
           
           {/* Abort Button - Shows when AI is processing, next to Send button */}
@@ -1112,6 +1313,21 @@ Respond naturally, helpfully, and with specific details from your training data.
             >
               <Send size={18} />
             </button>
+          )}
+        </div>
+        {/* Spell Check Toggle */}
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={spellCheckEnabled}
+              onChange={(e) => setSpellCheckEnabled(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-accent-yellow focus:ring-accent-yellow cursor-pointer"
+            />
+            <span>Spell Check</span>
+          </label>
+          {spellCheckEnabled && (
+            <span className="text-xs text-gray-500">Auto-corrects common typos</span>
           )}
         </div>
       </div>

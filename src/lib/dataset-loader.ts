@@ -6,15 +6,27 @@ import { CommercialProperty } from './us-real-estate-api';
 // City to dataset file mapping
 const CITY_DATASET_MAP: Record<string, string[]> = {
   // Los Angeles
-  'los angeles': ['commercial_dataset_LA.json'],
-  'la': ['commercial_dataset_LA.json'],
-  'l.a.': ['commercial_dataset_LA.json'],
+  'los angeles': ['commercial_dataset_LA.json', 'dataset_los_angeles_sale.json', 'dataset_los_angeles_lease.json'],
+  'la': ['commercial_dataset_LA.json', 'dataset_los_angeles_sale.json', 'dataset_los_angeles_lease.json'],
+  'l.a.': ['commercial_dataset_LA.json', 'dataset_los_angeles_sale.json', 'dataset_los_angeles_lease.json'],
   
   // Chicago
   'chicago': ['commercial_dataset_Chicago.json'],
   
   // Houston
   'houston': ['commercial_dataset_houston.json'],
+  
+  // Las Vegas
+  'las vegas': ['dataset_las_vegas_sale.json', 'dataset-las_vegas_lease.json'],
+  'vegas': ['dataset_las_vegas_sale.json', 'dataset-las_vegas_lease.json'],
+  
+  // Austin
+  'austin': ['dataset_austin_lease.json'],
+  
+  // San Francisco
+  'san francisco': ['dataset_sanfrancisco_lease.json'],
+  'sf': ['dataset_sanfrancisco_lease.json'],
+  'san fran': ['dataset_sanfrancisco_lease.json'],
   
   // New York
   'new york': ['commercial_dataset_ny.json', 'dataset_manhattan_ny.json'],

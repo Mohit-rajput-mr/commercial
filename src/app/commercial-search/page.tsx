@@ -69,6 +69,12 @@ const COMMERCIAL_FILES = [
   'dataset_phoenix.json',
   'dataset_san_antonio_sale.json',
   'dataset_son_antonio_lease.json',
+  'dataset_las_vegas_sale.json',
+  'dataset-las_vegas_lease.json',
+  'dataset_austin_lease.json',
+  'dataset_los_angeles_lease.json',
+  'dataset_los_angeles_sale.json',
+  'dataset_sanfrancisco_lease.json',
 ];
 
 // Crexi dataset files (loaded separately from root public folder)
@@ -114,17 +120,67 @@ function CommercialSearchPageContent() {
   const priceParam = searchParams.get('price');
   const propertyTypeParam = searchParams.get('propertyType');
 
-  // Normalize location for matching
+  // State abbreviation to full name mapping
+  const STATE_ABBREV: Record<string, string> = {
+    'al': 'alabama', 'ak': 'alaska', 'az': 'arizona', 'ar': 'arkansas',
+    'ca': 'california', 'co': 'colorado', 'ct': 'connecticut', 'de': 'delaware',
+    'fl': 'florida', 'ga': 'georgia', 'hi': 'hawaii', 'id': 'idaho',
+    'il': 'illinois', 'in': 'indiana', 'ia': 'iowa', 'ks': 'kansas',
+    'ky': 'kentucky', 'la': 'louisiana', 'me': 'maine', 'md': 'maryland',
+    'ma': 'massachusetts', 'mi': 'michigan', 'mn': 'minnesota', 'ms': 'mississippi',
+    'mo': 'missouri', 'mt': 'montana', 'ne': 'nebraska', 'nv': 'nevada',
+    'nh': 'new hampshire', 'nj': 'new jersey', 'nm': 'new mexico', 'ny': 'new york',
+    'nc': 'north carolina', 'nd': 'north dakota', 'oh': 'ohio', 'ok': 'oklahoma',
+    'or': 'oregon', 'pa': 'pennsylvania', 'ri': 'rhode island', 'sc': 'south carolina',
+    'sd': 'south dakota', 'tn': 'tennessee', 'tx': 'texas', 'ut': 'utah',
+    'vt': 'vermont', 'va': 'virginia', 'wa': 'washington', 'wv': 'west virginia',
+    'wi': 'wisconsin', 'wy': 'wyoming', 'dc': 'district of columbia'
+  };
+
+  // Reverse mapping: full name to abbreviation
+  const STATE_NAME_TO_ABBREV: Record<string, string> = {};
+  Object.entries(STATE_ABBREV).forEach(([abbrev, name]) => {
+    STATE_NAME_TO_ABBREV[name] = abbrev;
+  });
+
+  // Normalize location for matching (keeps the search query intact for flexible matching)
   const normalizeLocation = (input: string): string => {
     let normalized = input.toLowerCase().trim();
     try {
       normalized = decodeURIComponent(normalized);
     } catch (e) {}
-    // Remove state names/abbreviations but keep city names intact
-    normalized = normalized
-      .replace(/,\s*(fl|florida|ca|california|ny|new york|il|illinois|tx|texas|az|arizona|pa|pennsylvania|nv|nevada)\s*$/gi, '')
-      .trim();
+    // Special handling for Las Vegas - include North Las Vegas
+    if (normalized === 'las vegas' || normalized === 'vegas') {
+      normalized = 'las vegas'; // Normalize to "las vegas" to match both "Las Vegas" and "North Las Vegas"
+    }
+    // Special handling for San Francisco - normalize "SF" and "San Fran" to "san francisco"
+    if (normalized === 'sf' || normalized === 'san fran') {
+      normalized = 'san francisco';
+    }
     return normalized;
+  };
+
+  // Extract state from search query and return both state code and name
+  const extractStateFromQuery = (query: string): { code: string | null; name: string | null } => {
+    const normalized = query.toLowerCase().trim();
+    
+    // Check for state abbreviation (2 letters, possibly with comma/space)
+    const abbrevMatch = normalized.match(/\b([a-z]{2})\b/);
+    if (abbrevMatch) {
+      const abbrev = abbrevMatch[1];
+      if (STATE_ABBREV[abbrev]) {
+        return { code: abbrev.toUpperCase(), name: STATE_ABBREV[abbrev] };
+      }
+    }
+    
+    // Check for full state name
+    for (const [abbrev, name] of Object.entries(STATE_ABBREV)) {
+      if (normalized.includes(name)) {
+        return { code: abbrev.toUpperCase(), name };
+      }
+    }
+    
+    return { code: null, name: null };
   };
 
   // Check if city matches search query (enhanced matching)
@@ -132,6 +188,26 @@ function CommercialSearchPageContent() {
     if (!city || !search) return false;
     const normalizedCity = city.toLowerCase().trim();
     const normalizedSearch = search.toLowerCase().trim();
+    
+    // Special handling for Las Vegas - match both "Las Vegas" and "North Las Vegas"
+    if (normalizedSearch === 'las vegas' || normalizedSearch === 'vegas') {
+      if (normalizedCity.includes('las vegas')) {
+        return true; // Match "Las Vegas", "North Las Vegas", "Las Vegas Valley", etc.
+      }
+    }
+    
+    // Special handling for San Francisco - match "SF", "San Francisco", "San Fran"
+    if (normalizedSearch === 'sf' || normalizedSearch === 'san francisco' || normalizedSearch === 'san fran') {
+      if (normalizedCity === 'sf' || normalizedCity.includes('san francisco')) {
+        return true; // Match "SF", "San Francisco"
+      }
+    }
+    
+    // Special handling: if city is "SF" and search is "san francisco" or vice versa
+    if ((normalizedCity === 'sf' && (normalizedSearch.includes('san francisco') || normalizedSearch === 'san fran')) ||
+        ((normalizedCity.includes('san francisco') || normalizedCity === 'san fran') && normalizedSearch === 'sf')) {
+      return true;
+    }
     
     // Exact match
     if (normalizedCity === normalizedSearch) return true;
@@ -243,7 +319,7 @@ function CommercialSearchPageContent() {
           propertyType: (property.propertyType || property.propertyTypeDetailed) || undefined,
           imageUrl: property.images?.find(img => img && typeof img === 'string' && img.startsWith('http')) || undefined,
           city: property.city,
-          state: property.state,
+          state: typeof property.state === 'string' ? property.state : (property.state as any)?.code || '',
           dataSource: 'commercial',
           rawData: property,
           timestamp: Date.now(),
@@ -344,66 +420,167 @@ function CommercialSearchPageContent() {
               console.log(`📂 Loading ${properties.length} properties from ${filename}`);
               
               // Transform properties to match CommercialProperty interface
+              let loadedCount = 0;
+              let skippedCount = 0;
+              
               properties.forEach((prop, index) => {
-                const propId = prop.propertyId || `${filename}-${index}`;
+                // Check if this is a Crexi-style format (Las Vegas datasets)
+                const isCrexiSaleFormat = prop.locations && Array.isArray(prop.locations) && prop.locations.length > 0;
+                const isCrexiLeaseFormat = prop.location && typeof prop.location === 'object' && prop.location.address;
                 
-                // Skip duplicates
-                if (seenIds.has(propId)) return;
-                seenIds.add(propId);
-                
-                // Determine listing type from listingType field
-                let listingType = 'For Sale';
-                if (prop.listingType) {
-                  const lt = prop.listingType.toLowerCase();
-                  if (lt.includes('lease') || lt.includes('rent')) {
-                    listingType = 'For Lease';
-                  } else if (lt.includes('sale') || lt.includes('auction')) {
-                    listingType = 'For Sale';
-                  }
-                }
-                
-                // Extract price
+                let propId: string;
+                let city: string = '';
+                let state: string = '';
+                let zip: string = '';
+                let address: string = '';
+                let latitude: number | null = null;
+                let longitude: number | null = null;
+                let listingType: string = 'For Sale';
                 let price: string | null = null;
                 let priceNumeric: number | null = null;
-                if (prop.price) {
-                  if (typeof prop.price === 'string') {
-                    price = prop.price;
-                    // Extract numeric value from price string
-                    const priceMatch = prop.price.match(/[\d,]+/);
-                    if (priceMatch) {
-                      priceNumeric = parseFloat(priceMatch[0].replace(/,/g, ''));
-                    }
-                  } else if (typeof prop.price === 'number') {
-                    priceNumeric = prop.price;
-                    price = `$${prop.price.toLocaleString()}`;
-                  }
-                }
-                
-                // Extract square footage
                 let squareFootage: string | null = null;
-                if (prop.squareFootage) {
-                  squareFootage = typeof prop.squareFootage === 'string' ? prop.squareFootage : prop.squareFootage.toString();
-                } else if (prop.buildingSize) {
-                  squareFootage = typeof prop.buildingSize === 'string' ? prop.buildingSize : prop.buildingSize.toString();
+                let propertyType: string = 'Commercial';
+                let images: string[] = [];
+                let firstImage: string | null = null;
+                let description: string = '';
+                let listingUrl: string | undefined = undefined;
+                let brokerCompany: string | null = null;
+                
+                if (isCrexiSaleFormat) {
+                  // Crexi Sale format (dataset_las_vegas_sale.json)
+                  const location = prop.locations[0];
+                  propId = prop.id ? `crexi-sale-${prop.id}` : `${filename}-${index}`;
+                  city = location.city || '';
+                  state = typeof location.state === 'string' 
+                    ? location.state 
+                    : (location.state?.code || '');
+                  zip = location.zip || '';
+                  address = location.address || prop.name || '';
+                  latitude = location.latitude || null;
+                  longitude = location.longitude || null;
+                  listingType = 'For Sale';
+                  priceNumeric = prop.askingPrice || null;
+                  price = prop.askingPrice ? `$${prop.askingPrice.toLocaleString()}` : null;
+                  squareFootage = prop.squareFootage ? prop.squareFootage.toString() : null;
+                  propertyType = prop.types && prop.types.length > 0 ? prop.types[0] : 'Commercial';
+                  firstImage = prop.thumbnailUrl || null;
+                  images = firstImage ? [firstImage] : [];
+                  description = prop.description || prop.name || '';
+                  listingUrl = prop.url || undefined;
+                  brokerCompany = prop.brokerageName || null;
+                } else if (isCrexiLeaseFormat) {
+                  // Crexi Lease format (dataset-las_vegas_lease.json)
+                  const location = prop.location;
+                  if (!location || !location.city) {
+                    // Skip properties without valid location data
+                    skippedCount++;
+                    return;
+                  }
+                  propId = prop.id ? `crexi-lease-${prop.id}` : `${filename}-${index}`;
+                  city = location.city || '';
+                  state = typeof location.state === 'string' 
+                    ? location.state 
+                    : (location.state?.code || '');
+                  zip = location.zip || '';
+                  address = location.address || prop.name || '';
+                  latitude = location.latitude || null;
+                  longitude = location.longitude || null;
+                  listingType = 'For Lease';
+                  // For lease, use rateYearly or rateMonthly
+                  if (prop.rateYearlyMin || prop.rateYearlyMax) {
+                    const rate = prop.rateYearlyMin || prop.rateYearlyMax;
+                    price = `$${rate.toLocaleString()}/SF/yr`;
+                    priceNumeric = rate;
+                  } else if (prop.rateMonthly) {
+                    price = prop.rateMonthly;
+                    const rateMatch = prop.rateMonthly.match(/[\d.]+/);
+                    if (rateMatch) {
+                      priceNumeric = parseFloat(rateMatch[0]);
+                    }
+                  }
+                  squareFootage = prop.rentableSqftMin || prop.rentableSqftMax 
+                    ? (prop.rentableSqftMin && prop.rentableSqftMax && prop.rentableSqftMin !== prop.rentableSqftMax
+                        ? `${prop.rentableSqftMin} - ${prop.rentableSqftMax}`
+                        : (prop.rentableSqftMin || prop.rentableSqftMax)?.toString() || undefined)
+                    : undefined;
+                  propertyType = prop.types && prop.types.length > 0 ? prop.types[0] : 'Commercial';
+                  firstImage = prop.thumbnailUrl || null;
+                  images = firstImage ? [firstImage] : [];
+                  description = prop.description || prop.name || '';
+                  listingUrl = prop.url || undefined;
+                  brokerCompany = prop.brokerageName || null;
+                } else {
+                  // Standard format (existing datasets)
+                  propId = prop.propertyId || `${filename}-${index}`;
+                  city = prop.city || '';
+                  state = prop.state || '';
+                  zip = prop.zip || prop.zipcode || '';
+                  address = prop.address || '';
+                  latitude = prop.latitude || prop.lat || null;
+                  longitude = prop.longitude || prop.lng || prop.lon || null;
+                  
+                  // Determine listing type from listingType field
+                  if (prop.listingType) {
+                    const lt = prop.listingType.toLowerCase();
+                    if (lt.includes('lease') || lt.includes('rent')) {
+                      listingType = 'For Lease';
+                    } else if (lt.includes('sale') || lt.includes('auction')) {
+                      listingType = 'For Sale';
+                    }
+                  }
+                  
+                  // Extract price
+                  if (prop.price) {
+                    if (typeof prop.price === 'string') {
+                      price = prop.price;
+                      const priceMatch = prop.price.match(/[\d,]+/);
+                      if (priceMatch) {
+                        priceNumeric = parseFloat(priceMatch[0].replace(/,/g, ''));
+                      }
+                    } else if (typeof prop.price === 'number') {
+                      priceNumeric = prop.price;
+                      price = `$${prop.price.toLocaleString()}`;
+                    }
+                  }
+                  
+                  // Extract square footage
+                  if (prop.squareFootage) {
+                    squareFootage = typeof prop.squareFootage === 'string' ? prop.squareFootage : prop.squareFootage.toString();
+                  } else if (prop.buildingSize) {
+                    squareFootage = typeof prop.buildingSize === 'string' ? prop.buildingSize : prop.buildingSize.toString();
+                  }
+                  
+                  // Extract images
+                  images = Array.isArray(prop.images) ? prop.images.filter((img: any) => img && typeof img === 'string') : [];
+                  firstImage = images[0] || null;
+                  
+                  propertyType = prop.propertyType || 'Commercial';
+                  description = prop.description || '';
+                  listingUrl = prop.listingUrl || undefined;
+                  brokerCompany = prop.brokerCompany || null;
                 }
                 
-                // Extract images
-                const images = Array.isArray(prop.images) ? prop.images.filter((img: any) => img && typeof img === 'string') : [];
-                const firstImage = images[0] || null;
+                // Skip duplicates
+                if (seenIds.has(propId)) {
+                  skippedCount++;
+                  return;
+                }
+                seenIds.add(propId);
+                loadedCount++;
                 
                 // Transform to CommercialProperty format
                 allProps.push({
                   propertyId: propId,
                   listingType: listingType,
-                  propertyType: prop.propertyType || 'Commercial',
-                  propertyTypeDetailed: prop.propertyType || null,
-                  city: prop.city || '',
-                  state: prop.state || '',
-                  zip: prop.zip || prop.zipcode || '',
-                  country: prop.country || 'USA',
-                  address: prop.address || '',
-                  description: prop.description || '',
-                  listingUrl: prop.listingUrl || null,
+                  propertyType: propertyType,
+                  propertyTypeDetailed: prop.types && prop.types.length > 1 ? prop.types.join(', ') : propertyType,
+                  city: city,
+                  state: state,
+                  zip: zip,
+                  country: 'USA',
+                  address: address,
+                  description: description,
+                  listingUrl: listingUrl,
                   images: images,
                   dataPoints: Array.isArray(prop.dataPoints) ? prop.dataPoints : [],
                   price: price,
@@ -412,23 +589,33 @@ function CommercialSearchPageContent() {
                   isAuction: prop.isAuction || (prop.listingType?.toLowerCase().includes('auction') || false),
                   auctionEndDate: prop.auctionEndDate || null,
                   squareFootage: squareFootage,
-                  buildingSize: prop.buildingSize || null,
-                  numberOfUnits: prop.numberOfUnits || null,
+                  buildingSize: prop.buildingSize || (squareFootage ? `${squareFootage} SF` : null),
+                  numberOfUnits: prop.numberOfUnits || prop.numberOfSuites || null,
                   brokerName: prop.brokerName || null,
-                  brokerCompany: prop.brokerCompany || null,
+                  brokerCompany: brokerCompany,
                   capRate: prop.capRate || null,
                   position: index,
-                  availability: prop.availability || null,
+                  availability: prop.availability || prop.status || null,
                   // For map and display compatibility
                   zpid: propId,
                   imgSrc: firstImage,
                   status: listingType,
-                  latitude: prop.latitude || prop.lat || null,
-                  longitude: prop.longitude || prop.lng || prop.lon || null,
+                  latitude: latitude ?? undefined,
+                  longitude: longitude ?? undefined,
                 });
               });
               
-              console.log(`✅ Added ${properties.length} properties from ${filename}`);
+              console.log(`✅ Added ${loadedCount} properties from ${filename} (skipped ${skippedCount} duplicates/invalid)`);
+              
+              // Debug: Show city distribution for Las Vegas datasets
+              if (filename.includes('las_vegas') || filename.includes('las-vegas')) {
+                const lasVegasProps = allProps.filter(p => 
+                  p.city && (p.city.toLowerCase().includes('las vegas') || p.city.toLowerCase().includes('north las vegas'))
+                );
+                const cities = [...new Set(allProps.slice(-loadedCount).map(p => p.city).filter(Boolean))];
+                console.log(`📍 Las Vegas dataset cities: ${cities.slice(0, 10).join(', ')}${cities.length > 10 ? '...' : ''}`);
+                console.log(`🎰 Las Vegas properties in loaded set: ${lasVegasProps.length}`);
+              }
             }
           } catch (err) {
             console.warn(`⚠️ Failed to load ${filename}:`, err);
@@ -660,25 +847,98 @@ function CommercialSearchPageContent() {
       });
     }
 
-    // Filter by search query (city, address, zip)
+    // Filter by search query (city, address, zip, state, street names, etc.)
     if (normalizedSearch) {
       console.log(`🔍 Filtering by search query: "${normalizedSearch}"`);
       const beforeFilter = filtered.length;
+      
+      // Extract state information from search query
+      const stateInfo = extractStateFromQuery(normalizedSearch);
+      
       filtered = filtered.filter(p => {
         const city = (p.city || '').toLowerCase();
         const address = (p.address || '').toLowerCase();
         const zip = (p.zip || '').toLowerCase();
-        const state = (p.state || '').toLowerCase();
         const description = (p.description || '').toLowerCase();
         
-        // Check for matches
-        const matches = cityMatchesSearch(city, normalizedSearch) || 
-               address.includes(normalizedSearch) ||
-               zip.includes(normalizedSearch) ||
-               state.includes(normalizedSearch) ||
-               description.includes(normalizedSearch);
+        // Handle state as string or object (Crexi format)
+        let stateStr = '';
+        let stateCode = '';
+        let stateName = '';
+        if (typeof p.state === 'string') {
+          stateStr = p.state.toLowerCase();
+          stateCode = p.state.toUpperCase();
+          stateName = STATE_ABBREV[p.state.toLowerCase()] || '';
+        } else if (p.state && typeof p.state === 'object') {
+          const stateObj = p.state as any;
+          stateCode = (stateObj.code || '').toUpperCase();
+          stateName = (stateObj.name || '').toLowerCase();
+          stateStr = stateCode.toLowerCase() || stateName;
+        }
         
-        return matches;
+        // 1. City matching (enhanced)
+        if (cityMatchesSearch(city, normalizedSearch)) {
+          return true;
+        }
+        
+        // 2. Address matching (full address and individual street names)
+        if (address.includes(normalizedSearch)) {
+          return true;
+        }
+        // Check if any word in the search query matches the address
+        const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length >= 2);
+        for (const word of searchWords) {
+          if (address.includes(word)) {
+            return true;
+          }
+        }
+        
+        // 3. ZIP code matching
+        if (zip.includes(normalizedSearch)) {
+          return true;
+        }
+        
+        // 4. State matching (code and name)
+        if (stateInfo.code) {
+          // Search query contains a state code/name
+          if (stateCode === stateInfo.code || stateName === stateInfo.name) {
+            return true;
+          }
+        } else {
+          // Check if search query matches state code or name
+          if (stateStr && (stateStr.includes(normalizedSearch) || normalizedSearch.includes(stateStr))) {
+            return true;
+          }
+          if (stateCode && normalizedSearch === stateCode.toLowerCase()) {
+            return true;
+          }
+          if (stateName && normalizedSearch.includes(stateName)) {
+            return true;
+          }
+        }
+        
+        // 5. Description matching
+        if (description.includes(normalizedSearch)) {
+          return true;
+        }
+        
+        // 6. Full address matching (if property has a fullAddress field)
+        const fullAddress = (p as any).fullAddress || '';
+        if (fullAddress && typeof fullAddress === 'string') {
+          if (fullAddress.toLowerCase().includes(normalizedSearch)) {
+            return true;
+          }
+        }
+        
+        // 7. Property name/title matching (if available)
+        const propertyName = (p as any).name || (p as any).title || '';
+        if (propertyName && typeof propertyName === 'string') {
+          if (propertyName.toLowerCase().includes(normalizedSearch)) {
+            return true;
+          }
+        }
+        
+        return false;
       });
       console.log(`✅ Filtered from ${beforeFilter} to ${filtered.length} properties`);
       
@@ -1229,7 +1489,11 @@ function CommercialSearchPageContent() {
                               <div className="font-medium text-gray-800">
                                 {(property as any).addressCleaned || cleanAddress(property.address) || 'Address Not Available'}
                               </div>
-                              <div>{[property.city, property.state, property.zip].filter(Boolean).join(', ')}</div>
+                              <div>{[
+                                property.city, 
+                                typeof property.state === 'string' ? property.state : (property.state as any)?.code || '', 
+                                property.zip
+                              ].filter(Boolean).join(', ')}</div>
                             </div>
                           </div>
 

@@ -110,3 +110,4 @@ export const getPreferences = async (): Promise<UserPreferences | null> => {
     request.onerror = () => reject(new Error('Failed to get preferences'));
   });
 };
+

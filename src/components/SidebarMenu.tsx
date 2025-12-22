@@ -15,12 +15,36 @@ interface SidebarMenuProps {
 
 export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpClick }: SidebarMenuProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useRouter();
+
+  // Check if user is logged in
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      try {
+        setCurrentUser(JSON.parse(user));
+      } catch (e) {
+        setCurrentUser(null);
+      }
+    } else {
+      setCurrentUser(null);
+    }
+  }, [isOpen]);
 
   const handleLoginButtonClick = () => {
     // Dispatch event to trigger login modal in Hero section
     window.dispatchEvent(new CustomEvent('openLoginModal'));
     onClose(); // Close sidebar when opening login modal
+    setShowLoginPrompt(false);
+  };
+
+  const handleSignUpClick = () => {
+    // Dispatch event to trigger signup modal in Hero section
+    window.dispatchEvent(new CustomEvent('openSignUpModal'));
+    onClose(); // Close sidebar when opening signup modal
+    setShowLoginPrompt(false);
   };
 
   useEffect(() => {
@@ -81,7 +105,13 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
     },
   ];
 
-  const handleItemClick = (href: string) => {
+  const handleItemClick = (href: string, label: string) => {
+    // Check if "My Account" is clicked and user is not logged in
+    if (label === 'My Account' && !currentUser) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    
     if (href.startsWith('/')) {
       router.push(href);
       onClose();
@@ -157,7 +187,7 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
                             if (isExpandable) {
                               toggleSection(item.label);
                             } else {
-                              handleItemClick(item.href);
+                              handleItemClick(item.href, item.label);
                             }
                           }}
                           className={`w-full flex items-center justify-between px-6 py-4 hover:bg-light-gray transition-colors ${
@@ -191,12 +221,65 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
                 Log In
               </button>
               <button
-                onClick={handleLoginButtonClick}
+                onClick={handleSignUpClick}
                 className="w-full px-6 py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all"
               >
                 Sign Up
               </button>
             </div>
+            
+            {/* Login/Signup Prompt Modal */}
+            <AnimatePresence>
+              {showLoginPrompt && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowLoginPrompt(false)}
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="fixed inset-0 flex items-center justify-center z-[70] p-4"
+                  >
+                    <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full p-6 text-center">
+                      <div className="mb-4">
+                        <User size={48} className="mx-auto text-primary-black mb-3" />
+                        <h3 className="text-xl font-semibold text-primary-black mb-2">
+                          Login Required
+                        </h3>
+                        <p className="text-gray-600 text-sm">
+                          Please log in or sign up to access your account.
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        <button
+                          onClick={handleLoginButtonClick}
+                          className="w-full px-6 py-3 border-2 border-primary-black rounded-lg font-semibold text-primary-black hover:bg-primary-black hover:text-white transition-all"
+                        >
+                          Log In
+                        </button>
+                        <button
+                          onClick={handleSignUpClick}
+                          className="w-full px-6 py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all"
+                        >
+                          Sign Up
+                        </button>
+                        <button
+                          onClick={() => setShowLoginPrompt(false)}
+                          className="w-full px-6 py-3 text-gray-600 hover:text-primary-black transition-colors text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
