@@ -127,14 +127,32 @@ function CommercialSearchPageContent() {
     return normalized;
   };
 
-  // Check if city matches search query
+  // Check if city matches search query (enhanced matching)
   const cityMatchesSearch = (city: string, search: string): boolean => {
+    if (!city || !search) return false;
     const normalizedCity = city.toLowerCase().trim();
     const normalizedSearch = search.toLowerCase().trim();
-    // Exact match or contains
-    return normalizedCity === normalizedSearch || 
-           normalizedCity.includes(normalizedSearch) ||
-           normalizedSearch.includes(normalizedCity);
+    
+    // Exact match
+    if (normalizedCity === normalizedSearch) return true;
+    
+    // Contains match (city contains search or search contains city)
+    if (normalizedCity.includes(normalizedSearch) || normalizedSearch.includes(normalizedCity)) return true;
+    
+    // Handle multi-word cities (e.g., "Miami Beach" matches "Miami")
+    const cityWords = normalizedCity.split(/\s+/);
+    const searchWords = normalizedSearch.split(/\s+/);
+    
+    // Check if any search word matches any city word
+    for (const searchWord of searchWords) {
+      for (const cityWord of cityWords) {
+        if (cityWord === searchWord || cityWord.includes(searchWord) || searchWord.includes(cityWord)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   };
 
   // State
@@ -303,18 +321,119 @@ function CommercialSearchPageContent() {
     return score;
   };
 
-  // Optimized: Load only Crexi datasets (skip small commercial files for speed)
+  // Load ALL commercial datasets from commercial folder
   useEffect(() => {
-    const loadPropertiesOptimized = async () => {
+    const loadAllCommercialProperties = async () => {
       setLoading(true);
       setError(null);
 
       try {
         const allProps: CommercialProperty[] = [];
+        const seenIds = new Set<string>();
         
-        // OPTIMIZATION: Skip loading small commercial files - they're too slow
-        // Only load the large Crexi datasets which have most properties
-        console.log('⚡ Optimized loading: Loading only Crexi datasets for faster performance');
+        console.log('📦 Loading ALL commercial datasets from commercial folder...');
+        
+        // Load all commercial dataset files from COMMERCIAL_FILES array
+        for (const filename of COMMERCIAL_FILES) {
+          try {
+            const response = await fetch(`/commercial/${filename}`);
+            if (response.ok) {
+              const data = await response.json();
+              const properties: any[] = Array.isArray(data) ? data : [];
+              
+              console.log(`📂 Loading ${properties.length} properties from ${filename}`);
+              
+              // Transform properties to match CommercialProperty interface
+              properties.forEach((prop, index) => {
+                const propId = prop.propertyId || `${filename}-${index}`;
+                
+                // Skip duplicates
+                if (seenIds.has(propId)) return;
+                seenIds.add(propId);
+                
+                // Determine listing type from listingType field
+                let listingType = 'For Sale';
+                if (prop.listingType) {
+                  const lt = prop.listingType.toLowerCase();
+                  if (lt.includes('lease') || lt.includes('rent')) {
+                    listingType = 'For Lease';
+                  } else if (lt.includes('sale') || lt.includes('auction')) {
+                    listingType = 'For Sale';
+                  }
+                }
+                
+                // Extract price
+                let price: string | null = null;
+                let priceNumeric: number | null = null;
+                if (prop.price) {
+                  if (typeof prop.price === 'string') {
+                    price = prop.price;
+                    // Extract numeric value from price string
+                    const priceMatch = prop.price.match(/[\d,]+/);
+                    if (priceMatch) {
+                      priceNumeric = parseFloat(priceMatch[0].replace(/,/g, ''));
+                    }
+                  } else if (typeof prop.price === 'number') {
+                    priceNumeric = prop.price;
+                    price = `$${prop.price.toLocaleString()}`;
+                  }
+                }
+                
+                // Extract square footage
+                let squareFootage: string | null = null;
+                if (prop.squareFootage) {
+                  squareFootage = typeof prop.squareFootage === 'string' ? prop.squareFootage : prop.squareFootage.toString();
+                } else if (prop.buildingSize) {
+                  squareFootage = typeof prop.buildingSize === 'string' ? prop.buildingSize : prop.buildingSize.toString();
+                }
+                
+                // Extract images
+                const images = Array.isArray(prop.images) ? prop.images.filter((img: any) => img && typeof img === 'string') : [];
+                const firstImage = images[0] || null;
+                
+                // Transform to CommercialProperty format
+                allProps.push({
+                  propertyId: propId,
+                  listingType: listingType,
+                  propertyType: prop.propertyType || 'Commercial',
+                  propertyTypeDetailed: prop.propertyType || null,
+                  city: prop.city || '',
+                  state: prop.state || '',
+                  zip: prop.zip || prop.zipcode || '',
+                  country: prop.country || 'USA',
+                  address: prop.address || '',
+                  description: prop.description || '',
+                  listingUrl: prop.listingUrl || null,
+                  images: images,
+                  dataPoints: Array.isArray(prop.dataPoints) ? prop.dataPoints : [],
+                  price: price,
+                  priceNumeric: priceNumeric,
+                  priceCurrency: prop.priceCurrency || 'USD',
+                  isAuction: prop.isAuction || (prop.listingType?.toLowerCase().includes('auction') || false),
+                  auctionEndDate: prop.auctionEndDate || null,
+                  squareFootage: squareFootage,
+                  buildingSize: prop.buildingSize || null,
+                  numberOfUnits: prop.numberOfUnits || null,
+                  brokerName: prop.brokerName || null,
+                  brokerCompany: prop.brokerCompany || null,
+                  capRate: prop.capRate || null,
+                  position: index,
+                  availability: prop.availability || null,
+                  // For map and display compatibility
+                  zpid: propId,
+                  imgSrc: firstImage,
+                  status: listingType,
+                  latitude: prop.latitude || prop.lat || null,
+                  longitude: prop.longitude || prop.lng || prop.lon || null,
+                });
+              });
+              
+              console.log(`✅ Added ${properties.length} properties from ${filename}`);
+            }
+          } catch (err) {
+            console.warn(`⚠️ Failed to load ${filename}:`, err);
+          }
+        }
 
         // Load Crexi SALE dataset from root public folder (miami_all_crexi_sale.json)
         // Only load when selectedListingType is 'sale' or null (all properties)
@@ -502,7 +621,12 @@ function CommercialSearchPageContent() {
           console.log(`⏭️ Skipping Crexi LEASE dataset (filter is set to '${selectedListingType}')`);
         }
 
-        console.log(`✅ Optimized load complete: ${allProps.length} commercial properties from Crexi datasets`);
+        console.log(`✅ Load complete: ${allProps.length} total commercial properties from all datasets`);
+        
+        // Debug: Show unique cities loaded
+        const uniqueCities = [...new Set(allProps.map(p => p.city).filter(c => c))];
+        console.log(`📍 Cities loaded:`, uniqueCities.sort());
+        
         setAllProperties(allProps);
         
       } catch (err) {
@@ -513,8 +637,8 @@ function CommercialSearchPageContent() {
       }
     };
 
-    loadPropertiesOptimized();
-  }, [selectedListingType]); // Reload when listing type filter changes (to load/skip Crexi SALE dataset)
+    loadAllCommercialProperties();
+  }, [selectedListingType]); // Reload when listing type filter changes
 
   // Get price range object from selected value
   const getPriceRange = (value: string | null) => {
@@ -538,6 +662,8 @@ function CommercialSearchPageContent() {
 
     // Filter by search query (city, address, zip)
     if (normalizedSearch) {
+      console.log(`🔍 Filtering by search query: "${normalizedSearch}"`);
+      const beforeFilter = filtered.length;
       filtered = filtered.filter(p => {
         const city = (p.city || '').toLowerCase();
         const address = (p.address || '').toLowerCase();
@@ -546,12 +672,26 @@ function CommercialSearchPageContent() {
         const description = (p.description || '').toLowerCase();
         
         // Check for matches
-        return cityMatchesSearch(city, normalizedSearch) || 
+        const matches = cityMatchesSearch(city, normalizedSearch) || 
                address.includes(normalizedSearch) ||
                zip.includes(normalizedSearch) ||
                state.includes(normalizedSearch) ||
                description.includes(normalizedSearch);
+        
+        return matches;
       });
+      console.log(`✅ Filtered from ${beforeFilter} to ${filtered.length} properties`);
+      
+      // Debug: Show sample cities from filtered results
+      if (filtered.length > 0) {
+        const sampleCities = [...new Set(filtered.slice(0, 10).map(p => p.city))];
+        console.log(`📍 Sample cities in filtered results:`, sampleCities);
+      } else {
+        console.log(`⚠️ No properties match search query "${normalizedSearch}"`);
+        // Debug: Show sample cities from all properties
+        const allCities = [...new Set(allProperties.slice(0, 20).map(p => p.city))];
+        console.log(`📍 Sample cities in all properties:`, allCities);
+      }
     }
 
     // Filter by property type
