@@ -119,7 +119,7 @@ export default function PopularCities() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-4xl md:text-5xl font-bold text-primary-black mb-12 text-center"
+          className="text-2xl md:text-5xl font-bold text-primary-black mb-6 md:mb-12 text-center"
         >
           Explore Cities
         </motion.h2>
@@ -151,10 +151,10 @@ export default function PopularCities() {
 
           <div 
             ref={scrollContainerRef}
-            className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 md:mx-0 px-4 md:px-0 touch-pan-x"
+            className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-2 md:mx-0 px-2 md:px-0 touch-pan-x"
             onScroll={checkScrollPosition}
           >
-            <div className="flex gap-3 md:gap-6 pb-4 min-w-max">
+            <div className="flex gap-2 md:gap-6 pb-4 min-w-max">
               {cities.map((city, index) => (
                 <motion.div
                   key={city.name}
@@ -164,7 +164,7 @@ export default function PopularCities() {
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   whileHover={{ y: -10, scale: 1.02 }}
                   onClick={() => handleCityClick(city)}
-                  className="relative w-[calc(50vw-1.5rem)] md:w-80 h-48 md:h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer group flex-shrink-0"
+                  className="relative w-[calc(45vw-1rem)] md:w-80 h-36 md:h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer group flex-shrink-0"
                 >
                   <div className="absolute inset-0">
                     <Image
@@ -180,9 +180,9 @@ export default function PopularCities() {
                     />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <h3 className="text-2xl font-bold text-white">{city.name}</h3>
-                    <p className="text-white/80 text-sm mt-1">{city.state}</p>
+                  <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6">
+                    <h3 className="text-base md:text-2xl font-bold text-white">{city.name}</h3>
+                    <p className="text-white/80 text-xs md:text-sm mt-0.5 md:mt-1">{city.state}</p>
                   </div>
                 </motion.div>
               ))}

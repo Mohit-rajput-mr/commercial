@@ -38,17 +38,18 @@ const isCommercialProperty = (property: APIProperty | CommercialProperty): boole
   return commercialTypes.some(type => propType.includes(type));
 };
 
-// Create custom marker icon SVG (mobile-first: smaller on mobile, normal on desktop)
+// Create custom marker icon SVG (same size on mobile and desktop for better visibility)
 const createMarkerIcon = (isCommercial: boolean, isHighlighted: boolean = false, isMobile: boolean = false): string => {
   const color = isCommercial ? '#f59e0b' : '#3b82f6';
-  const baseScale = isMobile ? 0.75 : 1; // 25% smaller on mobile
+  // Same size on mobile and desktop for consistent visibility and touch targets
+  const baseScale = 1; // Keep same size on all devices
   const highlightScale = isHighlighted ? 1.3 : 1;
   const finalScale = baseScale * highlightScale;
   const scale = `transform: scale(${finalScale});`;
   const shadow = isHighlighted ? 'filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));' : 'filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));';
   
-  return `<div style="${scale} ${shadow} transition: transform 0.2s ease;">
-    <svg width="36" height="44" viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+  return `<div class="custom-marker-wrapper" style="${scale} ${shadow} transition: transform 0.2s ease; pointer-events: auto; cursor: pointer; z-index: ${isHighlighted ? 1000 : 100}; position: relative; display: inline-block;">
+    <svg width="36" height="44" viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
       <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26c0-9.941-8.059-18-18-18z" fill="${color}" stroke="white" stroke-width="2"/>
       <circle cx="18" cy="16" r="8" fill="white"/>
       ${isCommercial 
@@ -98,6 +99,30 @@ export default function MapView({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Fix map size on mobile when container becomes visible and ensure markers are visible
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isMobile) return;
+    
+    // Small delay to ensure DOM is updated
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+        // Force a second invalidate after a short delay to ensure proper rendering
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.invalidateSize();
+            // Force re-render of markers to ensure they're visible
+            if (markerClusterGroupRef.current) {
+              markerClusterGroupRef.current.refreshClusters();
+            }
+          }
+        }, 100);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isMobile, mapReady]);
+
   // Initialize map
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return;
@@ -132,9 +157,12 @@ export default function MapView({
         const map = L.map(mapRef.current, {
           center: initialCenter,
           zoom: initialZoom,
+          // Fix mobile rendering issues
+          preferCanvas: false,
+          zoomControl: true,
+          attributionControl: true,
           minZoom: 8,
           maxZoom: 18,
-          zoomControl: true,
         });
         
         mapInstanceRef.current = map;
@@ -144,10 +172,10 @@ export default function MapView({
           maxZoom: 20,
         }).addTo(map);
 
-        // Cluster group with NO animation for instant display (mobile-first: smaller clusters on mobile)
-        const clusterSize = window.innerWidth < 768 ? 36 : 44; // Smaller on mobile
-        const clusterFontSize = window.innerWidth < 768 ? 12 : 14; // Smaller font on mobile
-        const clusterBorder = window.innerWidth < 768 ? 2 : 3; // Thinner border on mobile
+        // Cluster group with NO animation for instant display (same size on mobile and desktop)
+        const clusterSize = 44; // Same size on all devices for better visibility
+        const clusterFontSize = 14; // Same font size on all devices
+        const clusterBorder = 3; // Same border on all devices
         
         const markerClusterGroup = (L as any).markerClusterGroup({
           chunkedLoading: false, // Load all at once
@@ -155,7 +183,7 @@ export default function MapView({
           spiderfyOnMaxZoom: true,
           showCoverageOnHover: false,
           zoomToBoundsOnClick: true,
-          maxClusterRadius: window.innerWidth < 768 ? 40 : 50, // Tighter clustering on mobile
+          maxClusterRadius: 50, // Same clustering radius on all devices
           disableClusteringAtZoom: 16, // Show individual pins at zoom 16+
           iconCreateFunction: (cluster: any) => {
             const count = cluster.getChildCount();
@@ -327,6 +355,8 @@ export default function MapView({
           iconSize: [36, 44],
           iconAnchor: [18, 44],
           popupAnchor: [0, -44],
+          // Ensure markers are clickable on mobile
+          interactive: true,
         });
 
         const marker = L.marker([lat, lng], { 
@@ -352,7 +382,7 @@ export default function MapView({
         const priceFontSize = isMobileView ? 14 : 16;
         
         marker.bindPopup(`
-          <div style="min-width: ${popupWidth}px; font-family: system-ui, sans-serif;">
+          <div style="min-width: ${popupWidth}px; font-family: system-ui, sans-serif; pointer-events: auto;">
             ${imgSrc ? `<img src="${imgSrc}" style="width: 100%; height: ${imgHeight}px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" onerror="this.style.display='none'" />` : ''}
             <span style="background: ${typeBadgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: ${badgeFontSize}px; font-weight: 600;">${typeLabel}</span>
             <div style="font-weight: 600; font-size: ${nameFontSize}px; margin: 5px 0 3px; line-height: 1.3;">${propertyName}</div>
@@ -361,17 +391,32 @@ export default function MapView({
             <div style="font-size: ${cityFontSize}px; color: #3b82f6; margin-top: 4px; cursor: pointer;">👉 Click to view details</div>
           </div>
         `, { 
-          maxWidth: isMobileView ? 200 : 280,
-          autoPan: false, // Disable auto-pan when popup opens
-          closeButton: false // Remove close button for cleaner look
+          maxWidth: isMobileView ? 220 : 280,
+          autoPan: true, // Enable auto-pan on mobile to ensure popup is visible
+          closeButton: true, // Show close button on mobile for better UX
+          className: 'custom-popup',
         });
 
+        // Click event - works on both desktop and mobile
         marker.on('click', () => { 
           marker.openPopup(); // Show popup on click
+          onMarkerHover?.(propertyId);
           onMarkerClick?.(propertyId); 
         });
-        marker.on('mouseover', () => { onMarkerHover?.(propertyId); marker.openPopup(); });
+        
+        // Desktop hover events
+        marker.on('mouseover', () => { 
+          onMarkerHover?.(propertyId); 
+          marker.openPopup(); 
+        });
         marker.on('mouseout', () => onMarkerHover?.(null));
+        
+        // Mobile touch events - ensure popup opens on tap
+        marker.on('touchstart', (e: any) => {
+          e.originalEvent?.preventDefault?.();
+          marker.openPopup();
+          onMarkerHover?.(propertyId);
+        });
 
         markersRef.current.set(propertyId, marker);
         allMarkers.push(marker);

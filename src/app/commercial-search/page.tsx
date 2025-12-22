@@ -8,10 +8,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import MapView from '@/components/MapView';
+import { addFavorite, removeFavorite, getAllFavorites } from '@/lib/indexedDB';
 import { 
   Search, Loader2, Building2, 
   MapPin, Square, DollarSign,
-  ChevronDown, X, Filter, ChevronLeft, ChevronRight
+  ChevronDown, X, Filter, ChevronLeft, ChevronRight, Heart, Map as MapIcon, List
 } from 'lucide-react';
 
 // Commercial Property interface matching JSON structure
@@ -141,6 +142,7 @@ function CommercialSearchPageContent() {
   const [filteredProperties, setFilteredProperties] = useState<CommercialProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Map is desktop-only, no mobile toggle needed
   const [highlightedPropertyId, setHighlightedPropertyId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(locationParam);
   const [selectedListingType, setSelectedListingType] = useState<'sale' | 'lease' | null>(
@@ -185,9 +187,58 @@ function CommercialSearchPageContent() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const propertiesPerPage = 20;
+  
+  // Favorites
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const allFavs = await getAllFavorites();
+        const favIds = new Set(allFavs.map(f => f.propertyId));
+        setFavorites(favIds);
+      } catch (error) {
+        console.error('Failed to load favorites:', error);
+      }
+    };
+    loadFavorites();
+  }, []);
+  
+  const toggleFavorite = async (property: CommercialProperty) => {
+    const id = property.propertyId;
+    const isCurrentlyFavorite = favorites.has(id);
+    
+    try {
+      if (isCurrentlyFavorite) {
+        await removeFavorite(id);
+        setFavorites(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+      } else {
+        await addFavorite({
+          id: `fav-${Date.now()}-${id}`,
+          propertyId: id,
+          address: property.address,
+          price: formatPrice(property.price, property.priceNumeric),
+          propertyType: (property.propertyType || property.propertyTypeDetailed) || undefined,
+          imageUrl: property.images?.find(img => img && typeof img === 'string' && img.startsWith('http')) || undefined,
+          city: property.city,
+          state: property.state,
+          dataSource: 'commercial',
+          rawData: property,
+          timestamp: Date.now(),
+        });
+        setFavorites(prev => new Set([...prev, id]));
+      }
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
 
   // Refs for property cards (for map interaction)
-  const propertyRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const propertyRefs = useRef<globalThis.Map<string, HTMLDivElement>>(new globalThis.Map());
 
   // Helper to determine listing type from listingType string
   const getListingCategory = (listingType?: string): string => {
@@ -869,6 +920,7 @@ function CommercialSearchPageContent() {
               )}
             </div>
 
+
             {/* Clear Filters Button */}
             {activeFiltersCount > 0 && (
               <button
@@ -883,33 +935,35 @@ function CommercialSearchPageContent() {
         </div>
       </div>
 
-      {/* Main Content - Split View */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* LEFT SIDE - Map (hidden on mobile) - Lower z-index so dropdowns appear above */}
-        <div className="hidden md:block w-1/2 h-full relative z-[10]">
-          {!loading && filteredProperties.length > 0 && (
-            <MapView
-              properties={filteredProperties as any}
-              centerLocation={searchQuery || 'United States'}
-              onMarkerClick={handleMarkerClick}
-              onMarkerHover={handlePropertyHover}
-              highlightedPropertyId={highlightedPropertyId}
-              showResidential={false}
-              showCommercial={true}
-            />
-          )}
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+      {/* Main Content - Full width on mobile, split on desktop */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        {/* Map - Desktop only, hidden on mobile (all pin CSS and geocoding logic remains intact) */}
+        <div className="hidden md:block w-full md:w-1/2 h-full relative z-[10]">
+          {/* Map Component - Desktop only, all pin CSS and geocoding logic intact */}
+          {loading ? (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
               <div className="text-center">
                 <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
                 <p className="text-gray-600">Loading map...</p>
               </div>
             </div>
+          ) : (
+            filteredProperties.length > 0 && (
+              <MapView
+                properties={filteredProperties as any}
+                centerLocation={searchQuery || locationParam || 'United States'}
+                onMarkerClick={handleMarkerClick}
+                onMarkerHover={handlePropertyHover}
+                highlightedPropertyId={highlightedPropertyId}
+                showResidential={false}
+                showCommercial={true}
+              />
+            )
           )}
         </div>
 
-        {/* RIGHT SIDE - Property List */}
-        <div className="w-full md:w-1/2 h-full flex flex-col overflow-hidden bg-gray-50">
+        {/* Property List - Full width on mobile, right side on desktop */}
+        <div className="flex w-full md:w-1/2 h-full flex-col overflow-hidden bg-gray-50">
           {/* Scrollable Property List */}
           <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3 md:py-4">
             {/* Loading State */}
@@ -1004,6 +1058,21 @@ function CommercialSearchPageContent() {
                               </span>
                             )}
                           </div>
+                          {/* Heart Icon */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleFavorite(property);
+                            }}
+                            className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all z-20 ${
+                              favorites.has(property.propertyId)
+                                ? 'bg-accent-yellow text-primary-black'
+                                : 'bg-white text-primary-black hover:bg-accent-yellow'
+                            }`}
+                          >
+                            <Heart size={16} fill={favorites.has(property.propertyId) ? 'currentColor' : 'none'} />
+                          </button>
                         </div>
 
                         {/* Content */}

@@ -11,11 +11,12 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSignUp?: () => void;
+  initialMode?: 'login' | 'signup';
 }
 
-export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'login' }: LoginModalProps) {
   const router = useRouter();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(initialMode === 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,9 +27,11 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (isOpen) {
+      setIsLogin(initialMode === 'login');
       document.body.style.overflow = 'hidden';
       // Auto-rotate carousel
       const interval = setInterval(() => {
@@ -41,7 +44,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
     } else {
       document.body.style.overflow = 'unset';
     }
-  }, [isOpen]);
+  }, [isOpen, initialMode]);
 
   const carouselSlides = [
     {
@@ -162,9 +165,11 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
 
           if (response.ok && data.success) {
             localStorage.setItem('user', JSON.stringify(data.user));
-            onClose();
-            // Refresh the page to update user state
-            window.location.reload();
+            setSuccessMessage('Login successful!');
+            setTimeout(() => {
+              onClose();
+              window.location.reload();
+            }, 1500);
           } else {
             setErrors({ email: data.error || 'Login failed' });
           }
@@ -181,10 +186,11 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
           if (response.ok && data.success) {
             // Auto-login after successful signup
             localStorage.setItem('user', JSON.stringify(data.user));
-            alert('Account created successfully! You are now logged in.');
-            onClose();
-            // Refresh the page to update user state
-            window.location.reload();
+            setSuccessMessage('Account created successfully! You are now logged in.');
+            setTimeout(() => {
+              onClose();
+              window.location.reload();
+            }, 2000);
           } else {
             setErrors({ email: data.error || 'Signup failed' });
           }
@@ -269,6 +275,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                         setIsLogin(!isLogin);
                         setErrors({});
                         setPassword('');
+                        setSuccessMessage('');
                         if (isLogin) {
                           setName('');
                           setPhone('');
@@ -288,6 +295,23 @@ export default function LoginModal({ isOpen, onClose, onSignUp }: LoginModalProp
                   <X size={24} className="text-primary-black" />
                 </button>
               </div>
+
+              {/* Success Message */}
+              {successMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mx-4 md:mx-6 mt-4 p-4 bg-green-50 border-2 border-green-500 rounded-lg flex items-center gap-3"
+                >
+                  <div className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-green-800 font-semibold text-sm md:text-base">{successMessage}</p>
+                </motion.div>
+              )}
 
               <div className="flex flex-col md:flex-row overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
                 {/* Left Column - Carousel */}

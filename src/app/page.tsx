@@ -10,7 +10,6 @@ import PopularCities from '@/components/PopularCities';
 import SmartSpaceEstimationTool from '@/components/SmartSpaceEstimationTool';
 import ArticlesSection from '@/components/ArticlesSection';
 import FAQSection from '@/components/FAQSection';
-import FooterNavigation from '@/components/FooterNavigation';
 import Footer from '@/components/Footer';
 import { ToastContainer } from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
@@ -42,7 +41,6 @@ export default function Home() {
         <SmartSpaceEstimationTool />
         <ArticlesSection />
         <FAQSection />
-        <FooterNavigation />
       </main>
       <Footer />
       <ToastContainer toasts={toasts} onClose={removeToast} />

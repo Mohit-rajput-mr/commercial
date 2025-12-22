@@ -26,8 +26,52 @@ import {
   Map,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+
+// Property Feature Dropdown Component
+interface PropertyFeatureDropdownProps {
+  title: string;
+  icon: React.ReactNode;
+  data: any[];
+  renderItem: (item: any, index: number) => React.ReactNode;
+}
+
+function PropertyFeatureDropdown({ title, icon, data, renderItem }: PropertyFeatureDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!data || data.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-3">
+          {icon}
+          <h3 className="text-lg font-semibold text-primary-black">{title}</h3>
+          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            {data.length}
+          </span>
+        </div>
+        {isOpen ? (
+          <ChevronUp className="text-gray-500" size={20} />
+        ) : (
+          <ChevronDown className="text-gray-500" size={20} />
+        )}
+      </button>
+      
+      {isOpen && (
+        <div className="mt-4 space-y-3">
+          {data.map((item, index) => renderItem(item, index))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Property {
   address?: {
@@ -241,18 +285,31 @@ function JsonDetailContent() {
     .map(getPhotoUrl)
     .filter((url): url is string => url !== null);
 
-  // Helper to render any value properly
-  const renderValue = (value: any): string => {
+  // Helper to check if value is a complex object/array
+  const isComplexValue = (value: any): boolean => {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') return true;
+    if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0) return true;
+    return false;
+  };
+
+  // Helper to render simple values
+  const renderSimpleValue = (value: any): string => {
     if (value === null || value === undefined) return 'N/A';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (Array.isArray(value)) return value.join(', ');
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] !== 'object') {
+      return value.join(', ');
+    }
     return String(value);
   };
 
-  // Get all property keys for display
-  const excludedKeys = ['photos', 'address', 'coordinates', 'details', 'buildingPermitsHistory'];
-  const propertyKeys = Object.keys(property).filter(key => !excludedKeys.includes(key) && property[key] != null);
+  // Get all property keys for display, excluding complex objects
+  const excludedKeys = ['photos', 'address', 'coordinates', 'details', 'buildingPermitsHistory', 'history', 'advertisers', 'nearbySchools', 'local', 'taxHistory'];
+  const propertyKeys = Object.keys(property).filter(key => 
+    !excludedKeys.includes(key) && 
+    property[key] != null && 
+    !isComplexValue(property[key])
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -509,7 +566,7 @@ function JsonDetailContent() {
                   {key.replace(/_/g, ' ')}
                 </div>
                 <div className="text-primary-black text-sm break-words">
-                  {renderValue(property[key])}
+                  {renderSimpleValue(property[key])}
                 </div>
               </div>
             ))}
@@ -561,18 +618,134 @@ function JsonDetailContent() {
           </div>
         )}
 
-        {/* Raw JSON Data (Collapsible) */}
-        <details className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <summary className="p-6 cursor-pointer text-lg font-semibold text-primary-black flex items-center gap-2">
-            <FileJson className="text-accent-yellow" size={20} />
-            Raw JSON Data (Click to expand)
-          </summary>
-          <div className="px-6 pb-6">
-            <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto text-xs text-gray-600 max-h-96 overflow-y-auto border border-gray-200">
-              {JSON.stringify(property, null, 2)}
-            </pre>
-          </div>
-        </details>
+        {/* Property History - Dropdown */}
+        {property.history && Array.isArray(property.history) && property.history.length > 0 && (
+          <PropertyFeatureDropdown
+            title="Property History"
+            icon={<Calendar className="text-accent-yellow" size={20} />}
+            data={property.history}
+            renderItem={(item: any, index: number) => {
+              // Handle different history object structures
+              const date = item.date || item.eventDate || item.soldOn || item.listingDate || 'Date N/A';
+              const price = item.price || item.soldPrice || item.listPrice || item.lastSoldPrice;
+              const event = item.event || item.type || item.status || item.description;
+              const source = item.source || item.listingAgent || item.agent;
+              
+              return (
+                <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="font-semibold text-primary-black mb-2">{date}</div>
+                  {event && <div className="text-gray-600 text-sm mb-1">{event}</div>}
+                  {price && <div className="text-accent-yellow font-medium">{formatPrice(price)}</div>}
+                  {source && <div className="text-xs text-gray-500 mt-2">Source: {typeof source === 'object' ? source.name || JSON.stringify(source) : source}</div>}
+                </div>
+              );
+            }}
+          />
+        )}
+
+        {/* Advertisers - Dropdown */}
+        {property.advertisers && Array.isArray(property.advertisers) && property.advertisers.length > 0 && (
+          <PropertyFeatureDropdown
+            title="Advertisers"
+            icon={<Building2 className="text-accent-yellow" size={20} />}
+            data={property.advertisers}
+            renderItem={(item: any, index: number) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                {item.name && <div className="font-semibold text-primary-black mb-2">{item.name}</div>}
+                {item.phone && <div className="text-gray-600 text-sm mb-1">Phone: {item.phone}</div>}
+                {item.email && <div className="text-gray-600 text-sm mb-1">Email: {item.email}</div>}
+                {item.website && (
+                  <a href={item.website} target="_blank" rel="noopener noreferrer" className="text-accent-yellow hover:underline text-sm">
+                    Visit Website <ExternalLink size={14} className="inline" />
+                  </a>
+                )}
+              </div>
+            )}
+          />
+        )}
+
+        {/* Nearby Schools - Dropdown */}
+        {property.nearbySchools && typeof property.nearbySchools === 'object' && property.nearbySchools.schools && (
+          <PropertyFeatureDropdown
+            title="Nearby Schools"
+            icon={<Info className="text-accent-yellow" size={20} />}
+            data={property.nearbySchools.schools || []}
+            renderItem={(school: any, index: number) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                {school.name && <div className="font-semibold text-primary-black mb-2">{school.name}</div>}
+                {school.rating && <div className="text-accent-yellow font-medium mb-1">Rating: {school.rating}/10</div>}
+                {school.distance_in_miles && <div className="text-gray-600 text-sm mb-1">Distance: {school.distance_in_miles} miles</div>}
+                {school.education_levels && (
+                  <div className="text-gray-600 text-sm mb-1">Levels: {school.education_levels.join(', ')}</div>
+                )}
+                {school.grades && <div className="text-gray-600 text-sm mb-1">Grades: {school.grades.join(', ')}</div>}
+                {school.funding_type && <div className="text-xs text-gray-500 mt-2">Type: {school.funding_type}</div>}
+              </div>
+            )}
+          />
+        )}
+
+        {/* Local Data (Flood, Noise, Wildfire) - Dropdown */}
+        {property.local && typeof property.local === 'object' && (
+          <PropertyFeatureDropdown
+            title="Environmental & Local Information"
+            icon={<Shield className="text-accent-yellow" size={20} />}
+            data={[
+              { key: 'flood', label: 'Flood Risk', data: property.local.flood },
+              { key: 'noise', label: 'Noise Information', data: property.local.noise },
+              { key: 'wildfire', label: 'Wildfire Risk', data: property.local.wildfire },
+            ].filter(item => item.data)}
+            renderItem={(item: any, index: number) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="font-semibold text-primary-black mb-3">{item.label}</div>
+                {item.data && (
+                  <div className="space-y-2 text-sm">
+                    {item.data.flood_factor_score && (
+                      <div className="text-gray-600">
+                        <span className="font-medium">Flood Score: </span>
+                        {item.data.flood_factor_score}/10 ({item.data.flood_factor_severity || 'N/A'})
+                      </div>
+                    )}
+                    {item.data.score && (
+                      <div className="text-gray-600">
+                        <span className="font-medium">Noise Score: </span>
+                        {item.data.score}/100
+                      </div>
+                    )}
+                    {item.data.fire_factor_score && (
+                      <div className="text-gray-600">
+                        <span className="font-medium">Fire Score: </span>
+                        {item.data.fire_factor_score}/10 ({item.data.fire_factor_severity || 'N/A'})
+                      </div>
+                    )}
+                    {item.data.flood_trend && (
+                      <div className="text-gray-600 mt-2" dangerouslySetInnerHTML={{ __html: item.data.flood_trend_paragraph || item.data.flood_trend }} />
+                    )}
+                    {item.data.fire_trend_paragraph && (
+                      <div className="text-gray-600 mt-2" dangerouslySetInnerHTML={{ __html: item.data.fire_trend_paragraph }} />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          />
+        )}
+
+        {/* Tax History - Dropdown */}
+        {property.taxHistory && Array.isArray(property.taxHistory) && property.taxHistory.length > 0 && (
+          <PropertyFeatureDropdown
+            title="Tax History"
+            icon={<DollarSign className="text-accent-yellow" size={20} />}
+            data={property.taxHistory}
+            renderItem={(tax: any, index: number) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                {tax.year && <div className="font-semibold text-primary-black mb-2">Year: {tax.year}</div>}
+                {tax.tax && <div className="text-accent-yellow font-medium mb-1">{formatPrice(tax.tax)}</div>}
+                {tax.assessment && <div className="text-gray-600 text-sm mb-1">Assessment: {formatPrice(tax.assessment)}</div>}
+              </div>
+            )}
+          />
+        )}
       </div>
     </div>
   );
@@ -592,4 +765,5 @@ export default function JsonDetailInfoPage() {
     </Suspense>
   );
 }
+
 

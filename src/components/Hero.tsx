@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft, Database } from 'lucide-react';
+import { Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft, Home, Building2, Store, Factory, Trees, Hotel, Stethoscope, Building, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import TrustedPartners from './TrustedPartners';
@@ -25,16 +25,27 @@ export default function Hero() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { suggestions, loading: suggestionsLoading } = useLocationAutocomplete(searchQuery);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const propertyTypesScrollRef = useRef<HTMLDivElement>(null);
 
-  // Listen for login trigger from Navigation
+  // Listen for login/signup triggers from Navigation
   useEffect(() => {
     const handleLoginTrigger = () => {
       setIsLoginOpen(true);
+      setIsSignUpOpen(false);
+    };
+    const handleSignUpTrigger = () => {
+      setIsSignUpOpen(true);
+      setIsLoginOpen(false);
     };
     window.addEventListener('openLoginModal', handleLoginTrigger);
-    return () => window.removeEventListener('openLoginModal', handleLoginTrigger);
+    window.addEventListener('openSignUpModal', handleSignUpTrigger);
+    return () => {
+      window.removeEventListener('openLoginModal', handleLoginTrigger);
+      window.removeEventListener('openSignUpModal', handleSignUpTrigger);
+    };
   }, []);
 
   // Listen for sidebar trigger from Navigation
@@ -195,7 +206,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
-          className="w-full max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-lg md:rounded-xl p-4 sm:p-5 md:p-6 shadow-2xl border border-white/20"
+          className="w-full max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-lg md:rounded-xl p-4 sm:p-5 md:p-6 shadow-2xl border border-white/20 relative z-20"
         >
           {/* Tabs - Only Lease and Sale, centered */}
           <div className="flex gap-2 mb-4 pb-3 border-b border-white/20 justify-center">
@@ -220,55 +231,85 @@ export default function Hero() {
             ))}
           </div>
 
-          {/* Property Type Filters - Residential, Commercial */}
-          <div className="flex flex-wrap gap-2 mb-4 justify-center">
-            {(['Residential', 'Commercial'] as const).map((type) => (
+          {/* Slidable Property Type Icons - Similar to Loopnet */}
+          <div className="mb-4 relative">
+            {/* Desktop Arrows */}
+            <div className="hidden md:block">
               <button
-                key={type}
                 onClick={() => {
-                  setPropertyTypeFilter(type);
-                  setSpecificPropertyType('All'); // Reset specific type when switching
+                  if (propertyTypesScrollRef.current) {
+                    propertyTypesScrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
+                  }
                 }}
-                className={`px-4 sm:px-5 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-sm transition-all rounded-md ${
-                  propertyTypeFilter === type
-                    ? 'text-primary-black bg-accent-yellow shadow-lg'
-                    : 'text-white bg-white/10 hover:bg-white/20'
-                }`}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all"
               >
-                {type}
+                <ChevronLeft size={20} />
               </button>
-            ))}
-          </div>
-
-          {/* Specific Property Type Filter (only for Commercial) */}
-          {propertyTypeFilter === 'Commercial' && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4"
-            >
-              <div className="flex flex-wrap gap-2 justify-center">
-                {['All', 'Office', 'Retail', 'Multifamily', 'Industrial', 'Land', 'Hospitality', 'Healthcare', 'Mixed Use'].map((type) => (
+              <button
+                onClick={() => {
+                  if (propertyTypesScrollRef.current) {
+                    propertyTypesScrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
+                  }
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+            <div ref={propertyTypesScrollRef} className="overflow-x-auto scrollbar-hide">
+              <div className="flex gap-2 justify-start md:justify-center px-1 min-w-max md:min-w-0">
+              {[
+                { label: 'Residential', value: 'Residential', icon: Home },
+                { label: 'All Commercial', value: 'Commercial-All', icon: Building2 },
+                { label: 'Office', value: 'Commercial-Office', icon: Building },
+                { label: 'Retail', value: 'Commercial-Retail', icon: Store },
+                { label: 'Multifamily', value: 'Commercial-Multifamily', icon: Building2 },
+                { label: 'Industrial', value: 'Commercial-Industrial', icon: Factory },
+                { label: 'Land', value: 'Commercial-Land', icon: Trees },
+                { label: 'Hospitality', value: 'Commercial-Hospitality', icon: Hotel },
+                { label: 'Healthcare', value: 'Commercial-Healthcare', icon: Stethoscope },
+                { label: 'Mixed Use', value: 'Commercial-Mixed Use', icon: Building2 },
+              ].map((type) => {
+                const IconComponent = type.icon;
+                const isActive = 
+                  (type.value === 'Residential' && propertyTypeFilter === 'Residential') ||
+                  (type.value === 'Commercial-All' && propertyTypeFilter === 'Commercial' && specificPropertyType === 'All') ||
+                  (type.value.startsWith('Commercial-') && type.value !== 'Commercial-All' && 
+                   propertyTypeFilter === 'Commercial' && specificPropertyType === type.value.replace('Commercial-', ''));
+                
+                return (
                   <button
-                    key={type}
-                    onClick={() => setSpecificPropertyType(type)}
-                    className={`px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 font-medium text-[10px] sm:text-xs md:text-sm transition-all rounded-md ${
-                      specificPropertyType === type
-                        ? 'text-primary-black bg-accent-yellow/90 shadow-md'
-                        : 'text-white bg-white/5 hover:bg-white/15 border border-white/10'
+                    key={type.value}
+                    onClick={() => {
+                      if (type.value === 'Residential') {
+                        setPropertyTypeFilter('Residential');
+                        setSpecificPropertyType('All');
+                      } else if (type.value === 'Commercial-All') {
+                        setPropertyTypeFilter('Commercial');
+                        setSpecificPropertyType('All');
+                      } else {
+                        setPropertyTypeFilter('Commercial');
+                        setSpecificPropertyType(type.value.replace('Commercial-', ''));
+                      }
+                    }}
+                    className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                      isActive
+                        ? 'bg-accent-yellow text-primary-black shadow-lg'
+                        : 'bg-white/10 text-white hover:bg-white/20'
                     }`}
                   >
-                    {type}
+                    <IconComponent size={18} />
+                    <span className="text-[10px] sm:text-xs font-medium whitespace-nowrap">{type.label}</span>
                   </button>
-                ))}
+                );
+              })}
               </div>
-            </motion.div>
-          )}
+            </div>
+          </div>
 
           {/* Search Box */}
-          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex flex-col sm:flex-row gap-3 sm:gap-2 md:gap-2 w-full">
-            <div className="flex-1 relative w-full">
+          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex flex-col sm:flex-row gap-3 sm:gap-2 md:gap-2 w-full relative z-20">
+            <div className="flex-1 relative w-full z-30">
               <input
                 ref={inputRef}
                 className="w-full px-4 sm:px-4 md:px-4 py-3 sm:py-3 md:py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm sm:text-sm md:text-base text-white placeholder-gray-300 focus:outline-none focus:border-accent-yellow focus:bg-white/15 transition-all pr-10"
@@ -314,7 +355,7 @@ export default function Hero() {
               {dropdownOpen && suggestions.length > 0 && (
                 <div
                   ref={dropdownRef}
-                  className="absolute z-50 w-full mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-80 overflow-y-auto"
+                  className="absolute z-[9999] w-full mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-80 overflow-y-auto"
                 >
                   {suggestions.map((suggestion, index) => {
                     let displayText = '';
@@ -374,17 +415,6 @@ export default function Hero() {
                 <span className="hidden sm:inline">Search Properties</span>
                 <span className="sm:hidden">Search</span>
               </motion.button>
-              <motion.button
-                type="button"
-                onClick={() => router.push('/database-properties')}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-full sm:w-auto px-4 sm:px-4 md:px-4 py-3 sm:py-3 md:py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-lg font-semibold text-sm sm:text-sm md:text-base flex items-center justify-center gap-2 hover:bg-white/30 transition-all"
-              >
-                <Database size={18} className="sm:w-5 sm:h-5 md:w-5 md:h-5" />
-                <span className="hidden sm:inline">Database Properties</span>
-                <span className="sm:hidden">Database</span>
-              </motion.button>
             </div>
           </form>
         </motion.div>
@@ -394,7 +424,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4 }}
-          className="w-full max-w-7xl mx-auto mt-8 md:mt-12"
+          className="w-full max-w-7xl mx-auto mt-8 md:mt-12 relative z-10"
         >
           <TrustedPartners />
         </motion.div>
@@ -404,7 +434,13 @@ export default function Hero() {
       {/* Use LoginModal Component */}
       <LoginModal 
         isOpen={isLoginOpen} 
-        onClose={() => setIsLoginOpen(false)} 
+        onClose={() => setIsLoginOpen(false)}
+        initialMode="login"
+      />
+      <LoginModal 
+        isOpen={isSignUpOpen} 
+        onClose={() => setIsSignUpOpen(false)}
+        initialMode="signup"
       />
 
       {/* Sidebar Menu - Inside Hero Section */}
@@ -433,10 +469,10 @@ export default function Hero() {
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 h-full w-[300px] bg-white z-[99999] shadow-2xl overflow-y-auto"
+              className="fixed left-0 top-0 h-full w-[300px] bg-primary-black z-[99999] shadow-2xl overflow-y-auto"
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between p-6 border-b border-white/20">
                 <div className="relative h-8 w-32">
                   <Image
                     src="/assets/logoRE.png"
@@ -447,9 +483,9 @@ export default function Hero() {
                 </div>
                 <button
                   onClick={() => setIsSidebarOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                  <X size={24} className="text-primary-black" />
+                  <X size={24} className="text-white" />
                 </button>
               </div>
 
@@ -459,55 +495,37 @@ export default function Hero() {
                   {
                     title: 'User',
                     items: [
-                      { icon: Bell, label: 'Notifications', href: '#' },
-                      { icon: Settings, label: 'My Preferences', href: '#' },
-                    ],
-                  },
-                  {
-                    title: 'Search',
-                    items: [
-                      { icon: Search, label: 'Search Auctions', href: '/?tab=Auctions' },
+                      { icon: Bell, label: 'Notifications', href: '/notifications' },
+                      { icon: Settings, label: 'My Preferences', href: '/preferences' },
                     ],
                   },
                   {
                     title: 'Saved',
                     items: [
-                      { icon: Heart, label: 'Saved Searches', href: '#' },
-                      { icon: Heart, label: 'My Favorites', href: '#' },
-                      { icon: FileText, label: 'My Reports', href: '#' },
+                      { icon: Heart, label: 'My Favorites', href: '/favorites' },
                     ],
                   },
                   {
                     title: 'Account',
                     items: [
-                      { icon: User, label: 'My Leads', href: '#' },
-                      { icon: User, label: 'My Account', href: '#' },
-                    ],
-                  },
-                  {
-                    title: 'Tools',
-                    items: [
-                      { icon: HelpCircle, label: 'Help Center', href: '#' },
-                      { icon: Search, label: 'Zillow API 2.0', href: '/zillow' },
+                      { icon: User, label: 'My Account', href: '/account' },
                     ],
                   },
                 ].map((section, sectionIndex) => (
                   <div key={section.title}>
                     {section.items.map((item) => {
                       const Icon = item.icon;
-                      const isExpandable = false;
-                      const isExpanded = false;
 
                       return (
                         <div key={item.label}>
                           <button
                             onClick={() => {
                               if (item.href && item.href.startsWith('/')) {
-                                window.location.href = item.href;
+                                router.push(item.href);
                                 setIsSidebarOpen(false);
                               }
                             }}
-                            className="w-full flex items-center justify-between px-6 py-4 hover:bg-light-gray transition-colors text-primary-black"
+                            className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/10 transition-colors text-white"
                           >
                             <div className="flex items-center gap-3">
                               <Icon size={20} />
@@ -517,32 +535,24 @@ export default function Hero() {
                         </div>
                       );
                     })}
-                    {sectionIndex < 4 && (
-                      <div className="h-px bg-gray-200 mx-6 my-2" />
+                    {sectionIndex < 2 && (
+                      <div className="h-px bg-white/20 mx-6 my-2" />
                     )}
                   </div>
                 ))}
               </div>
 
-              {/* Bottom Buttons */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200 bg-white space-y-3">
+              {/* Bottom Buttons - Only Contact Us for Mobile */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-white/20 bg-primary-black">
                 <button
                   onClick={() => {
+                    router.push('/contact');
                     setIsSidebarOpen(false);
-                    setIsLoginOpen(true);
                   }}
-                  className="w-full px-6 py-3 border-2 border-primary-black rounded-lg font-semibold text-primary-black hover:bg-primary-black hover:text-white transition-all"
+                  className="w-full px-6 py-3 border-2 border-accent-yellow rounded-lg font-semibold text-accent-yellow hover:bg-accent-yellow hover:text-primary-black transition-all flex items-center justify-center gap-2"
                 >
-                  Log In
-                </button>
-                <button
-                  onClick={() => {
-                    setIsSidebarOpen(false);
-                    setIsLoginOpen(true);
-                  }}
-                  className="w-full px-6 py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all"
-                >
-                  Sign Up
+                  <Phone size={18} />
+                  Contact Us
                 </button>
               </div>
             </motion.div>

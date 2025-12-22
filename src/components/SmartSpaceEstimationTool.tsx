@@ -13,7 +13,7 @@ export default function SmartSpaceEstimationTool() {
   };
 
   return (
-    <div className="relative py-20 md:py-32 px-5 overflow-hidden">
+    <div className="relative py-10 md:py-20 lg:py-32 px-4 md:px-5 overflow-hidden">
       {/* Background Image with Overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -24,8 +24,8 @@ export default function SmartSpaceEstimationTool() {
         <div className="absolute inset-0 bg-gradient-to-r from-primary-black/90 via-primary-black/80 to-primary-black/70" />
       </div>
 
-      <div className="relative z-10 max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-5 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
+      <div className="relative z-10 max-w-7xl 2xl:max-w-[90%] 3xl:max-w-[85%] 4xl:max-w-[80%] mx-auto px-4 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center">
           {/* Left Side - Content */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
@@ -39,10 +39,10 @@ export default function SmartSpaceEstimationTool() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6"
+              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1.5 md:px-4 md:py-2 mb-4 md:mb-6"
             >
-              <Calculator className="w-5 h-5 text-accent-yellow" />
-              <span className="text-sm font-semibold text-accent-yellow">Smart Tool</span>
+              <Calculator className="w-4 h-4 md:w-5 md:h-5 text-accent-yellow" />
+              <span className="text-xs md:text-sm font-semibold text-accent-yellow">Smart Tool</span>
             </motion.div>
 
             <motion.h2
@@ -50,7 +50,7 @@ export default function SmartSpaceEstimationTool() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight"
+              className="text-xl md:text-3xl lg:text-5xl xl:text-6xl font-bold mb-3 md:mb-4 lg:mb-6 leading-tight text-center md:text-left"
             >
               Smart Space Estimation Tool
             </motion.h2>
@@ -60,7 +60,7 @@ export default function SmartSpaceEstimationTool() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-lg md:text-xl text-white/90 mb-8 leading-relaxed"
+              className="text-xs md:text-base lg:text-lg xl:text-xl text-white/90 mb-4 md:mb-6 lg:mb-8 leading-relaxed text-center md:text-left"
             >
               Calculate your ideal commercial space requirements with our intelligent estimation tool. 
               Get accurate recommendations based on your business needs, team size, and growth projections.
@@ -72,35 +72,35 @@ export default function SmartSpaceEstimationTool() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.5 }}
-              className="space-y-4 mb-8"
+              className="space-y-3 md:space-y-4 mb-6 md:mb-8"
             >
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent-yellow/20 flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-accent-yellow" />
+              <div className="flex items-start gap-2 md:gap-3 lg:gap-4">
+                <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 rounded-lg bg-accent-yellow/20 flex items-center justify-center">
+                  <Building2 className="w-3 h-3 md:w-4 md:h-4 lg:w-5 lg:h-5 text-accent-yellow" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">Accurate Calculations</h3>
-                  <p className="text-white/80">Get precise space requirements based on industry standards and best practices.</p>
+                  <h3 className="font-semibold text-xs md:text-sm lg:text-lg mb-0.5 md:mb-1">Accurate Calculations</h3>
+                  <p className="text-white/80 text-xs md:text-sm lg:text-base">Get precise space requirements based on industry standards and best practices.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent-yellow/20 flex items-center justify-center">
-                  <Ruler className="w-5 h-5 text-accent-yellow" />
+              <div className="flex items-start gap-2 md:gap-3 lg:gap-4">
+                <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 rounded-lg bg-accent-yellow/20 flex items-center justify-center">
+                  <Ruler className="w-3 h-3 md:w-4 md:h-4 lg:w-5 lg:h-5 text-accent-yellow" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">Customizable Parameters</h3>
-                  <p className="text-white/80">Adjust for your specific needs, team size, and future growth plans.</p>
+                  <h3 className="font-semibold text-xs md:text-sm lg:text-lg mb-0.5 md:mb-1">Customizable Parameters</h3>
+                  <p className="text-white/80 text-xs md:text-sm lg:text-base">Adjust for your specific needs, team size, and future growth plans.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent-yellow/20 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-accent-yellow" />
+              <div className="flex items-start gap-2 md:gap-3 lg:gap-4">
+                <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 rounded-lg bg-accent-yellow/20 flex items-center justify-center">
+                  <TrendingUp className="w-3 h-3 md:w-4 md:h-4 lg:w-5 lg:h-5 text-accent-yellow" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">Growth Planning</h3>
-                  <p className="text-white/80">Factor in expansion plans and scalability requirements.</p>
+                  <h3 className="font-semibold text-xs md:text-sm lg:text-lg mb-0.5 md:mb-1">Growth Planning</h3>
+                  <p className="text-white/80 text-xs md:text-sm lg:text-base">Factor in expansion plans and scalability requirements.</p>
                 </div>
               </div>
             </motion.div>
@@ -114,9 +114,9 @@ export default function SmartSpaceEstimationTool() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleGetStarted}
-              className="inline-flex items-center gap-3 bg-accent-yellow text-primary-black px-8 py-4 rounded-lg font-semibold text-lg hover:bg-yellow-400 transition-all shadow-lg hover:shadow-xl"
+              className="inline-flex items-center justify-center gap-2 bg-accent-yellow text-primary-black px-4 py-2 md:px-6 md:py-3 lg:px-8 lg:py-4 rounded-lg font-semibold text-xs md:text-sm lg:text-lg hover:bg-yellow-400 transition-all shadow-lg hover:shadow-xl w-full md:w-auto"
             >
-              <Calculator className="w-5 h-5" />
+              <Calculator className="w-3 h-3 md:w-4 md:h-4 lg:w-5 lg:h-5" />
               Get Started
             </motion.button>
           </motion.div>

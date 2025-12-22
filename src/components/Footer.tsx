@@ -7,27 +7,12 @@ import Link from 'next/link';
 
 const footerColumns = [
   {
-    title: 'Search',
-    links: [
-      { label: 'Properties For Sale', href: '/commercial-search' },
-      { label: 'Properties For Lease', href: '/commercial-search' },
-      { label: 'Residential', href: '/unified-search?location=miami' },
-    ],
-  },
-  {
-    title: 'Resources',
-    links: [
-      { label: 'CRE Explained', href: '/cre-explained' },
-      { label: 'Help Center', href: '#' },
-      { label: 'Contact Us', href: '#' },
-    ],
-  },
-  {
     title: 'Company',
     links: [
       { label: 'About Us', href: '#' },
-      { label: 'Terms of Use', href: '#' },
-      { label: 'Privacy Notice', href: '#' },
+      { label: 'Terms of Use', href: '/terms-of-use' },
+      { label: 'Privacy Notice', href: '/privacy-notice' },
+      { label: 'Contact Us', href: '/contact' },
     ],
   },
 ];
@@ -105,7 +90,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-custom-gray">
-            &copy; {new Date().getFullYear()} CoStar Group. All rights reserved.
+            &copy; {new Date().getFullYear()} capratecompany. All rights reserved.
           </p>
           <div className="flex gap-4 text-xs text-custom-gray">
             <a href="#" className="hover:text-accent-yellow transition-colors">Cookie Policy</a>

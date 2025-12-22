@@ -233,6 +233,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
   const chatRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isAbortedRef = useRef(false); // Use ref for immediate abort checking
 
   // Load ALL property datasets - COMPREHENSIVE
   useEffect(() => {
@@ -596,6 +597,7 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     setIsStreaming(true);
     setStreamingMessage('');
     setIsAborted(false);
+    isAbortedRef.current = false; // Reset ref
     
     // Add empty message placeholder
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -604,9 +606,9 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     let abortCheckCounter = 0;
     
     for (let i = 0; i < chars.length; i++) {
-      // Check abort flag every character (frequent checking)
+      // Check abort flag using ref (immediate check)
       abortCheckCounter++;
-      if (isAborted) {
+      if (isAbortedRef.current) {
         console.log(`⏹️ Streaming aborted at character ${i}/${chars.length} (${abortCheckCounter} checks)`);
         setIsStreaming(false);
         setStreamingMessage('');
@@ -615,8 +617,8 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       
       await new Promise(resolve => setTimeout(resolve, 15)); // 15ms per character
       
-      // Double-check abort after delay
-      if (isAborted) {
+      // Double-check abort after delay using ref
+      if (isAbortedRef.current) {
         console.log(`⏹️ Streaming aborted after delay at ${i}/${chars.length}`);
         setIsStreaming(false);
         setStreamingMessage('');
@@ -640,52 +642,33 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
     setStreamingMessage('');
   };
 
-  // Stop/Abort AI response - 4 LAYERS OF ABORT LOGIC
+  // Stop/Abort AI response - IMPROVED WITH REF
   const stopAIResponse = useCallback(() => {
-    console.log('🛑 Layer 1: Stop button clicked - Initiating abort sequence');
+    console.log('🛑 STOP button clicked - Initiating abort sequence');
     
-    // LAYER 1: Set abort flag immediately (stops streaming loop)
+    // Set ref immediately (synchronous, no delay)
+    isAbortedRef.current = true;
     setIsAborted(true);
-    console.log('✅ Layer 1 Complete: Abort flag set');
+    console.log('✅ Abort flag set (ref + state)');
     
-    // LAYER 2: Stop all UI loading states
-    setTimeout(() => {
-      setIsStreaming(false);
-      setLoading(false);
-      setIsSearching(false);
-      console.log('✅ Layer 2 Complete: All UI states cleared');
-    }, 0);
+    // Immediately stop all UI loading states
+    setIsStreaming(false);
+    setLoading(false);
+    setIsSearching(false);
+    setStreamingMessage('');
     
-    // LAYER 3: Abort ongoing API request
-    setTimeout(() => {
-      if (abortControllerRef.current) {
-        try {
-          abortControllerRef.current.abort();
-          console.log('✅ Layer 3 Complete: API request aborted');
-        } catch (error) {
-          console.error('Layer 3 Error:', error);
-        }
-        abortControllerRef.current = null;
-      } else {
-        console.log('⚠️ Layer 3: No active API request to abort');
+    // Abort ongoing API request
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+        console.log('✅ API request aborted');
+      } catch (error) {
+        console.error('Abort error:', error);
       }
-    }, 50);
+      abortControllerRef.current = null;
+    }
     
-    // LAYER 4: Force cleanup and reset (failsafe)
-    setTimeout(() => {
-      setIsStreaming(false);
-      setLoading(false);
-      setIsSearching(false);
-      setStreamingMessage('');
-      
-      // Clear any pending timeouts
-      if (abortControllerRef.current) {
-        abortControllerRef.current = null;
-      }
-      
-      console.log('✅ Layer 4 Complete: Forced cleanup and reset');
-      console.log('🎯 All 4 layers executed - Abort sequence complete!');
-    }, 100);
+    console.log('🎯 Abort sequence complete!');
   }, []);
 
   // Generate intelligent response based on query type
@@ -805,8 +788,8 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
       setIsSearching(true);
       
       setTimeout(async () => {
-        // Check if aborted during search delay
-        if (isAborted) {
+        // Check if aborted during search delay using ref
+        if (isAbortedRef.current) {
           console.log('⏹️ Property search aborted during delay');
           setIsSearching(false);
           setLoading(false);
@@ -815,8 +798,8 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
         
         const results = findRelevantProperties(userMessage);
         
-        // Check if aborted after search
-        if (isAborted) {
+        // Check if aborted after search using ref
+        if (isAbortedRef.current) {
           console.log('⏹️ Property search aborted after finding results');
           setIsSearching(false);
           setLoading(false);
@@ -828,8 +811,8 @@ export default function DraggableAIChat({ isOpen, onClose }: DraggableAIChatProp
         setIsSearching(false);
         setLoading(false);
         
-        // Final check before streaming
-        if (isAborted) {
+        // Final check before streaming using ref
+        if (isAbortedRef.current) {
           console.log('⏹️ Property search aborted before streaming');
           return;
         }
@@ -972,10 +955,13 @@ Respond naturally, helpfully, and with specific details from your training data.
   return (
     <div
       ref={chatRef}
-      className={`fixed z-[9999] w-[380px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden ${isDragging ? 'select-none' : ''}`}
+      className={`fixed z-[9999] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden ${isDragging ? 'select-none' : ''} 
+        w-[90vw] max-w-[380px] h-[70vh] max-h-[500px] 
+        md:w-[380px] md:h-[500px]`}
       style={{
-        left: position.x,
-        top: position.y,
+        left: typeof window !== 'undefined' && window.innerWidth < 768 ? '50%' : position.x,
+        top: typeof window !== 'undefined' && window.innerWidth < 768 ? '50%' : position.y,
+        transform: typeof window !== 'undefined' && window.innerWidth < 768 ? 'translate(-50%, -50%)' : 'none',
         cursor: isDragging ? 'grabbing' : 'default'
       }}
     >
@@ -988,11 +974,6 @@ Respond naturally, helpfully, and with specific details from your training data.
           <Move size={16} className="text-primary-black/40" />
           <User size={18} className="text-primary-black" />
           <h3 className="font-bold text-sm text-primary-black">AI Assistant</h3>
-          {datasetStats.commercial + datasetStats.residential > 0 && (
-            <span className="text-xs text-primary-black/60">
-              ({(datasetStats.commercial + datasetStats.residential).toLocaleString()} properties)
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -1064,10 +1045,37 @@ Respond naturally, helpfully, and with specific details from your training data.
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !loading) {
+                e.preventDefault();
+                sendMessage();
+                // Force zoom out on mobile after submit
+                if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                  const viewport = document.querySelector('meta[name="viewport"]');
+                  if (viewport) {
+                    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                    setTimeout(() => {
+                      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+                    }, 100);
+                  }
+                  // Blur input to dismiss keyboard
+                  (e.target as HTMLInputElement).blur();
+                }
+              }
+            }}
+            onBlur={() => {
+              // Ensure zoom out when input loses focus
+              if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                const viewport = document.querySelector('meta[name="viewport"]');
+                if (viewport) {
+                  viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+                }
+              }
+            }}
             placeholder="Ask about properties..."
             className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-yellow focus:border-transparent"
             disabled={loading || isStreaming}
+            style={{ fontSize: '16px' }}
           />
           
           {/* Abort Button - Shows when AI is processing, next to Send button */}
@@ -1082,7 +1090,22 @@ Respond naturally, helpfully, and with specific details from your training data.
             </button>
           ) : (
             <button
-              onClick={sendMessage}
+              onClick={() => {
+                sendMessage();
+                // Force zoom out on mobile after submit
+                if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                  const viewport = document.querySelector('meta[name="viewport"]');
+                  if (viewport) {
+                    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                    setTimeout(() => {
+                      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+                    }, 100);
+                  }
+                  // Blur input to dismiss keyboard
+                  const inputElement = document.querySelector('input[type="text"]') as HTMLInputElement;
+                  if (inputElement) inputElement.blur();
+                }
+              }}
               disabled={!input.trim()}
               className="px-3 py-2 bg-accent-yellow text-primary-black rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Send Message"

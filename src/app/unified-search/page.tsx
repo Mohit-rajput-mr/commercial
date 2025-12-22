@@ -8,10 +8,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import MapView from '@/components/MapView';
+import { addFavorite, removeFavorite, getAllFavorites } from '@/lib/indexedDB';
 import { 
   Search, Loader2, Home, 
   MapPin, Bed, Bath, Square, 
-  ChevronDown, X, Filter, ChevronLeft, ChevronRight
+  ChevronDown, X, Filter, ChevronLeft, ChevronRight, Heart, Map as MapIcon, List
 } from 'lucide-react';
 
 // Property interface matching JSON structure
@@ -93,6 +94,7 @@ function UnifiedSearchPageContent() {
   const [selectedBeds, setSelectedBeds] = useState<number | null>(bedsParam ? parseInt(bedsParam) : null);
   const [selectedBaths, setSelectedBaths] = useState<number | null>(bathsParam ? parseInt(bathsParam) : null);
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(priceParam || null);
+  // Map is desktop-only, no mobile toggle needed
 
   // Price range options (different for sale vs rent)
   const SALE_PRICE_RANGES = [
@@ -168,9 +170,59 @@ function UnifiedSearchPageContent() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const propertiesPerPage = 20;
+  
+  // Favorites
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const allFavs = await getAllFavorites();
+        const favIds = new Set(allFavs.map(f => f.propertyId));
+        setFavorites(favIds);
+      } catch (error) {
+        console.error('Failed to load favorites:', error);
+      }
+    };
+    loadFavorites();
+  }, []);
+  
+  const toggleFavorite = async (property: Property) => {
+    const id = property.zpid || `prop-${property.address?.street || 'unknown'}`;
+    const isCurrentlyFavorite = favorites.has(id);
+    
+    try {
+      if (isCurrentlyFavorite) {
+        await removeFavorite(id);
+        setFavorites(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+      } else {
+        const imageUrl = getImageUrl(property);
+        await addFavorite({
+          id: `fav-${Date.now()}-${id}`,
+          propertyId: id,
+          address: typeof property.address === 'string' ? property.address : property.address?.street,
+          price: property.listPrice ? `$${property.listPrice.toLocaleString()}` : property.price_display || 'Price on request',
+          propertyType: property.property_type || property.propertyType || 'Residential',
+          imageUrl: imageUrl || undefined,
+          city: property.city || property.address?.locality,
+          state: property.state || property.address?.region,
+          dataSource: 'residential',
+          rawData: property,
+          timestamp: Date.now(),
+        });
+        setFavorites(prev => new Set([...prev, id]));
+      }
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
 
   // Refs for property cards (for map interaction)
-  const propertyRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const propertyRefs = useRef<globalThis.Map<string, HTMLDivElement>>(new globalThis.Map());
 
   // Normalize city name for matching
   const normalizeCity = (input: string): string => {
@@ -238,7 +290,32 @@ function UnifiedSearchPageContent() {
         }
 
         const data = await response.json();
-        const propertiesArray: Property[] = Array.isArray(data) ? data : data.properties || [];
+        let propertiesArray: Property[] = Array.isArray(data) ? data : data.properties || [];
+        
+        // Shuffle properties for different order each time (only on initial load, not when filters change)
+        // Always shuffle for Miami and Miami Beach, shuffle others only on initial load
+        const isMiami = matchedCity.toLowerCase() === 'miami' || matchedCity.toLowerCase() === 'miami beach';
+        const shuffleKey = `shuffle-${matchedCity}-${listingType}`;
+        const lastShuffleSeed = sessionStorage.getItem(shuffleKey);
+        const currentFilters = JSON.stringify({ beds: selectedBeds, baths: selectedBaths, price: selectedPriceRange });
+        const lastFilters = sessionStorage.getItem(`filters-${matchedCity}-${listingType}`);
+        
+        // Always shuffle for Miami/Miami Beach, or shuffle others only if filters haven't changed
+        if (isMiami || currentFilters !== lastFilters || !lastShuffleSeed) {
+          // Fisher-Yates shuffle algorithm for random order
+          for (let i = propertiesArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [propertiesArray[i], propertiesArray[j]] = [propertiesArray[j], propertiesArray[i]];
+          }
+          
+          // For Miami, always generate new shuffle seed
+          if (isMiami) {
+            sessionStorage.setItem(shuffleKey, Date.now().toString());
+          } else {
+            sessionStorage.setItem(shuffleKey, Date.now().toString());
+          }
+          sessionStorage.setItem(`filters-${matchedCity}-${listingType}`, currentFilters);
+        }
         
         // Transform properties to have required fields for MapView
         const transformedProperties = propertiesArray.map((prop, index) => {
@@ -420,21 +497,40 @@ function UnifiedSearchPageContent() {
 
   // Handle marker click - navigate to property detail page (same as card click)
   const handleMarkerClick = useCallback((propertyId: string) => {
-    // Find property by zpid in current page
-    const propertyIndex = currentProperties.findIndex(p => (p.zpid || `prop-${filteredProperties.indexOf(p)}`) === propertyId);
-    if (propertyIndex !== -1) {
-      const property = currentProperties[propertyIndex];
-      // Use same logic as handlePropertyClick to ensure consistency
-      const detailId = `${listingType}_${location}_${startIndex + propertyIndex}`;
+    // Find property in filteredProperties by zpid or propertyId
+    const property = filteredProperties.find(p => 
+      p.zpid === propertyId || 
+      `prop-${filteredProperties.indexOf(p)}` === propertyId ||
+      propertyId.includes(p.zpid || '') ||
+      (p.zpid && propertyId.includes(p.zpid))
+    );
+    
+    if (property) {
+      // Find the index in filteredProperties to match handlePropertyClick logic
+      const propertyIndex = filteredProperties.indexOf(property);
+      // Use the same logic as handlePropertyClick - calculate based on current page
+      const detailId = `${listingType}_${location}_${propertyIndex}`;
+      
       sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(property));
       sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
       router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
+    } else {
+      // Fallback: try to find by zpid directly
+      const fallbackProperty = filteredProperties.find(p => p.zpid === propertyId);
+      if (fallbackProperty) {
+        const propertyIndex = filteredProperties.indexOf(fallbackProperty);
+        const detailId = `${listingType}_${location}_${propertyIndex}`;
+        sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(fallbackProperty));
+        sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
+        router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
+      }
     }
-  }, [currentProperties, filteredProperties, listingType, location, startIndex, router]);
+  }, [filteredProperties, listingType, location, router]);
 
   const handlePropertyHover = useCallback((propertyId: string | null) => {
     setHighlightedPropertyId(propertyId);
   }, []);
+
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -473,25 +569,27 @@ function UnifiedSearchPageContent() {
             </div>
             
           {/* Always Visible Filters - Dropdown Style */}
-          <div className="flex flex-wrap items-center gap-3 mt-4">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-4 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
             {/* Price Dropdown */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <button
                 onClick={() => {
                   setPriceDropdownOpen(!priceDropdownOpen);
                   setBedsDropdownOpen(false);
                   setBathsDropdownOpen(false);
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
+                className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
                   selectedPriceRange
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                 }`}
               >
-                Price: {selectedPriceRange 
+                <span className="hidden sm:inline">Price: </span>
+                <span className="sm:hidden">$</span>
+                {selectedPriceRange 
                   ? (isForRent ? RENT_PRICE_RANGES : SALE_PRICE_RANGES).find(r => r.value === selectedPriceRange)?.label 
                   : 'Any'}
-                <ChevronDown size={16} className={`transition-transform ${priceDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`md:w-4 md:h-4 transition-transform ${priceDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {priceDropdownOpen && (
@@ -526,22 +624,23 @@ function UnifiedSearchPageContent() {
           </div>
 
             {/* Bedrooms Dropdown */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <button
                 onClick={() => {
                   setBedsDropdownOpen(!bedsDropdownOpen);
                   setPriceDropdownOpen(false);
                   setBathsDropdownOpen(false);
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
+                className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
                   selectedBeds !== null
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                 }`}
               >
-                <Bed size={16} />
-                Beds: {selectedBeds !== null ? `${selectedBeds}+` : 'Any'}
-                <ChevronDown size={16} className={`transition-transform ${bedsDropdownOpen ? 'rotate-180' : ''}`} />
+                <Bed size={12} className="md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Beds: </span>
+                {selectedBeds !== null ? `${selectedBeds}+` : 'Any'}
+                <ChevronDown size={12} className={`md:w-4 md:h-4 transition-transform ${bedsDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {bedsDropdownOpen && (
@@ -565,22 +664,23 @@ function UnifiedSearchPageContent() {
             </div>
 
             {/* Bathrooms Dropdown */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <button
                 onClick={() => {
                   setBathsDropdownOpen(!bathsDropdownOpen);
                   setPriceDropdownOpen(false);
                   setBedsDropdownOpen(false);
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
+                className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
                   selectedBaths !== null
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                 }`}
               >
-                <Bath size={16} />
-                Baths: {selectedBaths !== null ? `${selectedBaths}+` : 'Any'}
-                <ChevronDown size={16} className={`transition-transform ${bathsDropdownOpen ? 'rotate-180' : ''}`} />
+                <Bath size={12} className="md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Baths: </span>
+                {selectedBaths !== null ? `${selectedBaths}+` : 'Any'}
+                <ChevronDown size={12} className={`md:w-4 md:h-4 transition-transform ${bathsDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {bathsDropdownOpen && (
@@ -603,6 +703,7 @@ function UnifiedSearchPageContent() {
               )}
             </div>
 
+
             {/* Clear Filters Button (only shown when filters are active) */}
             {activeFiltersCount > 0 && (
               <button
@@ -617,10 +718,11 @@ function UnifiedSearchPageContent() {
         </div>
       </div>
 
-      {/* Main Content - Split Screen */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* LEFT SIDE - Map */}
-        <div className="hidden md:block w-1/2 h-full relative z-[1]">
+      {/* Main Content - Full width on mobile, split on desktop */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Map - Desktop only, hidden on mobile (all pin CSS and geocoding logic remains intact) */}
+        <div className="hidden md:block w-full md:w-1/2 h-full relative z-[1]">
+          {/* Map Component - Desktop only, all pin CSS and geocoding logic intact */}
           {loading ? (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
               <div className="text-center">
@@ -632,7 +734,7 @@ function UnifiedSearchPageContent() {
           ) : (
             <MapView
               properties={filteredProperties as any}
-              centerLocation={location}
+              centerLocation={location || 'United States'}
               onMarkerClick={handleMarkerClick}
               onMarkerHover={handlePropertyHover}
               highlightedPropertyId={highlightedPropertyId}
@@ -642,8 +744,8 @@ function UnifiedSearchPageContent() {
           )}
         </div>
 
-        {/* RIGHT SIDE - Property List */}
-        <div className="w-full md:w-1/2 h-full flex flex-col overflow-hidden bg-gray-50">
+        {/* Property List - Full width on mobile, right side on desktop */}
+        <div className="flex w-full md:w-1/2 h-full flex-col overflow-hidden bg-gray-50">
           {/* Scrollable Property List */}
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {/* Loading State */}
@@ -730,7 +832,22 @@ function UnifiedSearchPageContent() {
                             }`}>
                               {isForRent ? 'For Rent' : 'For Sale'}
                             </span>
-                      </div>
+                          </div>
+                          {/* Heart Icon */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleFavorite(property);
+                            }}
+                            className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all z-20 ${
+                              favorites.has(propertyId)
+                                ? 'bg-accent-yellow text-primary-black'
+                                : 'bg-white text-primary-black hover:bg-accent-yellow'
+                            }`}
+                          >
+                            <Heart size={16} fill={favorites.has(propertyId) ? 'currentColor' : 'none'} />
+                          </button>
                         </div>
 
                         {/* Content */}
@@ -738,7 +855,6 @@ function UnifiedSearchPageContent() {
                           {/* Price */}
                           <div className="text-lg font-bold text-gray-900 mb-1">
                             {formatPrice(property.listPrice)}
-                            {isForRent && <span className="text-sm text-gray-500 font-normal">/mo</span>}
                           </div>
 
                           {/* Address */}

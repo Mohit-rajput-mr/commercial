@@ -33,14 +33,33 @@ export default function AdminLoginPage() {
     setError('');
     setLoading(true);
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Use the same API endpoint as regular login
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-      setAdminAuthenticated(true);
-      router.push('/admin/dashboard');
-    } else {
-      setError('Invalid credentials. Use email: admin, password: admin');
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Check if it's admin user
+        if (data.isAdmin || (data.user && data.user.role === 'admin')) {
+          setAdminAuthenticated(true);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          router.push('/admin/dashboard');
+        } else {
+          setError('Access denied. Admin credentials required.');
+          setLoading(false);
+        }
+      } else {
+        setError(data.error || 'Invalid credentials. Use email: admin, password: admin');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Admin login error:', error);
+      setError('Failed to connect to server. Please try again.');
       setLoading(false);
     }
   };
