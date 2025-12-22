@@ -17,16 +17,16 @@ const CITY_DATASET_MAP: Record<string, string[]> = {
   'houston': ['commercial_dataset_houston.json'],
   
   // Las Vegas
-  'las vegas': ['dataset_las_vegas_sale.json', 'dataset-las_vegas_lease.json'],
-  'vegas': ['dataset_las_vegas_sale.json', 'dataset-las_vegas_lease.json'],
+  'las vegas': ['dataset_las_vegas_sale.json', 'dataset-las_vegas_lease.json', 'dataset_lasvegas_lease.json'],
+  'vegas': ['dataset_las_vegas_sale.json', 'dataset-las_vegas_lease.json', 'dataset_lasvegas_lease.json'],
   
   // Austin
-  'austin': ['dataset_austin_lease.json'],
+  'austin': ['dataset_austin_lease.json', 'dataset_austin_sale.json'],
   
   // San Francisco
-  'san francisco': ['dataset_sanfrancisco_lease.json'],
-  'sf': ['dataset_sanfrancisco_lease.json'],
-  'san fran': ['dataset_sanfrancisco_lease.json'],
+  'san francisco': ['dataset_sanfrancisco_lease.json', 'dataset_sanfrancisco_sale.json'],
+  'sf': ['dataset_sanfrancisco_lease.json', 'dataset_sanfrancisco_sale.json'],
+  'san fran': ['dataset_sanfrancisco_lease.json', 'dataset_sanfrancisco_sale.json'],
   
   // New York
   'new york': ['commercial_dataset_ny.json', 'dataset_manhattan_ny.json'],

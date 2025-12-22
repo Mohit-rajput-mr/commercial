@@ -71,10 +71,13 @@ const COMMERCIAL_FILES = [
   'dataset_son_antonio_lease.json',
   'dataset_las_vegas_sale.json',
   'dataset-las_vegas_lease.json',
+  'dataset_lasvegas_lease.json',
   'dataset_austin_lease.json',
+  'dataset_austin_sale.json',
   'dataset_los_angeles_lease.json',
   'dataset_los_angeles_sale.json',
   'dataset_sanfrancisco_lease.json',
+  'dataset_sanfrancisco_sale.json',
 ];
 
 // Crexi dataset files (loaded separately from root public folder)
@@ -550,8 +553,18 @@ function CommercialSearchPageContent() {
                     squareFootage = typeof prop.buildingSize === 'string' ? prop.buildingSize : prop.buildingSize.toString();
                   }
                   
-                  // Extract images
-                  images = Array.isArray(prop.images) ? prop.images.filter((img: any) => img && typeof img === 'string') : [];
+                  // Extract images - handle both string arrays and object arrays with url property
+                  if (Array.isArray(prop.images)) {
+                    images = prop.images
+                      .map((img: any) => {
+                        if (typeof img === 'string') return img;
+                        if (img && typeof img === 'object' && img.url) return img.url;
+                        return null;
+                      })
+                      .filter((url: string | null): url is string => url !== null);
+                  } else {
+                    images = [];
+                  }
                   firstImage = images[0] || null;
                   
                   propertyType = prop.propertyType || 'Commercial';
