@@ -61,6 +61,7 @@ export function parsePropertyId(propertyId: string): PropertyIdParts | null {
 
 /**
  * Load residential property from dataset by bit number
+ * Searches ALL residential files to ensure shareable links work
  */
 export async function loadResidentialPropertyFromDataset(
   listingType: 'sale' | 'lease',
@@ -68,76 +69,100 @@ export async function loadResidentialPropertyFromDataset(
   bit: number
 ): Promise<any | null> {
   try {
-    // Map location to city name for file path
-    const cityMap: Record<string, string> = {
-      'miami, fl': 'miami',
-      'miami': 'miami',
-      'miami beach, fl': 'miami_beach',
-      'miami beach': 'miami_beach',
-      'houston, tx': 'houston',
-      'houston': 'houston',
-      'philadelphia, pa': 'philadelphia',
-      'philadelphia': 'philadelphia',
-      'phoenix, az': 'phoenix',
-      'phoenix': 'phoenix',
-      'san antonio, tx': 'san-antonio',
-      'san antonio': 'san-antonio',
-      'chicago, il': 'chicago',
-      'chicago': 'chicago',
-      'las vegas, nv': 'las_vegas',
-      'las vegas': 'las_vegas',
-      'los angeles, ca': 'losangeles',
-      'los angeles': 'losangeles',
-      'new york, ny': 'new_york',
-      'new york': 'new_york',
-      'manhattan, ny': 'new_york',
-      'manhattan': 'new_york',
-    };
+    // Get ALL residential files from both sale and lease folders
+    // This ensures we find the property regardless of which file it's in
+    const allResidentialFiles = [
+      // Sale files
+      '/residential/sale/miami_sale.json',
+      '/residential/sale/miami_beach_sale.json',
+      '/residential/sale/chicago_sale.json',
+      '/residential/sale/houston_sale.json',
+      '/residential/sale/philadelphia_rental.json', // Note: philadelphia uses rental for both
+      '/residential/sale/phoenix_rental.json', // Note: phoenix uses rental for both
+      '/residential/sale/san-antonio_sale.json',
+      '/residential/sale/las_vegas_sale.json',
+      '/residential/sale/losangeles_sale.json',
+      '/residential/sale/new_york_sale.json',
+      // Lease files
+      '/residential/lease/miami_rental.json',
+      '/residential/lease/miami_beach_rental.json',
+      '/residential/lease/chicago_rental.json',
+      '/residential/lease/houston_rental.json',
+      '/residential/lease/philadelphia_rental.json',
+      '/residential/lease/phoenix_rental.json',
+      '/residential/lease/san_antonio_rental.json',
+      '/residential/lease/lasvegas_rental.json',
+      '/residential/lease/losangeles_rental.json',
+      '/residential/lease/newyork_rental.json',
+    ];
 
+    // If location is provided, prioritize files that match the location
     const locationLower = location.toLowerCase().trim();
-    let cityName = cityMap[locationLower];
+    let prioritizedFiles = [...allResidentialFiles];
     
-    // If not in map, extract city name from location
-    if (!cityName) {
-      cityName = locationLower.split(',')[0].trim().toLowerCase().replace(/\s+/g, '_');
+    // Try to prioritize based on location hint
+    if (locationLower.includes('miami')) {
+      prioritizedFiles = [
+        '/residential/sale/miami_sale.json',
+        '/residential/lease/miami_rental.json',
+        '/residential/sale/miami_beach_sale.json',
+        '/residential/lease/miami_beach_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('miami'))
+      ];
+    } else if (locationLower.includes('chicago')) {
+      prioritizedFiles = [
+        '/residential/sale/chicago_sale.json',
+        '/residential/lease/chicago_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('chicago'))
+      ];
+    } else if (locationLower.includes('houston')) {
+      prioritizedFiles = [
+        '/residential/sale/houston_sale.json',
+        '/residential/lease/houston_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('houston'))
+      ];
+    } else if (locationLower.includes('philadelphia') || locationLower.includes('philly')) {
+      prioritizedFiles = [
+        '/residential/sale/philadelphia_rental.json',
+        '/residential/lease/philadelphia_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('philadelphia'))
+      ];
+    } else if (locationLower.includes('phoenix')) {
+      prioritizedFiles = [
+        '/residential/sale/phoenix_rental.json',
+        '/residential/lease/phoenix_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('phoenix'))
+      ];
+    } else if (locationLower.includes('san antonio')) {
+      prioritizedFiles = [
+        '/residential/sale/san-antonio_sale.json',
+        '/residential/lease/san_antonio_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('san'))
+      ];
+    } else if (locationLower.includes('las vegas') || locationLower.includes('vegas')) {
+      prioritizedFiles = [
+        '/residential/sale/las_vegas_sale.json',
+        '/residential/lease/lasvegas_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('las') && !f.includes('vegas'))
+      ];
+    } else if (locationLower.includes('los angeles') || locationLower.includes('la')) {
+      prioritizedFiles = [
+        '/residential/sale/losangeles_sale.json',
+        '/residential/lease/losangeles_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('los'))
+      ];
+    } else if (locationLower.includes('new york') || locationLower.includes('nyc') || locationLower.includes('manhattan')) {
+      prioritizedFiles = [
+        '/residential/sale/new_york_sale.json',
+        '/residential/lease/newyork_rental.json',
+        ...allResidentialFiles.filter(f => !f.includes('new') && !f.includes('york'))
+      ];
     }
 
-    // Try multiple file name formats
-    const fileNames = [
-      `${cityName}_${listingType}.json`,  // miami_sale.json (actual format)
-      `dataset_${cityName}_${listingType}.json`,  // dataset_miami_sale.json (fallback)
-      `${cityName}_${listingType === 'sale' ? 'sale' : 'rental'}.json`,  // miami_rental.json for lease
-    ];
+    // Remove duplicates while preserving order
+    const uniqueFiles = Array.from(new Set(prioritizedFiles));
 
-    // Search all residential files if city-specific file doesn't have the property
-    const allResidentialFiles = [
-      ...fileNames.map(f => `/residential/${listingType}/${f}`),
-      // Also check other cities in case bit is from a different file
-      `/residential/${listingType}/miami_sale.json`,
-      `/residential/${listingType}/miami_rental.json`,
-      `/residential/${listingType}/miami_beach_sale.json`,
-      `/residential/${listingType}/miami_beach_rental.json`,
-      `/residential/${listingType}/chicago_sale.json`,
-      `/residential/${listingType}/chicago_rental.json`,
-      `/residential/${listingType}/houston_sale.json`,
-      `/residential/${listingType}/houston_rental.json`,
-      `/residential/${listingType}/philadelphia_sale.json`,
-      `/residential/${listingType}/philadelphia_rental.json`,
-      `/residential/${listingType}/phoenix_sale.json`,
-      `/residential/${listingType}/phoenix_rental.json`,
-      `/residential/${listingType}/san-antonio_sale.json`,
-      `/residential/${listingType}/san_antonio_rental.json`,
-      `/residential/${listingType}/las_vegas_sale.json`,
-      `/residential/${listingType}/lasvegas_rental.json`,
-      `/residential/${listingType}/losangeles_sale.json`,
-      `/residential/${listingType}/losangeles_rental.json`,
-      `/residential/${listingType}/new_york_sale.json`,
-      `/residential/${listingType}/newyork_rental.json`,
-    ];
-
-    // Remove duplicates
-    const uniqueFiles = [...new Set(allResidentialFiles)];
-
+    // Search through all files
     for (const filePath of uniqueFiles) {
       try {
         const response = await fetch(filePath);
@@ -160,10 +185,71 @@ export async function loadResidentialPropertyFromDataset(
     }
 
     console.error(`❌ Failed to load property: listingType=${listingType}, location=${location}, bit=${bit}`);
-    console.error(`Tried file names: ${fileNames.join(', ')}`);
     return null;
   } catch (error) {
     console.error('Error loading residential property:', error);
+    return null;
+  }
+}
+
+/**
+ * Load residential property by bit number only (searches all files)
+ * Used when we only have the bit number from URL
+ */
+export async function loadResidentialPropertyByBit(bit: number): Promise<any | null> {
+  try {
+    // Get ALL residential files from both sale and lease folders
+    const allResidentialFiles = [
+      // Sale files
+      '/residential/sale/miami_sale.json',
+      '/residential/sale/miami_beach_sale.json',
+      '/residential/sale/chicago_sale.json',
+      '/residential/sale/houston_sale.json',
+      '/residential/sale/philadelphia_rental.json',
+      '/residential/sale/phoenix_rental.json',
+      '/residential/sale/san-antonio_sale.json',
+      '/residential/sale/las_vegas_sale.json',
+      '/residential/sale/losangeles_sale.json',
+      '/residential/sale/new_york_sale.json',
+      // Lease files
+      '/residential/lease/miami_rental.json',
+      '/residential/lease/miami_beach_rental.json',
+      '/residential/lease/chicago_rental.json',
+      '/residential/lease/houston_rental.json',
+      '/residential/lease/philadelphia_rental.json',
+      '/residential/lease/phoenix_rental.json',
+      '/residential/lease/san_antonio_rental.json',
+      '/residential/lease/lasvegas_rental.json',
+      '/residential/lease/losangeles_rental.json',
+      '/residential/lease/newyork_rental.json',
+    ];
+
+    // Search through all files
+    for (const filePath of allResidentialFiles) {
+      try {
+        const response = await fetch(filePath);
+        if (response.ok) {
+          const data = await response.json();
+          const propertiesArray = Array.isArray(data) ? data : data.properties || [];
+          
+          // Search for property by bit number
+          const property = propertiesArray.find((prop: any) => prop.bit === bit);
+          
+          if (property) {
+            console.log(`✅ Loaded residential property from ${filePath} with bit ${bit}`);
+            return property;
+          }
+        }
+      } catch (err) {
+        // Try next file
+        continue;
+      }
+    }
+
+    console.error(`❌ Failed to load residential property with bit ${bit}`);
+    return null;
+  } catch (error) {
+    console.error('Error loading residential property by bit:', error);
     return null;
   }
 }
@@ -173,73 +259,29 @@ export async function loadResidentialPropertyFromDataset(
  */
 export async function loadCommercialPropertyFromDataset(propertyId: string): Promise<any | null> {
   try {
-    // First, try to parse as bit-based ID (format: sale_Miami, FL_123 or lease_Houston, TX_456)
-    // Note: This is for residential properties. Commercial uses 'com' field.
-    const parsed = parsePropertyId(propertyId);
-    if (parsed) {
-      // This is a bit-based ID (residential), search all commercial files by com
-      const commercialFiles = [
-        'commercial/commercial_dataset_17nov2025.json',
-        'commercial/commercial_dataset_Chicago.json',
-        'commercial/commercial_dataset_houston.json',
-        'commercial/commercial_dataset_LA.json',
-        'commercial/commercial_dataset_ny.json',
-        'commercial/commercial_dataset2.json',
-        'commercial/dataset_manhattan_ny.json',
-        'commercial/dataset_miami_beach.json',
-        'commercial/dataset_miami_sale.json',
-        'commercial/dataset_miamibeach_lease.json',
-        'commercial/dataset_philadelphia_sale.json',
-        'commercial/dataset_philadelphia.json',
-        'commercial/dataset_phoenix.json',
-        'commercial/dataset_san_antonio_sale.json',
-        'commercial/dataset_son_antonio_lease.json',
-        'commercial/dataset_las_vegas_sale.json',
-        'commercial/dataset_lasvegas_lease.json',
-        'commercial/dataset_austin_lease.json',
-        'commercial/dataset_austin_sale.json',
-        'commercial/dataset_los_angeles_lease.json',
-        'commercial/dataset_los_angeles_sale.json',
-        'commercial/dataset_sanfrancisco_lease.json',
-        'commercial/dataset_sanfrancisco_sale.json',
-        'miami_all_crexi_sale.json',
-        'miami_all_crexi_lease.json',
-      ];
-
-      for (const filename of commercialFiles) {
-        try {
-          const response = await fetch(`/${filename}`);
-          if (!response.ok) continue;
-
-          const data = await response.json();
-          const propertiesArray = Array.isArray(data) ? data : data.properties || [];
-
-          // Search for property by com number (commercial uses 'com', not 'bit')
-          const property = propertiesArray.find((prop: any) => prop.com === parsed.bit);
-          
-          if (property) {
-            console.log(`✅ Loaded commercial property from ${filename} with com ${parsed.bit}`);
-            return property;
-          }
-        } catch (err) {
-          console.warn(`Failed to load /${filename}:`, err);
-          continue;
-        }
+    // Check if this is a Crexi ID or other commercial ID format
+    // parsePropertyId is only for residential property IDs (format: sale_Miami, FL_123)
+    const isCrexiId = propertyId.startsWith('crexi-');
+    const isCommercialId = !propertyId.includes('_') || isCrexiId; // Commercial IDs don't have underscore format
+    
+    // Only try parsePropertyId for residential-style IDs (has underscore and doesn't start with crexi-)
+    if (!isCommercialId) {
+      const parsed = parsePropertyId(propertyId);
+      if (parsed) {
+        // This is a residential-style ID, but we're in commercial loader
+        // Skip this - it's not a commercial property
+        console.log(`⚠️ Skipping residential-style ID in commercial loader: ${propertyId}`);
       }
     }
 
-    // Fallback: Handle legacy property IDs (Crexi, propertyId, etc.)
+    // Handle Crexi IDs and other commercial property IDs
     let searchId = propertyId;
-    let isCrexiId = false;
     let crexiId: string | null = null;
     
-    if (propertyId.startsWith('crexi-')) {
-      isCrexiId = true;
-      const parts = propertyId.split('-');
-      if (parts.length >= 3) {
-        crexiId = parts.slice(2).join('-'); // Extract the actual ID (e.g., "1897627")
-        searchId = crexiId;
-      }
+    if (isCrexiId) {
+      // Extract everything after 'crexi-' (e.g., "crexi-1408852" -> "1408852")
+      crexiId = propertyId.replace(/^crexi-/, '');
+      searchId = crexiId;
     }
 
     // All commercial files to search
@@ -296,10 +338,15 @@ export async function loadCommercialPropertyFromDataset(propertyId: string): Pro
           
           // Match Crexi format variations
           if (isCrexiId && crexiId) {
+            // For crexi-1408852, match prop.id === 1408852
+            if (prop.id && prop.id.toString() === crexiId) {
+              return true;
+            }
+            // Also match if propertyId is already in crexi format
             if (idString === crexiId || 
+                idString === `crexi-${crexiId}` ||
                 idString === `crexi-sale-${crexiId}` ||
-                idString === `crexi-lease-${crexiId}` ||
-                (prop.id && prop.id.toString() === crexiId)) {
+                idString === `crexi-lease-${crexiId}`) {
               return true;
             }
           }
@@ -334,7 +381,60 @@ export async function loadCommercialPropertyFromDataset(propertyId: string): Pro
           });
 
           if (property) {
-            return property;
+            // Transform Crexi property to standard format
+            const location = property.locations?.[0] || property.location || {};
+            
+            // Helper to extract state string from object or string
+            const extractState = (state: any): string => {
+              if (!state) return '';
+              if (typeof state === 'string') return state;
+              if (typeof state === 'object') {
+                return state.code || state.name || '';
+              }
+              return '';
+            };
+            
+            // Extract images from Crexi media array - handle multiple formats
+            let extractedImages: string[] = [];
+            if (property.media && Array.isArray(property.media)) {
+              // Try different Crexi media formats
+              extractedImages = property.media
+                .filter((m: any) => {
+                  // Filter for Image type and check for URL fields
+                  if (m.type === 'Image' || m.type === 'image') {
+                    return m.imageUrl || m.url || m.src;
+                  }
+                  // Also include if it has a URL field (some formats)
+                  return m.url || m.imageUrl || m.src;
+                })
+                .map((m: any) => m.imageUrl || m.url || m.src)
+                .filter((url: any): url is string => typeof url === 'string' && url.startsWith('http'));
+            }
+            
+            // Fallback to thumbnailUrl or existing images array
+            if (extractedImages.length === 0) {
+              if (property.thumbnailUrl) {
+                extractedImages = [property.thumbnailUrl];
+              } else if (property.images && Array.isArray(property.images)) {
+                extractedImages = property.images.filter((img: any) => typeof img === 'string' && img.startsWith('http'));
+              }
+            }
+            
+            return {
+              ...property,
+              propertyId: property.id ? `crexi-${property.id}` : property.propertyId,
+              address: location.address || property.address || '',
+              city: location.city || property.city || '',
+              state: extractState(location.state) || extractState(property.state) || '',
+              zip: location.zip || property.zip || '',
+              price: property.askingPrice ? `$${property.askingPrice.toLocaleString()}` : property.price || null,
+              priceNumeric: property.askingPrice || property.priceNumeric || null,
+              squareFootage: property.squareFootage || property.rentableSqftMin || property.rentableSqftMax || null,
+              images: extractedImages,
+              listingType: property.listingType || 'For Sale',
+              propertyType: property.types?.[0] || property.propertyType || 'Commercial',
+              brokerCompany: property.brokerageName || property.brokerCompany || null,
+            };
           }
         } catch (err) {
           console.warn(`Failed to load /${filename}:`, err);
@@ -346,6 +446,73 @@ export async function loadCommercialPropertyFromDataset(propertyId: string): Pro
     return null;
   } catch (error) {
     console.error('Error loading commercial property:', error);
+    return null;
+  }
+}
+
+/**
+ * Load commercial property by bit number (searches all files)
+ * Commercial properties can also have bit numbers for consistency
+ */
+export async function loadCommercialPropertyByBit(bit: number): Promise<any | null> {
+  try {
+    const commercialFiles = [
+      'commercial/commercial_dataset_17nov2025.json',
+      'commercial/commercial_dataset_Chicago.json',
+      'commercial/commercial_dataset_houston.json',
+      'commercial/commercial_dataset_LA.json',
+      'commercial/commercial_dataset_ny.json',
+      'commercial/commercial_dataset2.json',
+      'commercial/dataset_manhattan_ny.json',
+      'commercial/dataset_miami_beach.json',
+      'commercial/dataset_miami_sale.json',
+      'commercial/dataset_miamibeach_lease.json',
+      'commercial/dataset_philadelphia_sale.json',
+      'commercial/dataset_philadelphia.json',
+      'commercial/dataset_phoenix.json',
+      'commercial/dataset_san_antonio_sale.json',
+      'commercial/dataset_son_antonio_lease.json',
+      'commercial/dataset_las_vegas_sale.json',
+      'commercial/dataset_lasvegas_lease.json',
+      'commercial/dataset_austin_lease.json',
+      'commercial/dataset_austin_sale.json',
+      'commercial/dataset_los_angeles_lease.json',
+      'commercial/dataset_los_angeles_sale.json',
+      'commercial/dataset_sanfrancisco_lease.json',
+      'commercial/dataset_sanfrancisco_sale.json',
+      'miami_all_crexi_sale.json',
+      'miami_all_crexi_lease.json',
+    ];
+
+    for (const filename of commercialFiles) {
+      try {
+        const filePath = filename.startsWith('miami_all_crexi') 
+          ? `/${filename}` 
+          : `/${filename}`;
+        
+        const response = await fetch(filePath);
+        if (!response.ok) continue;
+
+        const data = await response.json();
+        const propertiesArray = Array.isArray(data) ? data : data.properties || [];
+        
+        // Search for property by bit number
+        const property = propertiesArray.find((prop: any) => prop.bit === bit);
+        
+        if (property) {
+          console.log(`✅ Loaded commercial property by bit ${bit} from ${filename}`);
+          return property;
+        }
+      } catch (err) {
+        console.warn(`Failed to load /${filename}:`, err);
+        continue;
+      }
+    }
+
+    console.error(`❌ Failed to load commercial property with bit ${bit}`);
+    return null;
+  } catch (error) {
+    console.error('Error loading commercial property by bit:', error);
     return null;
   }
 }

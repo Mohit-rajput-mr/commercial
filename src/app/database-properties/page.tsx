@@ -221,13 +221,8 @@ export default function DatabasePropertiesPage() {
 
   const handleCommercialClick = (property: CommercialProperty) => {
     const propertyId = (property as any).propertyId || property.zpid || (property as any).id || '';
-    // Use com in URL path if available: /commercial/com[com]/[id]
-    const com = (property as any).com;
-    if (com) {
-      router.push(`/commercial/com${com}/${encodeURIComponent(propertyId)}`);
-    } else {
-      router.push(`/commercial/${encodeURIComponent(propertyId)}`);
-    }
+    // Navigate to commercial property detail page
+    router.push(`/commercial/${encodeURIComponent(propertyId)}`);
   };
 
   const residentialProperties = filteredProperties.filter(p => 

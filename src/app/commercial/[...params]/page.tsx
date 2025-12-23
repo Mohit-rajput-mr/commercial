@@ -46,33 +46,39 @@ function CommercialDetailContent() {
   const params = useParams();
   const router = useRouter();
   
-  // Parse params array to handle both formats:
-  // - /commercial/crexi-1728502 (params = ['crexi-1728502']) - treat as com ID first
-  // - /commercial/com123/crexi-1728502 (params = ['com123', 'crexi-1728502'])
+  // Parse params array - simplified: just property ID
+  // - /commercial/crexi-1728502 (params = ['crexi-1728502'])
+  // - /commercial/bit123/crexi-1728502 (params = ['bit123', 'crexi-1728502']) - bit support for shareability
   const paramsArray = typeof params.params === 'string' 
     ? [params.params] 
     : Array.isArray(params.params) 
       ? params.params 
       : [];
   
-  let comNumber: number | undefined;
+  let bitNumber: number | undefined;
   let propertyId: string = '';
   
-  if (paramsArray.length === 2 && paramsArray[0].startsWith('com')) {
-    // New format: /commercial/com123/crexi-1728502
-    const comStr = paramsArray[0].replace('com', '');
-    comNumber = parseInt(comStr);
-    propertyId = decodeURIComponent(paramsArray[1]);
-  } else if (paramsArray.length === 1) {
-    // Single param: try to parse as com number first
-    const singleParam = paramsArray[0];
-    // Check if it's a numeric com ID
-    const parsedCom = parseInt(singleParam);
-    if (!isNaN(parsedCom) && parsedCom > 0) {
-      // Treat as com ID
-      comNumber = parsedCom;
+  if (paramsArray.length === 2) {
+    const firstParam = paramsArray[0];
+    if (firstParam.startsWith('bit')) {
+      // Format: /commercial/bit123/crexi-1728502
+      const bitStr = firstParam.replace('bit', '');
+      bitNumber = parseInt(bitStr);
+      propertyId = decodeURIComponent(paramsArray[1]);
     } else {
-      // Treat as property ID (old format)
+      // Two params but first isn't 'bit' - treat both as property ID (shouldn't happen)
+      propertyId = decodeURIComponent(paramsArray.join('/'));
+    }
+  } else if (paramsArray.length === 1) {
+    // Single param: property ID
+    const singleParam = paramsArray[0];
+    
+    if (singleParam.startsWith('bit')) {
+      // Format: /commercial/bit123 - bit only, no property ID
+      const bitStr = singleParam.replace('bit', '');
+      bitNumber = parseInt(bitStr);
+    } else {
+      // Treat as property ID
       propertyId = decodeURIComponent(singleParam);
     }
   }
@@ -82,214 +88,131 @@ function CommercialDetailContent() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  // Helper function to search all files and assign com
-  const findAndAssignCom = async (property: any, propertyId: string): Promise<any | null> => {
-    const COMMERCIAL_FILES = [
-      'commercial_dataset_17nov2025.json',
-      'commercial_dataset_Chicago.json',
-      'commercial_dataset_houston.json',
-      'commercial_dataset_LA.json',
-      'commercial_dataset_ny.json',
-      'commercial_dataset2.json',
-      'dataset_manhattan_ny.json',
-      'dataset_miami_beach.json',
-      'dataset_miami_sale.json',
-      'dataset_miamibeach_lease.json',
-      'dataset_philadelphia_sale.json',
-      'dataset_philadelphia.json',
-      'dataset_phoenix.json',
-      'dataset_san_antonio_sale.json',
-      'dataset_son_antonio_lease.json',
-      'dataset_las_vegas_sale.json',
-      'dataset_lasvegas_lease.json',
-      'dataset_austin_lease.json',
-      'dataset_austin_sale.json',
-      'dataset_los_angeles_lease.json',
-      'dataset_los_angeles_sale.json',
-      'dataset_sanfrancisco_lease.json',
-      'dataset_sanfrancisco_sale.json',
-    ];
-
-    const CREXI_FILES = [
-      'miami_all_crexi_sale.json',
-      'miami_all_crexi_lease.json',
-    ];
-
-    let maxCom = 0;
-
-    // First pass: find max com across all files
-    for (const filename of [...COMMERCIAL_FILES, ...CREXI_FILES]) {
-      try {
-        const filePath = filename.startsWith('miami_all_crexi') 
-          ? `/${filename}` 
-          : `/commercial/${filename}`;
-        
-        const response = await fetch(filePath);
-        if (!response.ok) continue;
-
-        const data = await response.json();
-        const propertiesArray = Array.isArray(data) ? data : data.properties || [];
-        
-        for (const prop of propertiesArray) {
-          if (prop.com && prop.com > maxCom) {
-            maxCom = prop.com;
-          }
-        }
-      } catch (err) {
-        continue;
-      }
-    }
-
-    // Second pass: find the property and assign com
-    for (const filename of [...COMMERCIAL_FILES, ...CREXI_FILES]) {
-      try {
-        const filePath = filename.startsWith('miami_all_crexi') 
-          ? `/${filename}` 
-          : `/commercial/${filename}`;
-        
-        const response = await fetch(filePath);
-        if (!response.ok) continue;
-
-        const data = await response.json();
-        const propertiesArray = Array.isArray(data) ? data : data.properties || [];
-        
-        const foundIndex = propertiesArray.findIndex((prop: any) => {
-          const propId = prop.propertyId || prop.zpid || prop.id || '';
-          const idString = propId.toString();
-          return idString === propertyId || 
-                 idString === `crexi-sale-${prop.id}` ||
-                 idString === `crexi-lease-${prop.id}` ||
-                 (prop.id && idString === `crexi-sale-${prop.id.toString()}`) ||
-                 (prop.id && idString === `crexi-lease-${prop.id.toString()}`) ||
-                 prop.id?.toString() === propertyId;
-        });
-
-        if (foundIndex !== -1) {
-          const foundProperty = propertiesArray[foundIndex];
-          if (!foundProperty.com) {
-            foundProperty.com = maxCom + 1;
-            // Update the property object
-            property.com = maxCom + 1;
-            console.log(`✅ Assigned com ${maxCom + 1} to property ${propertyId}`);
-          }
-          return foundProperty;
-        }
-      } catch (err) {
-        continue;
-      }
-    }
-
-    return null;
-  };
-
-  // Helper function to search all files by com
-  const searchAllFilesByCom = async (com: number): Promise<any | null> => {
-    const COMMERCIAL_FILES = [
-      'commercial_dataset_17nov2025.json',
-      'commercial_dataset_Chicago.json',
-      'commercial_dataset_houston.json',
-      'commercial_dataset_LA.json',
-      'commercial_dataset_ny.json',
-      'commercial_dataset2.json',
-      'dataset_manhattan_ny.json',
-      'dataset_miami_beach.json',
-      'dataset_miami_sale.json',
-      'dataset_miamibeach_lease.json',
-      'dataset_philadelphia_sale.json',
-      'dataset_philadelphia.json',
-      'dataset_phoenix.json',
-      'dataset_san_antonio_sale.json',
-      'dataset_son_antonio_lease.json',
-      'dataset_las_vegas_sale.json',
-      'dataset_lasvegas_lease.json',
-      'dataset_austin_lease.json',
-      'dataset_austin_sale.json',
-      'dataset_los_angeles_lease.json',
-      'dataset_los_angeles_sale.json',
-      'dataset_sanfrancisco_lease.json',
-      'dataset_sanfrancisco_sale.json',
-    ];
-
-    const CREXI_FILES = [
-      'miami_all_crexi_sale.json',
-      'miami_all_crexi_lease.json',
-    ];
-
-    for (const filename of [...COMMERCIAL_FILES, ...CREXI_FILES]) {
-      try {
-        const filePath = filename.startsWith('miami_all_crexi') 
-          ? `/${filename}` 
-          : `/commercial/${filename}`;
-        
-        const response = await fetch(filePath);
-        if (!response.ok) continue;
-
-        const data = await response.json();
-        const propertiesArray = Array.isArray(data) ? data : data.properties || [];
-        
-        const foundProperty = propertiesArray.find((prop: any) => prop.com === com);
-        
-        if (foundProperty) {
-          console.log(`✅ Found property with com ${com} in ${filename}`);
-          return foundProperty;
-        }
-      } catch (err) {
-        continue;
-      }
-    }
-
-    return null;
-  };
 
   useEffect(() => {
     const loadProperty = async () => {
-      if (!propertyId && !comNumber) {
+      if (!propertyId && !bitNumber) {
         setLoading(false);
         return;
       }
 
       setLoading(true);
 
-      // If we have comNumber (from single param or two params), prioritize loading by com
-      if (comNumber && !isNaN(comNumber) && comNumber > 0) {
+      // PRIORITY 1: Load by bit number (most reliable for shareable links)
+      if (bitNumber && !isNaN(bitNumber) && bitNumber > 0) {
         try {
-          const { loadCommercialPropertyByCom } = await import('@/lib/property-loader');
-          const property = await loadCommercialPropertyByCom(comNumber);
+          const { loadCommercialPropertyByBit } = await import('@/lib/property-loader');
+          const property = await loadCommercialPropertyByBit(bitNumber);
           
           if (property) {
-            // Ensure property has the com field
-            if (!property.com) {
-              property.com = comNumber;
-            }
             setProperty(property);
             setLoading(false);
             return;
           }
         } catch (err) {
-          console.warn('Error loading by com:', err);
-        }
-
-        // If not found by com, search all files manually
-        const foundProperty = await searchAllFilesByCom(comNumber);
-        if (foundProperty) {
-          setProperty(foundProperty);
-          setLoading(false);
-          return;
+          console.warn('Error loading by bit:', err);
         }
       }
 
-      // If we have propertyId, try to load from sessionStorage first
+      // PRIORITY 2: Load from dataset by propertyId (works in new tabs - do this FIRST for shareability)
+      if (propertyId) {
+        console.log(`🔍 Loading commercial property by ID: ${propertyId}`);
+        try {
+          const { loadCommercialPropertyFromDataset } = await import('@/lib/property-loader');
+          const loadedProperty = await loadCommercialPropertyFromDataset(propertyId);
+          
+          if (loadedProperty) {
+            console.log(`✅ Found property:`, loadedProperty.propertyId || loadedProperty.id);
+            
+            // Helper to extract state string from object or string
+            const extractState = (state: any): string => {
+              if (!state) return '';
+              if (typeof state === 'string') return state;
+              if (typeof state === 'object') {
+                return state.code || state.name || '';
+              }
+              return '';
+            };
+
+            // Extract images from Crexi media array - handle multiple formats
+            let extractedImages: string[] = [];
+            if (loadedProperty.images && Array.isArray(loadedProperty.images)) {
+              // Already transformed images array
+              extractedImages = loadedProperty.images.filter((img: any) => typeof img === 'string' && img.startsWith('http'));
+            } else if (loadedProperty.media && Array.isArray(loadedProperty.media)) {
+              // Extract from media array (Crexi format)
+              extractedImages = loadedProperty.media
+                .filter((m: any) => {
+                  // Filter for Image type and check for URL fields
+                  if (m.type === 'Image' || m.type === 'image') {
+                    return m.imageUrl || m.url || m.src;
+                  }
+                  // Also include if it has a URL field (some formats)
+                  return m.url || m.imageUrl || m.src;
+                })
+                .map((m: any) => m.imageUrl || m.url || m.src)
+                .filter((url: any): url is string => typeof url === 'string' && url.startsWith('http'));
+            }
+            
+            // Fallback to thumbnailUrl
+            if (extractedImages.length === 0 && loadedProperty.thumbnailUrl) {
+              extractedImages = [loadedProperty.thumbnailUrl];
+            }
+
+            // Transform property to ensure all fields are properly set
+            const transformedProperty: CommercialProperty = {
+              propertyId: loadedProperty.propertyId || loadedProperty.zpid || loadedProperty.id || propertyId,
+              listingType: loadedProperty.listingType || loadedProperty.status || 'For Sale',
+              propertyType: loadedProperty.propertyType || loadedProperty.types?.[0] || 'Commercial',
+              city: loadedProperty.city || loadedProperty.locations?.[0]?.city || loadedProperty.location?.city || '',
+              state: extractState(loadedProperty.state) || extractState(loadedProperty.locations?.[0]?.state) || extractState(loadedProperty.location?.state) || '',
+              zip: loadedProperty.zip || loadedProperty.locations?.[0]?.zip || loadedProperty.location?.zip || '',
+              address: loadedProperty.address || loadedProperty.locations?.[0]?.address || loadedProperty.location?.address || '',
+              description: loadedProperty.description || loadedProperty.name || '',
+              images: extractedImages,
+              price: loadedProperty.price || (loadedProperty.askingPrice ? `$${loadedProperty.askingPrice.toLocaleString()}` : null),
+              priceNumeric: loadedProperty.priceNumeric || loadedProperty.askingPrice || null,
+              squareFootage: loadedProperty.squareFootage || loadedProperty.rentableSqftMin || loadedProperty.rentableSqftMax || null,
+              brokerCompany: loadedProperty.brokerCompany || loadedProperty.brokerageName || null,
+              propertyTypeDetailed: loadedProperty.propertyTypeDetailed || loadedProperty.types?.join(', ') || null,
+              capRate: loadedProperty.capRate || null,
+              numberOfUnits: loadedProperty.numberOfUnits || loadedProperty.numberOfSuites || null,
+              availability: loadedProperty.availability || loadedProperty.status || null,
+            };
+            
+            setProperty(transformedProperty);
+            setLoading(false);
+            return;
+          } else {
+            console.warn(`❌ Property not found with ID: ${propertyId}`);
+          }
+        } catch (err) {
+          console.error('Error loading commercial property from dataset:', err);
+        }
+      }
+
+      // PRIORITY 3: Fallback to sessionStorage (for same-tab navigation)
       if (propertyId) {
         const storedProperty = sessionStorage.getItem(`commercial_property_${propertyId}`);
         if (storedProperty) {
           try {
             const parsed = JSON.parse(storedProperty);
-            // If property has a com but URL doesn't, redirect to com-based URL
-            if (parsed.com && !comNumber) {
-              router.replace(`/commercial/com${parsed.com}/${encodeURIComponent(propertyId)}`);
-              return;
-            }
-            setProperty(parsed);
+            // Transform stored property to ensure state is a string
+            const extractState = (state: any): string => {
+              if (!state) return '';
+              if (typeof state === 'string') return state;
+              if (typeof state === 'object') {
+                return state.code || state.name || '';
+              }
+              return '';
+            };
+            
+            const transformedStored: CommercialProperty = {
+              ...parsed,
+              state: extractState(parsed.state),
+            };
+            
+            setProperty(transformedStored);
             setLoading(false);
             return;
           } catch (e) {
@@ -298,151 +221,16 @@ function CommercialDetailContent() {
         }
       }
 
-      // If we have propertyId, try to load from dataset
-      if (propertyId) {
-        try {
-          const { loadCommercialPropertyFromDataset } = await import('@/lib/property-loader');
-          const property = await loadCommercialPropertyFromDataset(propertyId);
-          
-          if (property) {
-            // If property has a com but URL doesn't, redirect to com-based URL
-            if (property.com && !comNumber) {
-              const propId = property.propertyId || property.zpid || property.id || propertyId;
-              router.replace(`/commercial/com${property.com}/${encodeURIComponent(propId)}`);
-              return;
-            }
-            // If property doesn't have com, search all files and assign one
-            if (!property.com) {
-              // Search all files to find and assign com
-              const assignedProperty = await findAndAssignCom(property, propertyId);
-              if (assignedProperty) {
-                setProperty(assignedProperty);
-                setLoading(false);
-                return;
-              }
-            }
-            setProperty(property);
-            setLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.error('Error loading commercial property from dataset:', err);
-        }
+      if (!property) {
+        console.error(`❌ Failed to load commercial property. propertyId=${propertyId}, bitNumber=${bitNumber}`);
       }
-
-      // If still not found, try loading from all commercial files
-      try {
-        const COMMERCIAL_FILES = [
-          'commercial_dataset_17nov2025.json',
-          'commercial_dataset_Chicago.json',
-          'commercial_dataset_houston.json',
-          'commercial_dataset_LA.json',
-          'commercial_dataset_ny.json',
-          'commercial_dataset2.json',
-          'dataset_manhattan_ny.json',
-          'dataset_miami_beach.json',
-          'dataset_miami_sale.json',
-          'dataset_miamibeach_lease.json',
-          'dataset_philadelphia_sale.json',
-          'dataset_philadelphia.json',
-          'dataset_phoenix.json',
-          'dataset_san_antonio_sale.json',
-          'dataset_son_antonio_lease.json',
-          'dataset_las_vegas_sale.json',
-          'dataset_lasvegas_lease.json',
-          'dataset_austin_lease.json',
-          'dataset_austin_sale.json',
-          'dataset_los_angeles_lease.json',
-          'dataset_los_angeles_sale.json',
-          'dataset_sanfrancisco_lease.json',
-          'dataset_sanfrancisco_sale.json',
-        ];
-
-        const CREXI_FILES = [
-          'miami_all_crexi_sale.json',
-          'miami_all_crexi_lease.json',
-        ];
-
-        // Search through all files
-        for (const filename of [...COMMERCIAL_FILES, ...CREXI_FILES]) {
-          try {
-            const filePath = filename.startsWith('miami_all_crexi') 
-              ? `/${filename}` 
-              : `/commercial/${filename}`;
-            
-            const response = await fetch(filePath);
-            if (!response.ok) continue;
-
-            const data = await response.json();
-            const propertiesArray = Array.isArray(data) ? data : data.properties || [];
-            
-            // Search for property by ID or com
-            const foundProperty = propertiesArray.find((prop: any) => {
-              if (comNumber && !isNaN(comNumber) && comNumber > 0) {
-                return prop.com === comNumber || 
-                       prop.propertyId === propertyId || 
-                       prop.zpid === propertyId ||
-                       prop.id === propertyId ||
-                       prop.id?.toString() === propertyId;
-              }
-              const propId = prop.propertyId || prop.zpid || prop.id || '';
-              const idString = propId.toString();
-              return idString === propertyId || 
-                     idString === `crexi-sale-${prop.id}` ||
-                     idString === `crexi-lease-${prop.id}` ||
-                     (prop.id && idString === `crexi-sale-${prop.id.toString()}`) ||
-                     (prop.id && idString === `crexi-lease-${prop.id.toString()}`) ||
-                     prop.id?.toString() === propertyId;
-            });
-
-            if (foundProperty) {
-              // If property has a com but URL doesn't, redirect to com-based URL
-              if (foundProperty.com && !comNumber) {
-                const propId = foundProperty.propertyId || foundProperty.zpid || foundProperty.id || propertyId;
-                router.replace(`/commercial/com${foundProperty.com}/${encodeURIComponent(propId)}`);
-                return;
-              }
-
-              // Transform property if needed
-              let transformedProperty: CommercialProperty = {
-                propertyId: foundProperty.propertyId || foundProperty.zpid || foundProperty.id || propertyId,
-                listingType: foundProperty.listingType || foundProperty.status || 'For Sale',
-                propertyType: foundProperty.propertyType || foundProperty.types?.[0] || 'Commercial',
-                city: foundProperty.city || foundProperty.locations?.[0]?.city || foundProperty.location?.city || '',
-                state: foundProperty.state || foundProperty.locations?.[0]?.state || foundProperty.location?.state || '',
-                zip: foundProperty.zip || foundProperty.locations?.[0]?.zip || foundProperty.location?.zip || '',
-                address: foundProperty.address || foundProperty.locations?.[0]?.address || foundProperty.location?.address || '',
-                description: foundProperty.description || foundProperty.name || '',
-                images: foundProperty.images || foundProperty.media?.map((m: any) => m.url) || [],
-                price: foundProperty.price || (foundProperty.askingPrice ? `$${foundProperty.askingPrice.toLocaleString()}` : null),
-                priceNumeric: foundProperty.priceNumeric || foundProperty.askingPrice || null,
-                squareFootage: foundProperty.squareFootage || foundProperty.squareFootage?.toString() || null,
-                brokerCompany: foundProperty.brokerCompany || foundProperty.brokerageName || null,
-                propertyTypeDetailed: foundProperty.propertyTypeDetailed || foundProperty.types?.join(', ') || null,
-                capRate: foundProperty.capRate || null,
-                numberOfUnits: foundProperty.numberOfUnits || foundProperty.numberOfSuites || null,
-                availability: foundProperty.availability || foundProperty.status || null,
-                com: foundProperty.com,
-              };
-
-              setProperty(transformedProperty);
-              setLoading(false);
-              return;
-            }
-          } catch (err) {
-            console.warn(`Failed to search in ${filename}:`, err);
-            continue;
-          }
-        }
-      } catch (err) {
-        console.error('Error searching commercial files:', err);
-      }
-
+      
       setLoading(false);
     };
 
     loadProperty();
-  }, [propertyId, comNumber, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propertyId, bitNumber]); // Removed router from dependencies to prevent unnecessary re-renders
 
   const goBack = () => {
     if (window.history.length > 1) {
@@ -517,18 +305,39 @@ function CommercialDetailContent() {
     return cleaned || address;
   };
 
+  // Extract state string from either string or object
+  const getStateString = (state?: string | { code?: string; name?: string }): string => {
+    if (!state) return '';
+    if (typeof state === 'string') return state;
+    if (typeof state === 'object') {
+      return state.code || state.name || '';
+    }
+    return '';
+  };
+
   const copyAddress = async () => {
     if (property) {
       const cleaned = cleanAddress(property.address);
-      const fullAddress = `${cleaned || ''}, ${property.city || ''}, ${property.state || ''} ${property.zip || ''}`.trim();
+      const stateStr = getStateString(property.state);
+      const fullAddress = `${cleaned || ''}, ${property.city || ''}, ${stateStr} ${property.zip || ''}`.trim();
       await navigator.clipboard.writeText(fullAddress);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  // Filter valid image URLs
-  const images = (property?.images || []).filter(img => img && typeof img === 'string' && img.startsWith('http'));
+  // Filter valid image URLs - handle both string arrays and object arrays
+  const images = (property?.images || [])
+    .map((img: any) => {
+      // Handle string URLs
+      if (typeof img === 'string') return img;
+      // Handle object with url/imageUrl/src properties
+      if (typeof img === 'object' && img !== null) {
+        return img.url || img.imageUrl || img.src || img.href || '';
+      }
+      return '';
+    })
+    .filter((url: string) => url && typeof url === 'string' && (url.startsWith('http') || url.startsWith('//')));
   const hasMultipleImages = images.length > 1;
 
   const nextImage = () => {
@@ -571,7 +380,7 @@ function CommercialDetailContent() {
     );
   }
 
-  const propertyCom = property.com || comNumber;
+  // Removed com logic - not needed
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -591,7 +400,7 @@ function CommercialDetailContent() {
               </button>
               <div className="min-w-0 flex-1">
                 <h1 className="text-base md:text-xl font-bold text-primary-black truncate">
-                  Commercial Property {propertyCom ? `(Com: ${propertyCom})` : ''}
+                  Commercial Property
                 </h1>
                 <p className="text-gray-500 text-xs md:text-sm truncate">{cleanAddress(property.address) || 'Address Not Available'}</p>
               </div>
@@ -600,11 +409,6 @@ function CommercialDetailContent() {
               <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold ${getListingBadgeColor(property.listingType)}`}>
                 {getListingLabel(property.listingType)}
               </span>
-              {propertyCom && (
-                <span className="px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold bg-blue-500 text-white">
-                  Com {propertyCom}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -728,7 +532,7 @@ function CommercialDetailContent() {
                     {cleanAddress(property.address) || 'Address Not Available'}
                   </div>
                   <div className="text-gray-500">
-                    {[property.city, property.state, property.zip].filter(Boolean).join(', ')}
+                    {[property.city, getStateString(property.state), property.zip].filter(Boolean).join(', ')}
                   </div>
                 </div>
                 <button
@@ -739,13 +543,6 @@ function CommercialDetailContent() {
                 </button>
               </div>
 
-              {propertyCom && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="text-sm text-gray-600">
-                    <strong>Property Com ID:</strong> {propertyCom}
-                  </div>
-                </div>
-              )}
 
               {/* Quick Stats */}
               <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
@@ -874,8 +671,8 @@ function CommercialDetailContent() {
                 Location
               </h3>
               <div className="text-gray-600">
-                <p className="mb-2">{property.address}</p>
-                <p>{property.city}, {property.state} {property.zip}</p>
+                <p className="mb-2">{cleanAddress(property.address) || 'Address Not Available'}</p>
+                <p>{property.city}, {getStateString(property.state)} {property.zip}</p>
                 {property.country && <p className="text-gray-400 text-sm mt-1">{property.country}</p>}
               </div>
             </div>
@@ -884,7 +681,7 @@ function CommercialDetailContent() {
 
         {/* Property ID Footer */}
         <div className="mt-8 text-center text-gray-400 text-sm">
-          Property ID: {property.propertyId} {propertyCom && `| Com: ${propertyCom}`}
+          Property ID: {property.propertyId}
         </div>
       </div>
     </div>

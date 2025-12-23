@@ -3,13 +3,11 @@
  */
 
 /**
- * Get commercial property URL with com in path
- * Format: /commercial/com[com]/[id] or /commercial/[id] if no com
+ * Get commercial property URL
+ * Format: /commercial/[id]
  */
 export function getCommercialPropertyUrl(propertyId: string, com?: number): string {
-  if (com) {
-    return `/commercial/com${com}/${encodeURIComponent(propertyId)}`;
-  }
+  // com parameter is ignored - not used in URLs anymore
   return `/commercial/${encodeURIComponent(propertyId)}`;
 }
 

@@ -162,30 +162,41 @@ function JsonDetailContent() {
       }
 
       try {
-        // First try to load from sessionStorage
+        // Try to load from sessionStorage first (for same-tab navigation)
         const storedProperty = sessionStorage.getItem(`json_property_${propertyId}`);
         const storedSource = sessionStorage.getItem('json_current_source');
         
         if (storedProperty) {
-          setProperty(JSON.parse(storedProperty));
-          if (storedSource) {
-            setSourceInfo(JSON.parse(storedSource));
+          try {
+            const parsed = JSON.parse(storedProperty);
+            setProperty(parsed);
+            if (storedSource) {
+              setSourceInfo(JSON.parse(storedSource));
+            }
+            setError(null);
+            setLoading(false);
+            // Still load from dataset to verify (for shareability)
+          } catch (e) {
+            console.warn('Failed to parse stored property, loading from dataset');
           }
-          setError(null);
-          setLoading(false);
-          return;
         }
 
-        // If not in sessionStorage, try to load from dataset (for shared links)
-        const { parsePropertyId, loadResidentialPropertyFromDataset } = await import('@/lib/property-loader');
+        // PRIMARY: Load from dataset (works in new tabs)
+        const { parsePropertyId, loadResidentialPropertyFromDataset, loadResidentialPropertyByBit } = await import('@/lib/property-loader');
         const parsed = parsePropertyId(propertyId);
         
         if (parsed) {
-          const property = await loadResidentialPropertyFromDataset(
+          // Try loading with location hint first
+          let property = await loadResidentialPropertyFromDataset(
             parsed.listingType,
             parsed.location,
             parsed.bit
           );
+          
+          // If not found, try searching all files by bit only
+          if (!property && parsed.bit) {
+            property = await loadResidentialPropertyByBit(parsed.bit);
+          }
           
           if (property) {
             setProperty(property);
@@ -199,7 +210,12 @@ function JsonDetailContent() {
           }
         }
 
-        setError('Property not found. Please go back and select a property.');
+        // If we got here and have sessionStorage data, use it (for same-tab navigation)
+        if (storedProperty) {
+          return; // Already set above
+        }
+
+        setError('Property not found. The property may have been removed or the link is invalid.');
         setLoading(false);
       } catch (err) {
         console.error('Error loading property:', err);

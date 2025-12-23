@@ -181,49 +181,54 @@ function JsonDetailContent() {
       }
 
       try {
-        // First try to load from sessionStorage
+        // Try to load from sessionStorage first (for same-tab navigation)
+        // But don't rely on it - always fall back to dataset search for shareable links
         const storedProperty = sessionStorage.getItem(`json_property_${propertyId || `bit${bit}`}`);
         const storedSource = sessionStorage.getItem('json_current_source');
         
         if (storedProperty) {
-          setProperty(JSON.parse(storedProperty));
-          if (storedSource) {
-            setSourceInfo(JSON.parse(storedSource));
-          }
-          setError(null);
-          setLoading(false);
-          return;
-        }
-
-        // If bit is provided, use it to load property
-        if (bit !== undefined && !isNaN(bit)) {
-          const bitNumber = bit;
-            // Search all residential files for property with this bit
-            const { loadResidentialPropertyFromDataset } = await import('@/lib/property-loader');
-            
-            // Try common locations
-            const locations = ['Miami, FL', 'Miami Beach, FL', 'New York, NY', 'Los Angeles, CA', 
-                             'Chicago, IL', 'Houston, TX', 'Philadelphia, PA', 'Phoenix, AZ', 
-                             'San Antonio, TX', 'Las Vegas, NV'];
-            
-            for (const location of locations) {
-              for (const listingType of ['sale', 'lease'] as const) {
-                const property = await loadResidentialPropertyFromDataset(listingType, location, bitNumber);
-                if (property) {
-                  setProperty(property);
-                  setSourceInfo({
-                    folder: listingType,
-                    file: location,
-                  });
-                  setError(null);
-                  setLoading(false);
-                  return;
-                }
-              }
+          try {
+            const parsed = JSON.parse(storedProperty);
+            setProperty(parsed);
+            if (storedSource) {
+              setSourceInfo(JSON.parse(storedSource));
             }
+            setError(null);
+            setLoading(false);
+            // Still verify the property exists in dataset (for shareability)
+            // But don't block rendering if sessionStorage has it
+          } catch (e) {
+            console.warn('Failed to parse stored property, loading from dataset');
+          }
         }
 
-        // Fallback: try to load using propertyId if provided
+        // PRIMARY: Load from dataset using bit number (works in new tabs)
+        if (bit !== undefined && !isNaN(bit) && bit > 0) {
+          const { loadResidentialPropertyByBit } = await import('@/lib/property-loader');
+          const property = await loadResidentialPropertyByBit(bit);
+          
+          if (property) {
+            // Determine listing type and location from property data
+            const listingType = property.status?.toLowerCase().includes('rent') || 
+                               property.listingType?.toLowerCase().includes('lease') ||
+                               property.listingType?.toLowerCase().includes('rental')
+                               ? 'lease' : 'sale';
+            const location = property.address?.locality || property.city || 'Unknown';
+            const state = property.address?.region || property.state || '';
+            const fullLocation = state ? `${location}, ${state}` : location;
+            
+            setProperty(property);
+            setSourceInfo({
+              folder: listingType,
+              file: fullLocation,
+            });
+            setError(null);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // FALLBACK: Try to load using propertyId if provided
         if (propertyId) {
           const { parsePropertyId, loadResidentialPropertyFromDataset } = await import('@/lib/property-loader');
           const parsed = parsePropertyId(propertyId);
@@ -248,7 +253,12 @@ function JsonDetailContent() {
           }
         }
 
-        setError('Property not found. Please go back and select a property.');
+        // If we got here and have sessionStorage data, use it (for same-tab navigation)
+        if (storedProperty) {
+          return; // Already set above
+        }
+
+        setError('Property not found. The property may have been removed or the link is invalid.');
         setLoading(false);
       } catch (err) {
         console.error('Error loading property:', err);

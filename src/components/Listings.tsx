@@ -339,13 +339,8 @@ export default function Listings() {
       sessionStorage.setItem(`commercial_property_${property.id}`, JSON.stringify(property.rawData));
       sessionStorage.setItem('commercial_source', 'trending');
     }
-    // Use com in URL path if available: /commercial/com[com]/[id]
-    const com = (property.rawData as any)?.com;
-    if (com) {
-      router.push(`/commercial/com${com}/${encodeURIComponent(property.id)}`);
-    } else {
-      router.push(`/commercial/${encodeURIComponent(property.id)}`);
-    }
+    // Navigate to commercial property detail page
+    router.push(`/commercial/${encodeURIComponent(property.id)}`);
   };
 
   return (

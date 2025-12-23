@@ -1190,13 +1190,8 @@ function CommercialSearchPageContent() {
   const handlePropertyClick = (property: CommercialProperty) => {
     sessionStorage.setItem(`commercial_property_${property.propertyId}`, JSON.stringify(property));
     sessionStorage.setItem('commercial_source', 'commercial-search');
-    // Use com in URL path if available: /commercial/com[com]/[id]
-    const com = property.com;
-    if (com) {
-      router.push(`/commercial/com${com}/${encodeURIComponent(property.propertyId)}`);
-    } else {
-      router.push(`/commercial/${encodeURIComponent(property.propertyId)}`);
-    }
+    // Navigate to commercial property detail page
+    router.push(`/commercial/${encodeURIComponent(property.propertyId)}`);
   };
 
   const clearFilters = () => {
@@ -1250,13 +1245,8 @@ function CommercialSearchPageContent() {
     if (property) {
       // Store in sessionStorage for detail page
       sessionStorage.setItem(`commercial_property_${propertyId}`, JSON.stringify(property));
-      // Use com in URL path if available: /commercial/com[com]/[id]
-      const com = property.com;
-      if (com) {
-        router.push(`/commercial/com${com}/${encodeURIComponent(propertyId)}`);
-      } else {
-        router.push(`/commercial/${encodeURIComponent(propertyId)}`);
-      }
+      // Navigate to commercial property detail page
+      router.push(`/commercial/${encodeURIComponent(propertyId)}`);
     }
   }, [filteredProperties, router]);
 

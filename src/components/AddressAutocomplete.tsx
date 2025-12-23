@@ -90,13 +90,8 @@ export default function AddressAutocomplete({
         // Default to residential if type is not specified
         const propertyType = (suggestion as any).type || 'residential';
         if (propertyType === 'commercial') {
-          // Use com in URL path if available: /commercial/com[com]/[id]
-          const com = (suggestion as any).com;
-          if (com) {
-            router.push(`/commercial/com${com}/${encodeURIComponent(suggestion.id)}`);
-          } else {
-            router.push(`/commercial/${encodeURIComponent(suggestion.id)}`);
-          }
+          // Navigate to commercial property detail page
+          router.push(`/commercial/${encodeURIComponent(suggestion.id)}`);
         } else {
           router.push(`/residential/${encodeURIComponent(suggestion.id)}`);
         }

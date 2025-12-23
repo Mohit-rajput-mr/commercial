@@ -216,13 +216,8 @@ function SearchPageContent() {
   const handleCommercialClick = (property: CommercialProperty & { source?: string }) => {
     // Use standardized commercial URL format
     const propertyId = (property as any).propertyId || property.zpid || (property as any).id || '';
-    // Use com in URL path if available: /commercial/com[com]/[id]
-    const com = (property as any).com;
-    if (com) {
-      router.push(`/commercial/com${com}/${encodeURIComponent(propertyId)}`);
-    } else {
-      router.push(`/commercial/${encodeURIComponent(propertyId)}`);
-    }
+    // Navigate to commercial property detail page
+    router.push(`/commercial/${encodeURIComponent(propertyId)}`);
   };
 
   const handleResidentialClick = (property: ZillowProperty | APIProperty) => {

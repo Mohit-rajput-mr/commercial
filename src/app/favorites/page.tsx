@@ -49,7 +49,7 @@ export default function FavoritesPage() {
     const bit = (property.rawData as any)?.bit;
     
     if (property.dataSource === 'commercial') {
-      router.push(getCommercialPropertyUrl(property.propertyId, (property as any).com));
+      router.push(getCommercialPropertyUrl(property.propertyId));
     } else {
       router.push(getResidentialPropertyUrl(property.propertyId, bit));
     }
