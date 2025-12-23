@@ -216,11 +216,18 @@ export default function DatabasePropertiesPage() {
   }, [searchQuery, properties]);
 
   const handleResidentialClick = (property: APIProperty) => {
-    router.push(`/property/${property.zpid}`);
+    router.push(`/residential/${property.zpid}`);
   };
 
   const handleCommercialClick = (property: CommercialProperty) => {
-    router.push(`/property/commercial/${property.zpid}`);
+    const propertyId = (property as any).propertyId || property.zpid || (property as any).id || '';
+    // Use com in URL path if available: /commercial/com[com]/[id]
+    const com = (property as any).com;
+    if (com) {
+      router.push(`/commercial/com${com}/${encodeURIComponent(propertyId)}`);
+    } else {
+      router.push(`/commercial/${encodeURIComponent(propertyId)}`);
+    }
   };
 
   const residentialProperties = filteredProperties.filter(p => 

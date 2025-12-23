@@ -58,7 +58,7 @@ export default function APITestPage() {
   };
 
   const handlePropertyClick = (property: ZillowProperty) => {
-    router.push(`/property/residential/${property.zpid}`);
+    router.push(`/residential/${property.zpid}`);
   };
 
   return (

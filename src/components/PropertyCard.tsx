@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { MapPin, Bed, Bath, Square, Calendar, Home, Car } from 'lucide-react';
 import { APIProperty, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
+import { getResidentialPropertyUrl } from '@/lib/property-routes';
 
 interface PropertyCardProps {
   property: APIProperty;
@@ -32,8 +33,11 @@ export default function PropertyCard({ property, isSelected, onClick }: Property
       console.log(`💾 Stored listingType="${listingType}" for property ${property.zpid}`);
     }
     
-    // Navigate to residential property detail page
-    router.push(`/property/residential/${property.zpid}`);
+    // Extract bit from property if available
+    const bit = (property as any).bit;
+    
+    // Navigate to residential property detail page using standardized URL with bit
+    router.push(getResidentialPropertyUrl(property.zpid, bit));
   };
 
   return (

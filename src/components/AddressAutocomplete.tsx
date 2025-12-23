@@ -86,8 +86,20 @@ export default function AddressAutocomplete({
         // It's a Google Places result, go to search results
         router.push(`/search-results?location=${encodeURIComponent(suggestion.fullAddress)}`);
       } else {
-        // It's a property from our data, go to property detail
-        router.push(`/property/${suggestion.id}`);
+        // It's a property from our data, determine type and use standardized route
+        // Default to residential if type is not specified
+        const propertyType = (suggestion as any).type || 'residential';
+        if (propertyType === 'commercial') {
+          // Use com in URL path if available: /commercial/com[com]/[id]
+          const com = (suggestion as any).com;
+          if (com) {
+            router.push(`/commercial/com${com}/${encodeURIComponent(suggestion.id)}`);
+          } else {
+            router.push(`/commercial/${encodeURIComponent(suggestion.id)}`);
+          }
+        } else {
+          router.push(`/residential/${encodeURIComponent(suggestion.id)}`);
+        }
       }
     }
   };

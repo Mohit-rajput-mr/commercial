@@ -494,10 +494,13 @@ function ResidentialSearchPageContent() {
   };
 
   const handlePropertyClick = (property: Property, index: number) => {
-    const propertyId = `${listingType}_${location}_${startIndex + index}`;
+    // Use bit field if available, otherwise fallback to index
+    const bit = property.bit || (startIndex + index);
+    const propertyId = `${listingType}_${location}_${bit}`;
     sessionStorage.setItem(`json_property_${propertyId}`, JSON.stringify(property));
     sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
-    router.push(`/jsondetailinfo?id=${encodeURIComponent(propertyId)}`);
+    // Use new URL format with bit in path: /jsondetailinfo/bit[bitNumber]?id=...
+    router.push(`/jsondetailinfo/bit${bit}?id=${encodeURIComponent(propertyId)}`);
   };
 
   // Handle marker click - navigate to property detail page (same as card click)
@@ -511,23 +514,24 @@ function ResidentialSearchPageContent() {
     );
     
     if (property) {
-      // Find the index in allProperties to match handlePropertyClick logic
-      const propertyIndex = allProperties.indexOf(property);
-      // Use the same logic as handlePropertyClick - calculate based on current page
-      const detailId = `${listingType}_${location}_${propertyIndex}`;
+      // Use bit field if available, otherwise fallback to index
+      const bit = property.bit || allProperties.indexOf(property);
+      const detailId = `${listingType}_${location}_${bit}`;
       
       sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(property));
       sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
-      router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
+      // Use new URL format with bit in path
+      router.push(`/jsondetailinfo/bit${bit}?id=${encodeURIComponent(detailId)}`);
     } else {
       // Fallback: try to find by zpid directly
       const fallbackProperty = allProperties.find(p => p.zpid === propertyId);
       if (fallbackProperty) {
-        const propertyIndex = allProperties.indexOf(fallbackProperty);
-        const detailId = `${listingType}_${location}_${propertyIndex}`;
+        const bit = fallbackProperty.bit || allProperties.indexOf(fallbackProperty);
+        const detailId = `${listingType}_${location}_${bit}`;
         sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(fallbackProperty));
         sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
-        router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
+        // Use new URL format with bit in path
+        router.push(`/jsondetailinfo/bit${bit}?id=${encodeURIComponent(detailId)}`);
       }
     }
   }, [allProperties, listingType, location, router]);

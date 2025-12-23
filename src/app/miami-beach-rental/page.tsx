@@ -139,7 +139,7 @@ export default function MiamiBeachRentalPage() {
                     <div key={property.zpid} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                       <PropertyCard
                         property={property}
-                        onClick={() => router.push(`/property/residential/${property.zpid}`)}
+                        onClick={() => router.push(`/residential/${property.zpid}`)}
                         isSelected={false}
                       />
                     </div>
@@ -161,6 +161,7 @@ export default function MiamiBeachRentalPage() {
     </div>
   );
 }
+
 
 
 

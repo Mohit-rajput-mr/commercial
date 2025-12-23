@@ -214,21 +214,20 @@ function SearchPageContent() {
 
 
   const handleCommercialClick = (property: CommercialProperty & { source?: string }) => {
-    // Check if it's a database property
-    if (property.source === 'database') {
-      router.push(`/property/${property.zpid}`);
+    // Use standardized commercial URL format
+    const propertyId = (property as any).propertyId || property.zpid || (property as any).id || '';
+    // Use com in URL path if available: /commercial/com[com]/[id]
+    const com = (property as any).com;
+    if (com) {
+      router.push(`/commercial/com${com}/${encodeURIComponent(propertyId)}`);
     } else {
-      router.push(`/property/commercial/${property.zpid}`);
+      router.push(`/commercial/${encodeURIComponent(propertyId)}`);
     }
   };
 
   const handleResidentialClick = (property: ZillowProperty | APIProperty) => {
-    // Check if it's a database property
-    if ((property as any).source === 'database') {
-      router.push(`/property/${property.zpid}`);
-    } else {
-      router.push(`/property/residential/${property.zpid}`);
-    }
+    // Use standardized residential URL format
+    router.push(`/residential/${encodeURIComponent(property.zpid)}`);
   };
 
 

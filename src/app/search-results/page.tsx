@@ -58,7 +58,7 @@ function PropertyCard({
   };
 
   return (
-    <Link href={`/property/${property.id}`}>
+    <Link href={`/residential/${property.id}`}>
       <motion.div
         onClick={onSelect}
         className={`bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer border-2 ${

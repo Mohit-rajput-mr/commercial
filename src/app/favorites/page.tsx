@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { getAllFavorites, removeFavorite, type FavoriteProperty } from '@/lib/indexedDB';
 import BackToHomeButton from '@/components/BackToHomeButton';
 import Image from 'next/image';
+import { getResidentialPropertyUrl, getCommercialPropertyUrl } from '@/lib/property-routes';
 
 export default function FavoritesPage() {
   const router = useRouter();
@@ -44,10 +45,13 @@ export default function FavoritesPage() {
       sessionStorage.setItem('commercial_source', 'favorites');
     }
     
+    // Extract bit from rawData if available
+    const bit = (property.rawData as any)?.bit;
+    
     if (property.dataSource === 'commercial') {
-      router.push(`/commercial-detail?id=${encodeURIComponent(property.propertyId)}`);
+      router.push(getCommercialPropertyUrl(property.propertyId, (property as any).com));
     } else {
-      router.push(`/property/residential/${property.propertyId}`);
+      router.push(getResidentialPropertyUrl(property.propertyId, bit));
     }
   };
 
@@ -163,5 +167,6 @@ export default function FavoritesPage() {
     </div>
   );
 }
+
 
 

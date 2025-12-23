@@ -184,7 +184,7 @@ function JsonDetailContent() {
           const property = await loadResidentialPropertyFromDataset(
             parsed.listingType,
             parsed.location,
-            parsed.index
+            parsed.bit
           );
           
           if (property) {

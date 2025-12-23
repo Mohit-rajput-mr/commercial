@@ -291,7 +291,6 @@ export default function PropertyDetailPage() {
                 fill
                 className="object-cover"
                 priority
-                sizes="100vw"
               />
               
               {/* Navigation Arrows */}
@@ -349,7 +348,6 @@ export default function PropertyDetailPage() {
                       alt={img.alt}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 768px) 20vw, 80px"
                     />
                   </button>
                 ))}
@@ -815,7 +813,6 @@ export default function PropertyDetailPage() {
                               alt={relatedProperty.address}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform"
-                              sizes="(max-width: 768px) 50vw, 25vw"
                             />
                           </div>
                           <h4 className="font-semibold text-primary-black text-sm">{relatedProperty.address}</h4>
@@ -992,7 +989,6 @@ export default function PropertyDetailPage() {
                                 alt={relatedProperty.address}
                                 fill
                                 className="object-cover group-hover:scale-110 transition-transform"
-                                sizes="(max-width: 768px) 50vw, 25vw"
                               />
                             </div>
                             <h4 className="font-semibold text-primary-black">{relatedProperty.address}</h4>

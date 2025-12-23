@@ -435,10 +435,13 @@ function UnifiedSearchPageContent() {
   };
 
   const handlePropertyClick = (property: Property, index: number) => {
-    const propertyId = `${listingType}_${location}_${startIndex + index}`;
+    // Use bit field if available, otherwise fallback to index
+    const bit = property.bit || (startIndex + index);
+    const propertyId = `${listingType}_${location}_${bit}`;
     sessionStorage.setItem(`json_property_${propertyId}`, JSON.stringify(property));
     sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
-    router.push(`/jsondetailinfo?id=${encodeURIComponent(propertyId)}`);
+    // Use new URL format with bit in path: /jsondetailinfo/bit[bitNumber]?id=...
+    router.push(`/jsondetailinfo/bit${bit}?id=${encodeURIComponent(propertyId)}`);
   };
 
   // Update URL params when filters change
@@ -506,23 +509,24 @@ function UnifiedSearchPageContent() {
     );
     
     if (property) {
-      // Find the index in filteredProperties to match handlePropertyClick logic
-      const propertyIndex = filteredProperties.indexOf(property);
-      // Use the same logic as handlePropertyClick - calculate based on current page
-      const detailId = `${listingType}_${location}_${propertyIndex}`;
+      // Use bit field if available, otherwise fallback to index
+      const bit = property.bit || filteredProperties.indexOf(property);
+      const detailId = `${listingType}_${location}_${bit}`;
       
       sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(property));
       sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
-      router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
+      // Use new URL format with bit in path
+      router.push(`/jsondetailinfo/bit${bit}?id=${encodeURIComponent(detailId)}`);
     } else {
       // Fallback: try to find by zpid directly
       const fallbackProperty = filteredProperties.find(p => p.zpid === propertyId);
       if (fallbackProperty) {
-        const propertyIndex = filteredProperties.indexOf(fallbackProperty);
-        const detailId = `${listingType}_${location}_${propertyIndex}`;
+        const bit = fallbackProperty.bit || filteredProperties.indexOf(fallbackProperty);
+        const detailId = `${listingType}_${location}_${bit}`;
         sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(fallbackProperty));
         sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
-        router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
+        // Use new URL format with bit in path
+        router.push(`/jsondetailinfo/bit${bit}?id=${encodeURIComponent(detailId)}`);
       }
     }
   }, [filteredProperties, listingType, location, router]);
@@ -540,7 +544,7 @@ function UnifiedSearchPageContent() {
       <div className="h-[50px] md:h-[68px] w-full flex-shrink-0"></div>
       
       {/* Header Section with Always-Visible Filters */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-3 md:px-6 flex-shrink-0 relative z-[1000]">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-3 md:px-6 flex-shrink-0 relative z-[100]">
         <div className="max-w-[1920px] mx-auto">
           {/* Title Row */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
@@ -593,7 +597,7 @@ function UnifiedSearchPageContent() {
               </button>
               
               {priceDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-64 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
               <button
                     onClick={() => {
                       setSelectedPriceRange(null);
@@ -644,7 +648,7 @@ function UnifiedSearchPageContent() {
               </button>
               
               {bedsDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-64 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
                   {BEDROOM_OPTIONS.map((option) => (
                     <button
                       key={option.value ?? 'any'}
@@ -684,7 +688,7 @@ function UnifiedSearchPageContent() {
               </button>
               
               {bathsDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-64 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[200] max-h-64 overflow-y-auto">
                   {BATHROOM_OPTIONS.map((option) => (
                     <button
                       key={option.value ?? 'any'}
