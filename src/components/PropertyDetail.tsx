@@ -84,6 +84,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
                 alt="Cap Rate"
                 fill
                 className="object-contain object-left"
+                sizes="128px"
               />
             </div>
             <div>
@@ -109,6 +110,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
                 fill
                 className="object-cover"
                 priority
+                sizes="(max-width: 768px) 100vw, 66vw"
               />
               
               {/* Navigation Arrows */}
@@ -255,6 +257,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
                                       alt={`Interior ${photoIndex + 1}`}
                                       fill
                                       className="object-cover"
+                                      sizes="(max-width: 768px) 50vw, 33vw"
                                     />
                                   </div>
                                 ))}
@@ -291,6 +294,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
                       alt={property.agent.name}
                       fill
                       className="object-cover"
+                      sizes="64px"
                     />
                   </div>
                   <div>
@@ -304,6 +308,7 @@ export default function PropertyDetail({ property }: PropertyDetailProps) {
                     alt={property.agent.company}
                     fill
                     className="object-contain object-left"
+                    sizes="128px"
                   />
                 </div>
                 <div className="flex items-center gap-4 pt-4 border-t border-gray-300">

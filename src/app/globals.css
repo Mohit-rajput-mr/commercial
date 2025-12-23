@@ -349,3 +349,22 @@ body {
   }
 }
 
+/* Autocomplete search highlighting */
+mark {
+  background-color: #ffd700;
+  color: #0a0a0a;
+  font-weight: 600;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Smooth focus transitions for autocomplete */
+.autocomplete-item {
+  transition: all 0.15s ease-in-out;
+}
+
+.autocomplete-item:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: -2px;
+}
+

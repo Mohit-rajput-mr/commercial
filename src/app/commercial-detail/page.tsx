@@ -7,8 +7,9 @@ import Navigation from '@/components/Navigation';
 import { 
   ArrowLeft, Building2, MapPin, DollarSign, Square, 
   Loader2, ChevronLeft, ChevronRight,
-  Info, User, Building, Home, Copy, Check, Calendar
+  Info, User, Building, Home, Copy, Check, Calendar, ArrowRight
 } from 'lucide-react';
+import ShareButton from '@/components/ShareButton';
 
 // Commercial Property interface
 interface CommercialProperty {
@@ -52,21 +53,44 @@ function CommercialDetailContent() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!propertyId) {
-      setLoading(false);
-      return;
-    }
-
-    // Try to load from sessionStorage
-    const storedProperty = sessionStorage.getItem(`commercial_property_${propertyId}`);
-    if (storedProperty) {
-      try {
-        setProperty(JSON.parse(storedProperty));
-      } catch (e) {
-        console.error('Failed to parse stored property:', e);
+    const loadProperty = async () => {
+      if (!propertyId) {
+        setLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+
+      setLoading(true);
+
+      // First try to load from sessionStorage
+      const storedProperty = sessionStorage.getItem(`commercial_property_${propertyId}`);
+      if (storedProperty) {
+        try {
+          setProperty(JSON.parse(storedProperty));
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error('Failed to parse stored property:', e);
+        }
+      }
+
+      // If not in sessionStorage, try to load from dataset (for shared links)
+      try {
+        const { loadCommercialPropertyFromDataset } = await import('@/lib/property-loader');
+        const property = await loadCommercialPropertyFromDataset(propertyId);
+        
+        if (property) {
+          setProperty(property);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error loading commercial property from dataset:', err);
+      }
+
+      setLoading(false);
+    };
+
+    loadProperty();
   }, [propertyId]);
 
   const goBack = () => {
@@ -219,11 +243,26 @@ function CommercialDetailContent() {
               <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold ${getListingBadgeColor(property.listingType)}`}>
                 {getListingLabel(property.listingType)}
               </span>
+              {/* Go Back Button (Desktop only, opposite to Home) */}
               <button
-                onClick={() => router.push('/')}
-                className="p-1.5 md:p-2 bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg"
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    router.back();
+                  } else {
+                    router.push('/');
+                  }
+                }}
+                className="hidden md:flex p-1.5 md:p-2 bg-gray-100 hover:bg-gray-200 text-primary-black rounded-lg transition-colors"
+                title="Go back"
               >
-                <Home size={18} className="md:w-5 md:h-5" />
+                <ArrowRight size={18} className="md:w-5 md:h-5" />
+              </button>
+              <button
+                onClick={() => router.back()}
+                className="p-1.5 md:p-2 bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg"
+                title="Go Back"
+              >
+                <ArrowLeft size={18} className="md:w-5 md:h-5" />
               </button>
             </div>
           </div>
@@ -234,17 +273,30 @@ function CommercialDetailContent() {
         {/* Image Gallery */}
         {images.length > 0 && (
           <div className="mb-4 md:mb-8">
-            <div className="relative h-[250px] sm:h-[350px] md:h-[500px] rounded-xl md:rounded-2xl overflow-hidden bg-gray-200">
+            <div className="relative h-[250px] sm:h-[350px] md:h-[500px] rounded-xl md:rounded-2xl overflow-hidden bg-gray-200 group">
               <img
                 src={images[currentImageIndex]}
                 alt={property.address || 'Commercial Property'}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => {
+                  window.open(images[currentImageIndex], '_blank');
+                }}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = '/assets/logoRE.png';
                   target.className = 'w-full h-full object-contain p-8 bg-gray-100';
                 }}
               />
+              {/* Share Button Overlay */}
+              <div className="absolute top-4 right-4 z-10">
+                <ShareButton
+                  url={typeof window !== 'undefined' ? window.location.href : ''}
+                  title={cleanAddress(property.address) || 'Commercial Property'}
+                  text={`Check out this commercial property: ${cleanAddress(property.address)}`}
+                  variant="icon"
+                  iconSize={20}
+                />
+              </div>
               {hasMultipleImages && (
                 <>
                   <button

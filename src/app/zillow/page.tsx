@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Building2, Search, ChevronLeft, ChevronRight, Loader2, 
-  Heart, Share2, Bed, Bath, Home, Ruler, AlertCircle, Clock, X
+  Heart, Share2, Bed, Bath, Home, Ruler, AlertCircle, Clock, X, ArrowLeft
 } from 'lucide-react';
 import { PropertySearchResult, LocationSuggestion } from './types';
 
@@ -29,6 +30,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function ZillowSearchPage() {
+  const router = useRouter();
   const [locationQuery, setLocationQuery] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -284,12 +286,13 @@ export default function ZillowSearchPage() {
               <h1 className="text-5xl font-bold mb-4">Zillow Property Search</h1>
               <p className="text-xl text-blue-100">Search properties by location, city, address, or ZIP code</p>
             </div>
-            <Link
-              href="/"
-              className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+            <button
+              onClick={() => router.back()}
+              className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors flex items-center gap-2"
             >
-              Back to Home
-            </Link>
+              <ArrowLeft size={18} />
+              Go Back
+            </button>
           </div>
         </div>
       </div>

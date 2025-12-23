@@ -13,6 +13,12 @@ const nextConfig = {
   },
   // Disable static generation for dynamic routes to avoid build errors
   output: 'standalone',
+  // Increase body size limit for large JSON files
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,

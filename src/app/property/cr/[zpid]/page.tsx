@@ -224,6 +224,7 @@ export default function CRPropertyDetailPage() {
               className="object-cover"
               priority
               unoptimized
+              sizes="100vw"
             />
             
             {/* Navigation Arrows */}
@@ -268,6 +269,7 @@ export default function CRPropertyDetailPage() {
                       fill
                       className="object-cover"
                       unoptimized
+                      sizes="(max-width: 768px) 20vw, 80px"
                     />
                   </button>
                 ))}
@@ -541,13 +543,13 @@ export default function CRPropertyDetailPage() {
                 </div>
               </div>
 
-              {/* Back to Home */}
+              {/* Go Back */}
               <button
-                onClick={() => router.push('/')}
+                onClick={() => router.back()}
                 className="w-full border-2 border-primary-black text-primary-black px-4 md:px-6 py-3 rounded-lg font-semibold hover:bg-primary-black hover:text-white transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
               >
                 <ArrowLeft size={18} className="md:w-5 md:h-5" />
-                Back to Home
+                Go Back
               </button>
             </div>
           </div>

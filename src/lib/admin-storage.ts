@@ -190,13 +190,22 @@ export function saveAdminProfile(profile: AdminProfile): void {
 export function initializeMockData(): void {
   if (typeof window === 'undefined') return;
 
-  // Import mock data generators dynamically to avoid circular dependencies
-  const {
-    generateMockProperties,
-    generateMockUsers,
-    generateMockChats,
-    generateMockActivities,
-  } = require('./admin-mock-data');
+  // Simple inline mock data generators
+  function generateMockProperties(): AdminProperty[] {
+    return [];
+  }
+
+  function generateMockUsers(): AdminUser[] {
+    return [];
+  }
+
+  function generateMockChats(): Chat[] {
+    return [];
+  }
+
+  function generateMockActivities(): Activity[] {
+    return [];
+  }
 
   // Only initialize if data doesn't exist
   if (!localStorage.getItem(STORAGE_KEYS.PROPERTIES)) {

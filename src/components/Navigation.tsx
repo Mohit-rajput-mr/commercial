@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Menu, Database, Phone, Heart, Bell, Settings, ChevronDown, LogOut } from 'lucide-react';
+import { Menu, Database, Phone, Heart, Bell, Settings, ChevronDown, LogOut, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNavbarScroll } from '@/hooks/useNavbarScroll';
 import logoRE from '../../assets/logoRE.png';
@@ -145,6 +145,16 @@ export default function Navigation() {
             title="My Preferences"
           >
             <Settings className="w-4 h-4" />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => router.push('/test-location-search')}
+            className="px-3 py-1.5 md:py-[8px] bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold transition-all duration-300 text-xs md:text-sm flex items-center gap-2"
+            title="Test Location Search"
+          >
+            <Search className="w-4 h-4" />
+            <span className="hidden lg:inline">Test Search</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}

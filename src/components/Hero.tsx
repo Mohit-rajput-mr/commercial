@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import TrustedPartners from './TrustedPartners';
 import LoginModal from './LoginModal';
 import { setAdminAuthenticated } from '@/lib/admin-storage';
-import { useLocationAutocomplete, LocationSuggestion } from '@/hooks/useLocationAutocomplete';
+import { useLocationIndexAutocomplete, LocationIndexSuggestion } from '@/hooks/useLocationIndexAutocomplete';
 
 // Sale and Lease tabs (Sale first, Lease second)
 const tabs = ['Sale', 'Lease'] as const;
@@ -23,7 +23,34 @@ export default function Hero() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { suggestions, loading: suggestionsLoading } = useLocationAutocomplete(searchQuery);
+  const suggestionItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const { suggestions, loading: suggestionsLoading, saveRecentSearch } = useLocationIndexAutocomplete(searchQuery);
+  
+  // Auto-open dropdown when suggestions are available
+  useEffect(() => {
+    if (searchQuery.length >= 1) {
+      if (suggestions.length > 0 && !suggestionsLoading) {
+        setDropdownOpen(true);
+      } else if (suggestionsLoading) {
+        setDropdownOpen(true);
+      } else if (suggestions.length === 0 && !suggestionsLoading) {
+        setDropdownOpen(true); // Keep open to show "no results" message
+      }
+    } else if (searchQuery.length === 0) {
+      setDropdownOpen(false);
+    }
+  }, [suggestions.length, searchQuery.length, suggestionsLoading, searchQuery]);
+  
+  // Scroll selected item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && suggestionItemRefs.current[selectedIndex]) {
+      suggestionItemRefs.current[selectedIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [selectedIndex]);
+  
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -95,6 +122,10 @@ export default function Hero() {
   const handleSearch = (location?: string) => {
     const query = (location || searchQuery.trim());
     if (!query) return;
+    
+    // Save to recent searches
+    saveRecentSearch(query);
+    
     const params = new URLSearchParams();
     params.set('location', query);
     // Pass activeTab (Lease/Sale) to search
@@ -114,40 +145,20 @@ export default function Hero() {
       // Commercial properties go to commercial-search page
       window.location.href = `/commercial-search?${params.toString()}`;
     } else {
-      // Residential goes to unified-search page
-      window.location.href = `/unified-search?${params.toString()}`;
+      // Residential goes to residential page
+      window.location.href = `/residential?${params.toString()}`;
     }
   };
 
-  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
-    let location = '';
-    switch (suggestion.area_type) {
-      case 'city':
-        location = `${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-        break;
-      case 'neighborhood':
-        location = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-        break;
-      case 'school':
-        location = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-        break;
-      case 'postal_code':
-        location = `${suggestion.postal_code || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-        break;
-      case 'address':
-        location = suggestion.full_address || '';
-        break;
-      case 'county':
-        location = `${suggestion.county || ''}, ${suggestion.state_code || ''}`.trim();
-        break;
-      default:
-        location = suggestion.full_address || suggestion.name || '';
-    }
+  const handleSelectSuggestion = (suggestion: LocationIndexSuggestion) => {
+    const location = suggestion.fullAddress || suggestion.displayText;
     setSearchQuery(location);
     handleSearch(location);
   };
-
+  
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const maxIndex = suggestions.length - 1;
+    
     if (e.key === 'Enter') {
       e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
@@ -160,11 +171,15 @@ export default function Hero() {
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setDropdownOpen(true);
-      setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
+      setSelectedIndex((prev) => (prev < maxIndex ? prev + 1 : prev));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
     } else if (e.key === 'Escape') {
+      setDropdownOpen(false);
+      setSelectedIndex(-1);
+      inputRef.current?.blur();
+    } else if (e.key === 'Tab') {
       setDropdownOpen(false);
       setSelectedIndex(-1);
     }
@@ -317,11 +332,11 @@ export default function Hero() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setDropdownOpen(e.target.value.length >= 2);
                   setSelectedIndex(-1);
+                  // Dropdown will open automatically when suggestions are available
                 }}
                 onFocus={() => {
-                  if (searchQuery.length >= 2 && suggestions.length > 0) {
+                  if (searchQuery.length >= 1) {
                     setDropdownOpen(true);
                   }
                 }}
@@ -352,57 +367,90 @@ export default function Hero() {
               </span>
               
               {/* Autocomplete Dropdown */}
-              {dropdownOpen && suggestions.length > 0 && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute z-[9999] w-full mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-80 overflow-y-auto"
-                >
-                  {suggestions.map((suggestion, index) => {
-                    let displayText = '';
-                    switch (suggestion.area_type) {
-                      case 'city':
-                        displayText = `${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-                        break;
-                      case 'neighborhood':
-                        displayText = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-                        break;
-                      case 'school':
-                        displayText = `${suggestion.name || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-                        break;
-                      case 'postal_code':
-                        displayText = `${suggestion.postal_code || ''}, ${suggestion.city || ''}, ${suggestion.state_code || ''}`.trim();
-                        break;
-                      case 'address':
-                        displayText = suggestion.full_address || '';
-                        break;
-                      case 'county':
-                        displayText = `${suggestion.county || ''}, ${suggestion.state_code || ''}`.trim();
-                        break;
-                      default:
-                        displayText = suggestion.full_address || suggestion.name || '';
-                    }
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    ref={dropdownRef}
+                    className="absolute z-[9999] w-full mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-80 overflow-y-auto"
+                    style={{ top: '100%', left: 0 }}
+                  >
+                    {/* Suggestions */}
+                    {suggestionsLoading && (
+                      <div className="px-4 py-8 text-center">
+                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-accent-yellow"></div>
+                        <p className="text-sm text-gray-500 mt-2">Searching locations...</p>
+                      </div>
+                    )}
                     
-                    return (
-                      <button
-                        key={suggestion.slug_id || index}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className={`w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0 ${
-                          selectedIndex === index ? 'bg-accent-yellow/20' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <MapPin size={16} className="text-gray-400 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-primary-black truncate">{displayText}</p>
-                            <p className="text-xs text-gray-500 capitalize">{suggestion.area_type.replace('_', ' ')}</p>
-                          </div>
+                    {!suggestionsLoading && suggestions.length > 0 && (
+                      <>
+                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                            {suggestions.length} {suggestions.length === 1 ? 'Location' : 'Locations'} Found
+                          </p>
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                        {suggestions.map((suggestion, index) => {
+                          const IconComp = suggestion.type === 'postal_code' ? GraduationCap : MapPin;
+                          const iconColor = suggestion.type === 'postal_code' ? 'text-blue-500' : 'text-accent-yellow';
+                          const typeLabels: Record<string, string> = {
+                            'state': 'State',
+                            'city': 'City',
+                            'county': 'County',
+                            'neighborhood': 'Neighborhood',
+                            'postal_code': 'ZIP Code',
+                            'address': 'Address',
+                          };
+                          
+                          return (
+                            <button
+                              key={`${suggestion.type}-${suggestion.displayText}-${index}`}
+                              type="button"
+                              ref={(el) => { suggestionItemRefs.current[index] = el; }}
+                              onClick={() => handleSelectSuggestion(suggestion)}
+                              className={`w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0 ${
+                                selectedIndex === index ? 'bg-accent-yellow/20 ring-2 ring-accent-yellow/30' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`p-1.5 rounded-lg ${iconColor === 'text-blue-500' ? 'bg-blue-50' : 'bg-yellow-50'}`}>
+                                  <IconComp size={16} className={iconColor} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p 
+                                    className="text-sm font-medium text-primary-black truncate"
+                                    dangerouslySetInnerHTML={{ __html: suggestion.highlightedText || suggestion.displayText }}
+                                  />
+                                  <p className="text-xs text-gray-500 mt-0.5">{typeLabels[suggestion.type] || suggestion.type}</p>
+                                </div>
+                                {selectedIndex === index && (
+                                  <div className="text-xs text-gray-400">Press Enter</div>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                    
+                    {/* Empty State */}
+                    {!suggestionsLoading && suggestions.length === 0 && searchQuery.length >= 1 && (
+                      <div className="px-4 py-8 text-center">
+                        <MapPin size={32} className="text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-gray-600">No locations found</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {searchQuery.length < 2 
+                            ? 'Type at least 2 characters for better results' 
+                            : 'Try a different search term'}
+                        </p>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
               <motion.button
@@ -479,6 +527,7 @@ export default function Hero() {
                     alt="Cap Rate"
                     fill
                     className="object-contain object-left"
+                    sizes="128px"
                   />
                 </div>
                 <button

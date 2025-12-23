@@ -70,7 +70,6 @@ const COMMERCIAL_FILES = [
   'dataset_san_antonio_sale.json',
   'dataset_son_antonio_lease.json',
   'dataset_las_vegas_sale.json',
-  'dataset-las_vegas_lease.json',
   'dataset_lasvegas_lease.json',
   'dataset_austin_lease.json',
   'dataset_austin_sale.json',
@@ -83,6 +82,7 @@ const COMMERCIAL_FILES = [
 // Crexi dataset files (loaded separately from root public folder)
 const CREXI_SALE_FILE = 'miami_all_crexi_sale.json';
 const CREXI_LEASE_FILE = 'miami_all_crexi_lease.json';
+
 
 // Property types for filter
 const PROPERTY_TYPE_OPTIONS = [
@@ -428,7 +428,7 @@ function CommercialSearchPageContent() {
     return score;
   };
 
-  // Load ALL commercial datasets from commercial folder
+  // Load ALL commercial datasets from commercial folder with IndexedDB caching
   useEffect(() => {
     const loadAllCommercialProperties = async () => {
       setLoading(true);
@@ -438,23 +438,47 @@ function CommercialSearchPageContent() {
         const allProps: CommercialProperty[] = [];
         const seenIds = new Set<string>();
         
+        // Import IndexedDB cache utilities
+        const { getCachedProperties, saveCachedProperties, generateCacheKey } = await import('@/lib/indexeddb-cache');
+        
         console.log('📦 Loading ALL commercial datasets from commercial folder...');
         
-        // Load all commercial dataset files from COMMERCIAL_FILES array
+        // Load all commercial dataset files from COMMERCIAL_FILES array (sequential loading)
         for (const filename of COMMERCIAL_FILES) {
           try {
+            // Check cache first for transformed properties
+            const cacheKey = generateCacheKey('commercial', { filename });
+            let cachedTransformedProperties = await getCachedProperties(cacheKey);
+            
+            if (cachedTransformedProperties && cachedTransformedProperties.length > 0) {
+              console.log(`✅ Using cached transformed properties for ${filename} (${cachedTransformedProperties.length} properties)`);
+              // Add cached transformed properties directly to allProps
+              cachedTransformedProperties.forEach((prop: CommercialProperty) => {
+                if (!seenIds.has(prop.propertyId)) {
+                  seenIds.add(prop.propertyId);
+                  allProps.push(prop);
+                }
+              });
+              continue; // Skip to next file
+            }
+            
+            // Cache miss - fetch from network and transform
             const response = await fetch(`/commercial/${filename}`);
-            if (response.ok) {
-              const data = await response.json();
-              const properties: any[] = Array.isArray(data) ? data : [];
-              
-              console.log(`📂 Loading ${properties.length} properties from ${filename}`);
-              
-              // Transform properties to match CommercialProperty interface
-              let loadedCount = 0;
-              let skippedCount = 0;
-              
-              properties.forEach((prop, index) => {
+            if (!response.ok) {
+              continue;
+            }
+            
+            const data = await response.json();
+            const properties: any[] = Array.isArray(data) ? data : [];
+            
+            console.log(`📂 Fetched ${properties.length} properties from ${filename}`);
+            
+            // Transform properties to match CommercialProperty interface
+            const transformedProps: CommercialProperty[] = [];
+            let loadedCount = 0;
+            let skippedCount = 0;
+            
+            properties.forEach((prop, index) => {
                 // Check if this is a Crexi-style format (Las Vegas datasets)
                 const isCrexiSaleFormat = prop.locations && Array.isArray(prop.locations) && prop.locations.length > 0;
                 const isCrexiLeaseFormat = prop.location && typeof prop.location === 'object' && prop.location.address;
@@ -500,7 +524,7 @@ function CommercialSearchPageContent() {
                   listingUrl = prop.url || undefined;
                   brokerCompany = prop.brokerageName || null;
                 } else if (isCrexiLeaseFormat) {
-                  // Crexi Lease format (dataset-las_vegas_lease.json)
+                  // Crexi Lease format (dataset_lasvegas_lease.json)
                   const location = prop.location;
                   if (!location || !location.city) {
                     // Skip properties without valid location data
@@ -610,7 +634,7 @@ function CommercialSearchPageContent() {
                 loadedCount++;
                 
                 // Transform to CommercialProperty format
-                allProps.push({
+                const transformedProp: CommercialProperty = {
                   propertyId: propId,
                   listingType: listingType,
                   propertyType: propertyType,
@@ -643,20 +667,30 @@ function CommercialSearchPageContent() {
                   status: listingType,
                   latitude: latitude ?? undefined,
                   longitude: longitude ?? undefined,
-                });
+                };
+                
+                transformedProps.push(transformedProp);
+                allProps.push(transformedProp);
+            });
+            
+            console.log(`✅ Added ${loadedCount} properties from ${filename} (skipped ${skippedCount} duplicates/invalid)`);
+            
+            // Save transformed properties to cache
+            if (transformedProps.length > 0) {
+              await saveCachedProperties(cacheKey, transformedProps, {
+                filename,
+                propertyType: 'commercial',
               });
-              
-              console.log(`✅ Added ${loadedCount} properties from ${filename} (skipped ${skippedCount} duplicates/invalid)`);
-              
-              // Debug: Show city distribution for Las Vegas datasets
-              if (filename.includes('las_vegas') || filename.includes('las-vegas')) {
-                const lasVegasProps = allProps.filter(p => 
-                  p.city && (p.city.toLowerCase().includes('las vegas') || p.city.toLowerCase().includes('north las vegas'))
-                );
-                const cities = [...new Set(allProps.slice(-loadedCount).map(p => p.city).filter(Boolean))];
-                console.log(`📍 Las Vegas dataset cities: ${cities.slice(0, 10).join(', ')}${cities.length > 10 ? '...' : ''}`);
-                console.log(`🎰 Las Vegas properties in loaded set: ${lasVegasProps.length}`);
-              }
+            }
+            
+            // Debug: Show city distribution for Las Vegas datasets
+            if (filename.includes('las_vegas') || filename.includes('las-vegas')) {
+              const lasVegasProps = allProps.filter(p => 
+                p.city && (p.city.toLowerCase().includes('las vegas') || p.city.toLowerCase().includes('north las vegas'))
+              );
+              const cities = [...new Set(allProps.slice(-loadedCount).map(p => p.city).filter(Boolean))];
+              console.log(`📍 Las Vegas dataset cities: ${cities.slice(0, 10).join(', ')}${cities.length > 10 ? '...' : ''}`);
+              console.log(`🎰 Las Vegas properties in loaded set: ${lasVegasProps.length}`);
             }
           } catch (err) {
             console.warn(`⚠️ Failed to load ${filename}:`, err);
@@ -855,6 +889,18 @@ function CommercialSearchPageContent() {
         const uniqueCities = [...new Set(allProps.map(p => p.city).filter(c => c))];
         console.log(`📍 Cities loaded:`, uniqueCities.sort());
         
+        // Debug: Show Las Vegas properties count if location is Las Vegas
+        if (locationParam && (locationParam.toLowerCase().includes('las vegas') || locationParam.toLowerCase().includes('vegas'))) {
+          const lasVegasProps = allProps.filter(p => 
+            p.city && (p.city.toLowerCase().includes('las vegas') || p.city.toLowerCase().includes('north las vegas'))
+          );
+          console.log(`🎰 Las Vegas properties loaded: ${lasVegasProps.length} out of ${allProps.length} total`);
+          console.log(`🎰 Las Vegas properties by listing type:`, {
+            sale: lasVegasProps.filter(p => p.listingType === 'For Sale').length,
+            lease: lasVegasProps.filter(p => p.listingType === 'For Lease').length,
+          });
+        }
+        
         setAllProperties(allProps);
         
       } catch (err) {
@@ -866,7 +912,7 @@ function CommercialSearchPageContent() {
     };
 
     loadAllCommercialProperties();
-  }, [selectedListingType]); // Reload when listing type filter changes
+  }, [selectedListingType, locationParam]); // Reload when listing type filter or location changes
 
   // Get price range object from selected value
   const getPriceRange = (value: string | null) => {

@@ -28,8 +28,10 @@ import {
   Copy,
   Check,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowRight
 } from 'lucide-react';
+import ShareButton from '@/components/ShareButton';
 
 // Property Feature Dropdown Component
 interface PropertyFeatureDropdownProps {
@@ -152,7 +154,7 @@ function JsonDetailContent() {
   const propertyId = searchParams.get('id') || '';
 
   useEffect(() => {
-    const loadProperty = () => {
+    const loadProperty = async () => {
       if (!propertyId) {
         setError('No property ID provided');
         setLoading(false);
@@ -160,25 +162,48 @@ function JsonDetailContent() {
       }
 
       try {
-        // Load property from sessionStorage
+        // First try to load from sessionStorage
         const storedProperty = sessionStorage.getItem(`json_property_${propertyId}`);
         const storedSource = sessionStorage.getItem('json_current_source');
         
-        if (!storedProperty) {
-          setError('Property not found. Please go back and select a property.');
+        if (storedProperty) {
+          setProperty(JSON.parse(storedProperty));
+          if (storedSource) {
+            setSourceInfo(JSON.parse(storedSource));
+          }
+          setError(null);
           setLoading(false);
           return;
         }
 
-        setProperty(JSON.parse(storedProperty));
-        if (storedSource) {
-          setSourceInfo(JSON.parse(storedSource));
+        // If not in sessionStorage, try to load from dataset (for shared links)
+        const { parsePropertyId, loadResidentialPropertyFromDataset } = await import('@/lib/property-loader');
+        const parsed = parsePropertyId(propertyId);
+        
+        if (parsed) {
+          const property = await loadResidentialPropertyFromDataset(
+            parsed.listingType,
+            parsed.location,
+            parsed.index
+          );
+          
+          if (property) {
+            setProperty(property);
+            setSourceInfo({
+              folder: parsed.listingType,
+              file: parsed.location,
+            });
+            setError(null);
+            setLoading(false);
+            return;
+          }
         }
-        setError(null);
+
+        setError('Property not found. Please go back and select a property.');
+        setLoading(false);
       } catch (err) {
         console.error('Error loading property:', err);
         setError('Failed to load property details');
-      } finally {
         setLoading(false);
       }
     };
@@ -339,15 +364,31 @@ function JsonDetailContent() {
               }`}>
                 {folder === 'lease' ? 'RENTAL' : 'FOR SALE'}
               </span>
-              <Link href="/">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="p-1.5 md:p-2 bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg"
-                >
-                  <Home size={18} className="md:w-5 md:h-5" />
-                </motion.button>
-              </Link>
+              {/* Go Back Button (Desktop only, opposite to Home) */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    router.back();
+                  } else {
+                    router.push('/');
+                  }
+                }}
+                className="hidden md:flex p-1.5 md:p-2 bg-gray-100 hover:bg-gray-200 text-primary-black rounded-lg transition-colors"
+                title="Go back"
+              >
+                <ArrowRight size={18} className="md:w-5 md:h-5" />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.back()}
+                className="p-1.5 md:p-2 bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg"
+                title="Go Back"
+              >
+                <ArrowLeft size={18} className="md:w-5 md:h-5" />
+              </motion.button>
             </div>
           </div>
         </div>
@@ -357,14 +398,28 @@ function JsonDetailContent() {
         {/* Image Gallery */}
         {photoUrls.length > 0 && (
           <div className="mb-4 md:mb-8">
-            <div className="relative h-[250px] sm:h-[350px] md:h-[500px] rounded-xl overflow-hidden bg-gray-200">
+            <div className="relative h-[250px] sm:h-[350px] md:h-[500px] rounded-xl overflow-hidden bg-gray-200 group">
               <Image
                 src={photoUrls[currentImageIndex]}
                 alt={`Property image ${currentImageIndex + 1}`}
                 fill
-                className="object-cover"
+                className="object-cover cursor-pointer"
                 unoptimized
+                sizes="100vw"
+                onClick={() => {
+                  window.open(photoUrls[currentImageIndex], '_blank');
+                }}
               />
+              {/* Share Button Overlay */}
+              <div className="absolute top-4 right-4 z-10">
+                <ShareButton
+                  url={typeof window !== 'undefined' ? window.location.href : ''}
+                  title={`${addr.street}, ${addr.city}, ${addr.state}`}
+                  text={`Check out this property: ${addr.street}, ${addr.city}, ${addr.state}`}
+                  variant="icon"
+                  iconSize={20}
+                />
+              </div>
               
               {/* Image Navigation */}
               {photoUrls.length > 1 && (
@@ -411,6 +466,7 @@ function JsonDetailContent() {
                       fill
                       className="object-cover"
                       unoptimized
+                      sizes="(max-width: 768px) 20vw, 80px"
                     />
                   </motion.button>
                 ))}

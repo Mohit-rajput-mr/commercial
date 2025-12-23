@@ -12,7 +12,7 @@ import { addFavorite, removeFavorite, getAllFavorites } from '@/lib/indexedDB';
 import { 
   Search, Loader2, Home, 
   MapPin, Bed, Bath, Square, 
-  ChevronDown, X, Filter, ChevronLeft, ChevronRight, Heart, Map as MapIcon, List
+  ChevronDown, X, ChevronLeft, ChevronRight, Heart, Map as MapIcon, List
 } from 'lucide-react';
 
 // Property interface matching JSON structure
@@ -65,7 +65,7 @@ const CITY_FILE_MAP: Record<string, { lease: string; sale: string }> = {
   'san antonio': { lease: 'san_antonio_rental.json', sale: 'san-antonio_sale.json' },
 };
 
-function UnifiedSearchPageContent() {
+function ResidentialSearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -94,7 +94,6 @@ function UnifiedSearchPageContent() {
   const [selectedBeds, setSelectedBeds] = useState<number | null>(bedsParam ? parseInt(bedsParam) : null);
   const [selectedBaths, setSelectedBaths] = useState<number | null>(bathsParam ? parseInt(bathsParam) : null);
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(priceParam || null);
-  // Map is desktop-only, no mobile toggle needed
 
   // Price range options (different for sale vs rent)
   const SALE_PRICE_RANGES = [
@@ -114,7 +113,6 @@ function UnifiedSearchPageContent() {
     { value: '7500-10000', label: '$7.5K - $10K', min: 7500, max: 10000 },
     { value: '10000+', label: '$10K+', min: 10000, max: Infinity },
   ];
-
 
   const BEDROOM_OPTIONS = [
     { value: null, label: 'Any' },
@@ -157,14 +155,19 @@ function UnifiedSearchPageContent() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.relative')) {
+      // Check if click is inside any dropdown button or dropdown menu
+      const isInsideDropdown = target.closest('[data-dropdown-container]') ||
+                               target.closest('[data-dropdown-menu]') ||
+                               target.closest('button[data-dropdown-trigger]');
+      if (!isInsideDropdown) {
         setPriceDropdownOpen(false);
         setBedsDropdownOpen(false);
         setBathsDropdownOpen(false);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    // Use capture phase to handle clicks properly
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => document.removeEventListener('mousedown', handleClickOutside, true);
   }, []);
   
   // Pagination
@@ -259,7 +262,7 @@ function UnifiedSearchPageContent() {
     return null;
   };
 
-  // Load properties
+  // Load properties with IndexedDB caching
   useEffect(() => {
     if (!location) return;
 
@@ -281,6 +284,24 @@ function UnifiedSearchPageContent() {
         const fileName = listingType === 'lease' ? fileInfo.lease : fileInfo.sale;
         const filePath = `/residential/${listingType}/${fileName}`;
 
+        // Check IndexedDB cache first
+        const { getCachedProperties, saveCachedProperties, generateCacheKey } = await import('@/lib/indexeddb-cache');
+        const cacheKey = generateCacheKey('residential', {
+          location: matchedCity,
+          listingType,
+        });
+
+        let cachedProperties = await getCachedProperties(cacheKey);
+        
+        if (cachedProperties && cachedProperties.length > 0) {
+          console.log(`✅ Using cached properties for ${matchedCity} (${cachedProperties.length} properties)`);
+          setAllProperties(cachedProperties);
+          setCurrentPage(1);
+          setLoading(false);
+          return;
+        }
+
+        // Cache miss - fetch from network
         console.log(`📁 Loading properties from: ${filePath}`);
 
         const response = await fetch(filePath);
@@ -292,29 +313,20 @@ function UnifiedSearchPageContent() {
         const data = await response.json();
         let propertiesArray: Property[] = Array.isArray(data) ? data : data.properties || [];
         
-        // Shuffle properties for different order each time (only on initial load, not when filters change)
+        // Shuffle properties for different order each time
         // Always shuffle for Miami and Miami Beach, shuffle others only on initial load
         const isMiami = matchedCity.toLowerCase() === 'miami' || matchedCity.toLowerCase() === 'miami beach';
         const shuffleKey = `shuffle-${matchedCity}-${listingType}`;
         const lastShuffleSeed = sessionStorage.getItem(shuffleKey);
-        const currentFilters = JSON.stringify({ beds: selectedBeds, baths: selectedBaths, price: selectedPriceRange });
-        const lastFilters = sessionStorage.getItem(`filters-${matchedCity}-${listingType}`);
-        
-        // Always shuffle for Miami/Miami Beach, or shuffle others only if filters haven't changed
-        if (isMiami || currentFilters !== lastFilters || !lastShuffleSeed) {
+        // Always shuffle for Miami/Miami Beach, shuffle others only on initial load
+        if (isMiami || !lastShuffleSeed) {
           // Fisher-Yates shuffle algorithm for random order
           for (let i = propertiesArray.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [propertiesArray[i], propertiesArray[j]] = [propertiesArray[j], propertiesArray[i]];
           }
           
-          // For Miami, always generate new shuffle seed
-          if (isMiami) {
-            sessionStorage.setItem(shuffleKey, Date.now().toString());
-          } else {
-            sessionStorage.setItem(shuffleKey, Date.now().toString());
-          }
-          sessionStorage.setItem(`filters-${matchedCity}-${listingType}`, currentFilters);
+          sessionStorage.setItem(shuffleKey, Date.now().toString());
         }
         
         // Transform properties to have required fields for MapView
@@ -335,6 +347,14 @@ function UnifiedSearchPageContent() {
         });
         
         console.log(`✅ Loaded ${transformedProperties.length} properties from ${fileName}`);
+        
+        // Save to IndexedDB cache
+        await saveCachedProperties(cacheKey, transformedProperties, {
+          location: matchedCity,
+          listingType,
+          propertyType: 'residential',
+        });
+        
         setAllProperties(transformedProperties);
         setCurrentPage(1);
 
@@ -356,7 +376,6 @@ function UnifiedSearchPageContent() {
     const ranges = isForRent ? RENT_PRICE_RANGES : SALE_PRICE_RANGES;
     return ranges.find(r => r.value === value) || null;
   };
-
 
   // Apply filters and sorting
   useEffect(() => {
@@ -392,6 +411,46 @@ function UnifiedSearchPageContent() {
   const totalPages = Math.ceil(filteredProperties.length / propertiesPerPage);
   const startIndex = (currentPage - 1) * propertiesPerPage;
   const currentProperties = filteredProperties.slice(startIndex, startIndex + propertiesPerPage);
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    if (selectedBeds !== null) {
+      params.set('beds', selectedBeds.toString());
+    } else {
+      params.delete('beds');
+    }
+    
+    if (selectedBaths !== null) {
+      params.set('baths', selectedBaths.toString());
+    } else {
+      params.delete('baths');
+    }
+    
+    if (selectedPriceRange) {
+      params.set('price', selectedPriceRange);
+    } else {
+      params.delete('price');
+    }
+    
+    // Update URL without reloading
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [selectedBeds, selectedBaths, selectedPriceRange, searchParams]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSelectedBeds(null);
+    setSelectedBaths(null);
+    setSelectedPriceRange(null);
+    setPriceDropdownOpen(false);
+    setBedsDropdownOpen(false);
+    setBathsDropdownOpen(false);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = selectedBeds !== null || selectedBaths !== null || selectedPriceRange !== null;
 
   // Helper functions
   const formatPrice = (price?: number | string) => {
@@ -441,73 +500,19 @@ function UnifiedSearchPageContent() {
     router.push(`/jsondetailinfo?id=${encodeURIComponent(propertyId)}`);
   };
 
-  // Update URL params when filters change
-  const updateURLWithFilters = useCallback((filters: {
-    beds?: number | null;
-    baths?: number | null;
-    price?: string | null;
-  }) => {
-    const params = new URLSearchParams(searchParams.toString());
-    
-    // Update or remove filter params
-    if (filters.beds !== undefined) {
-      if (filters.beds !== null) {
-        params.set('beds', filters.beds.toString());
-      } else {
-        params.delete('beds');
-      }
-    }
-    if (filters.baths !== undefined) {
-      if (filters.baths !== null) {
-        params.set('baths', filters.baths.toString());
-      } else {
-        params.delete('baths');
-      }
-    }
-    if (filters.price !== undefined) {
-      if (filters.price !== null) {
-        params.set('price', filters.price);
-      } else {
-        params.delete('price');
-      }
-    }
-    
-    // Update URL without reload
-    router.replace(`/unified-search?${params.toString()}`, { scroll: false });
-  }, [searchParams, router]);
-
-  const clearFilters = () => {
-    setSelectedBeds(null);
-    setSelectedBaths(null);
-    setSelectedPriceRange(null);
-    // Clear URL params
-    updateURLWithFilters({ beds: null, baths: null, price: null });
-  };
-
-  const activeFiltersCount = [selectedBeds, selectedBaths, selectedPriceRange].filter(v => v !== null).length;
-
-  // Update URL when filters change
-  useEffect(() => {
-    updateURLWithFilters({
-      beds: selectedBeds,
-      baths: selectedBaths,
-      price: selectedPriceRange
-    });
-  }, [selectedBeds, selectedBaths, selectedPriceRange, updateURLWithFilters]);
-
   // Handle marker click - navigate to property detail page (same as card click)
   const handleMarkerClick = useCallback((propertyId: string) => {
-    // Find property in filteredProperties by zpid or propertyId
-    const property = filteredProperties.find(p => 
+    // Find property in allProperties by zpid or propertyId
+    const property = allProperties.find(p => 
       p.zpid === propertyId || 
-      `prop-${filteredProperties.indexOf(p)}` === propertyId ||
+      `prop-${allProperties.indexOf(p)}` === propertyId ||
       propertyId.includes(p.zpid || '') ||
       (p.zpid && propertyId.includes(p.zpid))
     );
     
     if (property) {
-      // Find the index in filteredProperties to match handlePropertyClick logic
-      const propertyIndex = filteredProperties.indexOf(property);
+      // Find the index in allProperties to match handlePropertyClick logic
+      const propertyIndex = allProperties.indexOf(property);
       // Use the same logic as handlePropertyClick - calculate based on current page
       const detailId = `${listingType}_${location}_${propertyIndex}`;
       
@@ -516,16 +521,16 @@ function UnifiedSearchPageContent() {
       router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
     } else {
       // Fallback: try to find by zpid directly
-      const fallbackProperty = filteredProperties.find(p => p.zpid === propertyId);
+      const fallbackProperty = allProperties.find(p => p.zpid === propertyId);
       if (fallbackProperty) {
-        const propertyIndex = filteredProperties.indexOf(fallbackProperty);
+        const propertyIndex = allProperties.indexOf(fallbackProperty);
         const detailId = `${listingType}_${location}_${propertyIndex}`;
         sessionStorage.setItem(`json_property_${detailId}`, JSON.stringify(fallbackProperty));
         sessionStorage.setItem('json_current_source', JSON.stringify({ folder: listingType, file: location }));
         router.push(`/jsondetailinfo?id=${encodeURIComponent(detailId)}`);
       }
     }
-  }, [filteredProperties, listingType, location, router]);
+  }, [allProperties, listingType, location, router]);
 
   const handlePropertyHover = useCallback((propertyId: string | null) => {
     setHighlightedPropertyId(propertyId);
@@ -539,9 +544,9 @@ function UnifiedSearchPageContent() {
       {/* Navbar Spacer */}
       <div className="h-[50px] md:h-[68px] w-full flex-shrink-0"></div>
       
-      {/* Header Section with Always-Visible Filters */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-3 md:px-6 flex-shrink-0 relative z-[1000]">
-        <div className="max-w-[1920px] mx-auto">
+      {/* Header Section */}
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-3 md:px-6 flex-shrink-0 relative z-[10000]" style={{ overflow: 'visible' }}>
+        <div className="max-w-[1920px] mx-auto" style={{ overflow: 'visible', position: 'relative' }}>
           {/* Title Row */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             {/* Title & Info */}
@@ -562,159 +567,180 @@ function UnifiedSearchPageContent() {
                   {isForRent ? 'For Rent' : 'For Sale'}
                   </span>
                 <span className="text-sm text-gray-500">
-                  {filteredProperties.length} of {allProperties.length} properties
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    <>
+                      {filteredProperties.length.toLocaleString()} {filteredProperties.length === 1 ? 'property' : 'properties'}
+                      {hasActiveFilters && filteredProperties.length !== allProperties.length && (
+                        <span className="text-accent-yellow ml-1">
+                          ({allProperties.length.toLocaleString()} total)
+                        </span>
+                      )}
+                    </>
+                  )}
                 </span>
               </div>
               </div>
             </div>
             
-          {/* Always Visible Filters - Dropdown Style */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-4 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-            {/* Price Dropdown */}
-            <div className="relative flex-shrink-0">
-              <button
-                onClick={() => {
-                  setPriceDropdownOpen(!priceDropdownOpen);
-                  setBedsDropdownOpen(false);
-                  setBathsDropdownOpen(false);
-                }}
-                className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
-                  selectedPriceRange
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <span className="hidden sm:inline">Price: </span>
-                <span className="sm:hidden">$</span>
-                {selectedPriceRange 
-                  ? (isForRent ? RENT_PRICE_RANGES : SALE_PRICE_RANGES).find(r => r.value === selectedPriceRange)?.label 
-                  : 'Any'}
-                <ChevronDown size={12} className={`md:w-4 md:h-4 transition-transform ${priceDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {priceDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-64 overflow-y-auto">
-              <button
-                    onClick={() => {
-                      setSelectedPriceRange(null);
-                      setPriceDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                      selectedPriceRange === null ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                    }`}
+            {/* Filters Section - Always Visible Dropdown Style */}
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-4 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0" style={{ overflow: 'visible', position: 'relative', zIndex: 10001 }}>
+              {/* Price Dropdown */}
+              <div className="relative" data-dropdown-container style={{ zIndex: priceDropdownOpen ? 10002 : 'auto' }}>
+                <button
+                  data-dropdown-trigger
+                  onClick={() => {
+                    setPriceDropdownOpen(!priceDropdownOpen);
+                    setBedsDropdownOpen(false);
+                    setBathsDropdownOpen(false);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
+                    selectedPriceRange
+                      ? 'bg-accent-yellow border-accent-yellow text-white font-semibold'
+                      : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  <span className="text-sm whitespace-nowrap">
+                    {selectedPriceRange
+                      ? (isForRent ? RENT_PRICE_RANGES : SALE_PRICE_RANGES).find(r => r.value === selectedPriceRange)?.label || 'Price'
+                      : 'Price'}
+                  </span>
+                  <ChevronDown size={16} className={`transition-transform ${priceDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {priceDropdownOpen && (
+                  <div 
+                    data-dropdown-menu
+                    className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl py-2 min-w-[200px] max-h-[300px] overflow-y-auto z-[10003]"
+                    style={{ zIndex: 10003 }}
                   >
-                    Any Price
-              </button>
-                  {(isForRent ? RENT_PRICE_RANGES : SALE_PRICE_RANGES).map((range) => (
-                    <button
-                      key={range.value}
-                      onClick={() => {
-                        setSelectedPriceRange(range.value);
-                        setPriceDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        selectedPriceRange === range.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
-            </div>
+                    {(isForRent ? RENT_PRICE_RANGES : SALE_PRICE_RANGES).map((range) => (
+                      <button
+                        key={range.value}
+                        onClick={() => {
+                          setSelectedPriceRange(range.value === selectedPriceRange ? null : range.value);
+                          setPriceDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          selectedPriceRange === range.value ? 'bg-accent-yellow/10 text-accent-yellow font-semibold' : 'text-gray-700'
+                        }`}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bedrooms Dropdown */}
+              <div className="relative" data-dropdown-container style={{ zIndex: bedsDropdownOpen ? 10002 : 'auto' }}>
+                <button
+                  data-dropdown-trigger
+                  onClick={() => {
+                    setBedsDropdownOpen(!bedsDropdownOpen);
+                    setPriceDropdownOpen(false);
+                    setBathsDropdownOpen(false);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
+                    selectedBeds !== null
+                      ? 'bg-accent-yellow border-accent-yellow text-white font-semibold'
+                      : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  <Bed size={16} />
+                  <span className="text-sm whitespace-nowrap">
+                    {selectedBeds !== null ? `${selectedBeds}+` : 'Beds'}
+                  </span>
+                  <ChevronDown size={16} className={`transition-transform ${bedsDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {bedsDropdownOpen && (
+                  <div 
+                    data-dropdown-menu
+                    className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl py-2 min-w-[120px] max-h-[300px] overflow-y-auto z-[10003]"
+                    style={{ zIndex: 10003 }}
+                  >
+                    {BEDROOM_OPTIONS.map((option) => (
+                      <button
+                        key={option.value === null ? 'any' : option.value}
+                        onClick={() => {
+                          setSelectedBeds(option.value);
+                          setBedsDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                          selectedBeds === option.value ? 'bg-accent-yellow/10 text-accent-yellow font-semibold' : 'text-gray-700'
+                        }`}
+                      >
+                        <Bed size={14} />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bathrooms Dropdown */}
+              <div className="relative" data-dropdown-container style={{ zIndex: bathsDropdownOpen ? 10002 : 'auto' }}>
+                <button
+                  data-dropdown-trigger
+                  onClick={() => {
+                    setBathsDropdownOpen(!bathsDropdownOpen);
+                    setPriceDropdownOpen(false);
+                    setBedsDropdownOpen(false);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
+                    selectedBaths !== null
+                      ? 'bg-accent-yellow border-accent-yellow text-white font-semibold'
+                      : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  <Bath size={16} />
+                  <span className="text-sm whitespace-nowrap">
+                    {selectedBaths !== null ? `${selectedBaths}+` : 'Baths'}
+                  </span>
+                  <ChevronDown size={16} className={`transition-transform ${bathsDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {bathsDropdownOpen && (
+                  <div 
+                    data-dropdown-menu
+                    className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl py-2 min-w-[120px] max-h-[300px] overflow-y-auto z-[10003]"
+                    style={{ zIndex: 10003 }}
+                  >
+                    {BATHROOM_OPTIONS.map((option) => (
+                      <button
+                        key={option.value === null ? 'any' : option.value}
+                        onClick={() => {
+                          setSelectedBaths(option.value);
+                          setBathsDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                          selectedBaths === option.value ? 'bg-accent-yellow/10 text-accent-yellow font-semibold' : 'text-gray-700'
+                        }`}
+                      >
+                        <Bath size={14} />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-all duration-200 text-sm whitespace-nowrap"
+                >
+                  <X size={16} />
+                  Clear Filters
+                </button>
               )}
-          </div>
-
-            {/* Bedrooms Dropdown */}
-            <div className="relative flex-shrink-0">
-              <button
-                onClick={() => {
-                  setBedsDropdownOpen(!bedsDropdownOpen);
-                  setPriceDropdownOpen(false);
-                  setBathsDropdownOpen(false);
-                }}
-                className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
-                  selectedBeds !== null
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <Bed size={12} className="md:w-4 md:h-4" />
-                <span className="hidden sm:inline">Beds: </span>
-                {selectedBeds !== null ? `${selectedBeds}+` : 'Any'}
-                <ChevronDown size={12} className={`md:w-4 md:h-4 transition-transform ${bedsDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {bedsDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-64 overflow-y-auto">
-                  {BEDROOM_OPTIONS.map((option) => (
-                    <button
-                      key={option.value ?? 'any'}
-                      onClick={() => {
-                        setSelectedBeds(option.value);
-                        setBedsDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        selectedBeds === option.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
-
-            {/* Bathrooms Dropdown */}
-            <div className="relative flex-shrink-0">
-              <button
-                onClick={() => {
-                  setBathsDropdownOpen(!bathsDropdownOpen);
-                  setPriceDropdownOpen(false);
-                  setBedsDropdownOpen(false);
-                }}
-                className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all border ${
-                  selectedBaths !== null
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <Bath size={12} className="md:w-4 md:h-4" />
-                <span className="hidden sm:inline">Baths: </span>
-                {selectedBaths !== null ? `${selectedBaths}+` : 'Any'}
-                <ChevronDown size={12} className={`md:w-4 md:h-4 transition-transform ${bathsDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {bathsDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-64 overflow-y-auto">
-                  {BATHROOM_OPTIONS.map((option) => (
-                    <button
-                      key={option.value ?? 'any'}
-                      onClick={() => {
-                        setSelectedBaths(option.value);
-                        setBathsDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        selectedBaths === option.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-
-            {/* Clear Filters Button (only shown when filters are active) */}
-            {activeFiltersCount > 0 && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
-              >
-                <X size={16} />
-                Clear All
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
@@ -733,7 +759,7 @@ function UnifiedSearchPageContent() {
             </div>
           ) : (
             <MapView
-              properties={filteredProperties as any}
+              properties={allProperties as any}
               centerLocation={location || 'United States'}
               onMarkerClick={handleMarkerClick}
               onMarkerHover={handlePropertyHover}
@@ -769,17 +795,11 @@ function UnifiedSearchPageContent() {
             )}
 
             {/* No Results */}
-            {!loading && !error && filteredProperties.length === 0 && allProperties.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-8 text-center">
-                <Filter className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <p className="text-yellow-800 font-medium mb-2">No properties match your filters</p>
-                <p className="text-yellow-600 text-sm mb-4">Try adjusting your filter criteria</p>
-                <button
-                  onClick={clearFilters}
-                  className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Clear All Filters
-                </button>
+            {!loading && !error && allProperties.length === 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+                <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium mb-2">No properties found</p>
+                <p className="text-gray-500 text-sm">Try searching for a different location</p>
               </div>
             )}
 
@@ -945,7 +965,7 @@ function UnifiedSearchPageContent() {
 
                 {/* Results Summary */}
                 <div className="mt-3 text-center text-xs text-gray-500">
-                  Showing {startIndex + 1}-{Math.min(startIndex + propertiesPerPage, filteredProperties.length)} of {filteredProperties.length} properties
+                  Showing {startIndex + 1}-{Math.min(startIndex + propertiesPerPage, allProperties.length)} of {allProperties.length} properties
                   </div>
               </>
             )}
@@ -970,7 +990,7 @@ function UnifiedSearchPageContent() {
   );
 }
 
-export default function UnifiedSearchPage() {
+export default function ResidentialSearchPage() {
   return (
     <Suspense fallback={
       <div className="h-screen flex flex-col">
@@ -984,7 +1004,8 @@ export default function UnifiedSearchPage() {
         </div>
       </div>
     }>
-      <UnifiedSearchPageContent />
+      <ResidentialSearchPageContent />
     </Suspense>
   );
 }
+
