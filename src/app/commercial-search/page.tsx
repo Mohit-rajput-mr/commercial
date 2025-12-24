@@ -14,6 +14,8 @@ import {
   MapPin, Square, DollarSign,
   ChevronDown, X, Filter, ChevronLeft, ChevronRight, Heart, Map as MapIcon, List
 } from 'lucide-react';
+import { getCommercialFilesForLocation, CREXI_FILES } from '@/lib/location-file-mapper';
+import Pagination from '@/components/Pagination';
 
 // Commercial Property interface matching JSON structure
 interface CommercialProperty {
@@ -428,9 +430,9 @@ function CommercialSearchPageContent() {
     return score;
   };
 
-  // Load ALL commercial datasets from commercial folder with IndexedDB caching
+  // Load commercial datasets based on location (smart loading for faster performance)
   useEffect(() => {
-    const loadAllCommercialProperties = async () => {
+    const loadCommercialProperties = async () => {
       setLoading(true);
       setError(null);
 
@@ -441,10 +443,17 @@ function CommercialSearchPageContent() {
         // Import IndexedDB cache utilities
         const { getCachedProperties, saveCachedProperties, generateCacheKey } = await import('@/lib/indexeddb-cache');
         
-        console.log('📦 Loading ALL commercial datasets from commercial folder...');
+        // Get files to load based on location (smart loading)
+        const status = statusParam.toLowerCase().includes('lease') ? 'ForLease' : 
+                       statusParam.toLowerCase().includes('sale') ? 'ForSale' : null;
+        const filesToLoad = getCommercialFilesForLocation(locationParam, status);
         
-        // Load all commercial dataset files from COMMERCIAL_FILES array (sequential loading)
-        for (const filename of COMMERCIAL_FILES) {
+        console.log(`📦 Smart loading: ${filesToLoad.length} files for location "${locationParam || 'all'}"`, filesToLoad);
+        
+        // Load only the relevant commercial dataset files
+        for (const filepath of filesToLoad) {
+          // Extract filename from path for cache key
+          const filename = filepath.includes('/') ? filepath.split('/').pop()! : filepath;
           try {
             // Check cache first for transformed properties
             const cacheKey = generateCacheKey('commercial', { filename });
@@ -463,7 +472,7 @@ function CommercialSearchPageContent() {
             }
             
             // Cache miss - fetch from network and transform
-            const response = await fetch(`/commercial/${filename}`);
+            const response = await fetch(`/${filepath}`);
             if (!response.ok) {
               continue;
             }
@@ -471,7 +480,7 @@ function CommercialSearchPageContent() {
             const data = await response.json();
             const properties: any[] = Array.isArray(data) ? data : [];
             
-            console.log(`📂 Fetched ${properties.length} properties from ${filename}`);
+            console.log(`📂 Fetched ${properties.length} properties from ${filepath}`);
             
             // Transform properties to match CommercialProperty interface
             const transformedProps: CommercialProperty[] = [];
@@ -911,8 +920,8 @@ function CommercialSearchPageContent() {
       }
     };
 
-    loadAllCommercialProperties();
-  }, [selectedListingType, locationParam]); // Reload when listing type filter or location changes
+    loadCommercialProperties();
+  }, [selectedListingType, locationParam, statusParam]); // Reload when listing type filter or location changes
 
   // Get price range object from selected value
   const getPriceRange = (value: string | null) => {
@@ -1649,58 +1658,14 @@ function CommercialSearchPageContent() {
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="mt-6 flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="p-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                    
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`w-8 h-8 md:w-9 md:h-9 rounded-lg font-medium text-sm transition-colors ${
-                              currentPage === pageNum
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="p-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Results Summary */}
-                <div className="mt-3 text-center text-xs text-gray-500">
-                  Showing {startIndex + 1}-{Math.min(startIndex + propertiesPerPage, filteredProperties.length)} of {filteredProperties.length} commercial properties
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalCount={filteredProperties.length}
+                    perPage={propertiesPerPage}
+                    onPageChange={setCurrentPage}
+                  />
                 </div>
               </>
             )}

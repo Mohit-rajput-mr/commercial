@@ -14,6 +14,7 @@ import {
   MapPin, Bed, Bath, Square, 
   ChevronDown, X, ChevronLeft, ChevronRight, Heart, Map as MapIcon, List
 } from 'lucide-react';
+import Pagination from '@/components/Pagination';
 
 // Property interface matching JSON structure
 interface Property {
@@ -918,59 +919,15 @@ function ResidentialSearchPageContent() {
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="mt-6 flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="p-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                    
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        
-                          return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`w-9 h-9 rounded-lg font-medium text-sm transition-colors ${
-                              currentPage === pageNum
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                          );
-                        })}
-                      </div>
-
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="p-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Results Summary */}
-                <div className="mt-3 text-center text-xs text-gray-500">
-                  Showing {startIndex + 1}-{Math.min(startIndex + propertiesPerPage, allProperties.length)} of {allProperties.length} properties
-                  </div>
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalCount={allProperties.length}
+                    perPage={propertiesPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
               </>
             )}
 
