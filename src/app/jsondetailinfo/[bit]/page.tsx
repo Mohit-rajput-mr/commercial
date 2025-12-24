@@ -324,7 +324,7 @@ function JsonDetailContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 pt-[40px] md:pt-[68px]">
         <div className="text-center">
           <Loader2 className="w-10 h-10 md:w-12 md:h-12 text-accent-yellow animate-spin mx-auto mb-4" />
           <p className="text-primary-black text-base md:text-lg">Loading property details...</p>
@@ -335,7 +335,7 @@ function JsonDetailContent() {
 
   if (error || !property) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 pt-[40px] md:pt-[68px]">
         <div className="text-center">
           <p className="text-red-500 text-base md:text-lg mb-4">{error || 'Property not found'}</p>
           <Link href="/">
@@ -397,9 +397,9 @@ function JsonDetailContent() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-[40px] md:pt-[68px]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div className="bg-white border-b border-gray-200 sticky top-[40px] md:top-[68px] z-40">
         <div className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 py-2 md:py-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
@@ -858,7 +858,7 @@ function JsonDetailContent() {
 export default function JsonDetailBitPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 pt-[40px] md:pt-[68px]">
         <div className="text-center">
           <Loader2 className="w-10 h-10 md:w-12 md:h-12 text-accent-yellow animate-spin mx-auto mb-4" />
           <p className="text-primary-black text-base md:text-lg">Loading...</p>

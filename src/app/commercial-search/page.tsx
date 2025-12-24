@@ -6,7 +6,6 @@ import { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import Navigation from '@/components/Navigation';
 import MapView from '@/components/MapView';
 import { addFavorite, removeFavorite, getAllFavorites } from '@/lib/indexedDB';
 import { 
@@ -1269,12 +1268,7 @@ function CommercialSearchPageContent() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      <Navigation />
-      
-      {/* Navbar Spacer */}
-      <div className="h-[50px] md:h-[68px] w-full flex-shrink-0"></div>
-      
+    <div className="h-screen flex flex-col overflow-hidden pt-[40px] md:pt-[68px]">
       {/* Header Section with Filters - z-index higher than map */}
       <div className="bg-white border-b border-gray-200 shadow-sm px-3 py-2 md:px-6 md:py-3 flex-shrink-0 relative z-[1000]">
         <div className="max-w-[1920px] mx-auto">
@@ -1693,9 +1687,7 @@ function CommercialSearchPageContent() {
 export default function CommercialSearchPage() {
   return (
     <Suspense fallback={
-      <div className="h-screen flex flex-col">
-        <Navigation />
-        <div className="h-[68px] w-full"></div>
+      <div className="h-screen flex flex-col pt-[40px] md:pt-[68px]">
         <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-center">
             <Loader2 className="animate-spin text-orange-500 mx-auto mb-4" size={48} />

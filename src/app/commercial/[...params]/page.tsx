@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Navigation from '@/components/Navigation';
 import { 
   ArrowLeft, Building2, MapPin, DollarSign, Square, 
   Loader2, ChevronLeft, ChevronRight,
@@ -421,9 +420,7 @@ function CommercialDetailContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="h-[40px] md:h-[68px]"></div>
+      <div className="min-h-screen bg-gray-50 pt-[40px] md:pt-[68px]">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-10 h-10 md:w-12 md:h-12 text-accent-yellow animate-spin" />
         </div>
@@ -433,9 +430,7 @@ function CommercialDetailContent() {
 
   if (!property) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="h-[40px] md:h-[68px]"></div>
+      <div className="min-h-screen bg-gray-50 pt-[40px] md:pt-[68px]">
         <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 text-center">
           <Building2 className="w-12 h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-4" />
           <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">Property Not Found</h1>
@@ -454,10 +449,7 @@ function CommercialDetailContent() {
   // Removed com logic - not needed
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      <div className="h-[40px] md:h-[68px]"></div>
-      
+    <div className="min-h-screen bg-gray-50 pt-[40px] md:pt-[68px]">
       {/* Header Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-[40px] md:top-[68px] z-40">
         <div className="max-w-7xl mx-auto px-3 md:px-4 py-2 md:py-4">
@@ -762,9 +754,7 @@ function CommercialDetailContent() {
 export default function CommercialDetailPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="h-[40px] md:h-[68px]"></div>
+      <div className="min-h-screen bg-gray-50 pt-[40px] md:pt-[68px]">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-10 h-10 md:w-12 md:h-12 text-accent-yellow animate-spin" />
         </div>
