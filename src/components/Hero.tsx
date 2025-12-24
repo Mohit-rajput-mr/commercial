@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Mail, Heart, ChevronDown, ChevronUp, Bell, Settings, FileText, User, Plus, Megaphone, HelpCircle, MapPin, GraduationCap, Lock, ArrowLeft, Home, Building2, Store, Factory, Trees, Hotel, Stethoscope, Building, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, ChevronDown, ChevronUp, MapPin, GraduationCap, Home, Building2, Store, Factory, Trees, Hotel, Stethoscope, Building, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import TrustedPartners from './TrustedPartners';
-import LoginModal from './LoginModal';
 import { setAdminAuthenticated } from '@/lib/admin-storage';
 import { useLocationIndexAutocomplete, LocationIndexSuggestion } from '@/hooks/useLocationIndexAutocomplete';
 
@@ -51,53 +50,7 @@ export default function Hero() {
     }
   }, [selectedIndex]);
   
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isSignUpOpen, setIsSignUpOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const propertyTypesScrollRef = useRef<HTMLDivElement>(null);
-
-  // Listen for login/signup triggers from Navigation
-  useEffect(() => {
-    const handleLoginTrigger = () => {
-      setIsLoginOpen(true);
-      setIsSignUpOpen(false);
-    };
-    const handleSignUpTrigger = () => {
-      setIsSignUpOpen(true);
-      setIsLoginOpen(false);
-    };
-    window.addEventListener('openLoginModal', handleLoginTrigger);
-    window.addEventListener('openSignUpModal', handleSignUpTrigger);
-    return () => {
-      window.removeEventListener('openLoginModal', handleLoginTrigger);
-      window.removeEventListener('openSignUpModal', handleSignUpTrigger);
-    };
-  }, []);
-
-  // Listen for sidebar trigger from Navigation
-  useEffect(() => {
-    const handleSidebarTrigger = () => {
-      setIsSidebarOpen(true);
-    };
-    window.addEventListener('openSidebarMenu', handleSidebarTrigger);
-    return () => window.removeEventListener('openSidebarMenu', handleSidebarTrigger);
-  }, []);
-
-  // Prevent body scroll when sidebar is open
-  useEffect(() => {
-    if (isSidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isSidebarOpen]);
-
-  // Reset login step when modal closes
-  // Login modal state is now managed by LoginModal component
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -479,135 +432,6 @@ export default function Hero() {
 
       </div>
 
-      {/* Use LoginModal Component */}
-      <LoginModal 
-        isOpen={isLoginOpen} 
-        onClose={() => setIsLoginOpen(false)}
-        initialMode="login"
-      />
-      <LoginModal 
-        isOpen={isSignUpOpen} 
-        onClose={() => setIsSignUpOpen(false)}
-        initialMode="signup"
-      />
-
-      {/* Sidebar Menu - Inside Hero Section */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99998] md:hidden"
-            />
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[99998] hidden md:block"
-            />
-
-            {/* Sidebar */}
-            <motion.div
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 h-full w-[300px] bg-primary-black z-[99999] shadow-2xl overflow-y-auto"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-white/20">
-                <div className="relative h-8 w-32">
-                  <Image
-                    src="/assets/logoRE.png"
-                    alt="Cap Rate"
-                    fill
-                    className="object-contain object-left"
-                    sizes="128px"
-                  />
-                </div>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X size={24} className="text-white" />
-                </button>
-              </div>
-
-              {/* Menu Sections */}
-              <div className="py-4">
-                {[
-                  {
-                    title: 'User',
-                    items: [
-                      { icon: Bell, label: 'Notifications', href: '/notifications' },
-                      { icon: Settings, label: 'My Preferences', href: '/preferences' },
-                    ],
-                  },
-                  {
-                    title: 'Saved',
-                    items: [
-                      { icon: Heart, label: 'My Favorites', href: '/favorites' },
-                    ],
-                  },
-                  {
-                    title: 'Account',
-                    items: [
-                      { icon: User, label: 'My Account', href: '/account' },
-                    ],
-                  },
-                ].map((section, sectionIndex) => (
-                  <div key={section.title}>
-                    {section.items.map((item) => {
-                      const Icon = item.icon;
-
-                      return (
-                        <div key={item.label}>
-                          <button
-                            onClick={() => {
-                              if (item.href && item.href.startsWith('/')) {
-                                router.push(item.href);
-                                setIsSidebarOpen(false);
-                              }
-                            }}
-                            className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/10 transition-colors text-white"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Icon size={20} />
-                              <span>{item.label}</span>
-                            </div>
-                          </button>
-                        </div>
-                      );
-                    })}
-                    {sectionIndex < 2 && (
-                      <div className="h-px bg-white/20 mx-6 my-2" />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Bottom Buttons - Only Contact Us for Mobile */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-white/20 bg-primary-black">
-                <button
-                  onClick={() => {
-                    router.push('/contact');
-                    setIsSidebarOpen(false);
-                  }}
-                  className="w-full px-6 py-3 border-2 border-accent-yellow rounded-lg font-semibold text-accent-yellow hover:bg-accent-yellow hover:text-primary-black transition-all flex items-center justify-center gap-2"
-                >
-                  <Phone size={18} />
-                  Contact Us
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

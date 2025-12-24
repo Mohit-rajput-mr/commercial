@@ -34,17 +34,13 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
   }, [isOpen]);
 
   const handleLoginButtonClick = () => {
-    // Dispatch event to trigger login modal in Hero section
-    window.dispatchEvent(new CustomEvent('openLoginModal'));
-    onClose(); // Close sidebar when opening login modal
     setShowLoginPrompt(false);
+    onLoginClick(); // Use the prop callback to trigger login modal
   };
 
-  const handleSignUpClick = () => {
-    // Dispatch event to trigger signup modal in Hero section
-    window.dispatchEvent(new CustomEvent('openSignUpModal'));
-    onClose(); // Close sidebar when opening signup modal
+  const handleSignUpButtonClick = () => {
     setShowLoginPrompt(false);
+    onSignUpClick(); // Use the prop callback to trigger signup modal
   };
 
   useEffect(() => {
@@ -118,29 +114,20 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - covers everything including navbar */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onClose}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
-            />
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onClose}
-              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 hidden md:block"
-            />
-          </>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999998]"
+          />
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar - highest z-index to be on top of everything */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -148,23 +135,24 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed left-0 top-0 h-full w-[300px] bg-white z-50 shadow-2xl overflow-y-auto"
+            className="fixed left-0 top-0 h-full w-[280px] md:w-[300px] bg-primary-black z-[999999] shadow-2xl overflow-y-auto"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="relative h-8 w-32 bg-black/80 backdrop-blur-md rounded-lg px-3 py-2 flex items-center justify-center">
+            <div className="flex items-center justify-between p-4 md:p-6 border-b border-white/20">
+              <div className="relative h-8 w-32">
                 <Image
                   src="/assets/logoRE.png"
                   alt="Cap Rate"
                   fill
                   className="object-contain object-left"
+                  sizes="128px"
                 />
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X size={24} className="text-primary-black" />
+                <X size={24} className="text-white" />
               </button>
             </div>
 
@@ -172,7 +160,7 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
             <div className="py-4">
               {menuSections.map((section, sectionIndex) => (
                 <div key={section.title}>
-                  {section.items.map((item, itemIndex) => {
+                  {section.items.map((item) => {
                     const Icon = item.icon;
                     const isExpandable = (item as any).expandable || false;
                     const isExpanded = expandedSection === item.label;
@@ -188,13 +176,13 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
                               handleItemClick(item.href, item.label);
                             }
                           }}
-                          className={`w-full flex items-center justify-between px-6 py-4 hover:bg-light-gray transition-colors ${
-                            isHighlight ? 'text-accent-yellow font-semibold' : 'text-primary-black'
+                          className={`w-full flex items-center justify-between px-4 md:px-6 py-3 md:py-4 hover:bg-white/10 transition-colors ${
+                            isHighlight ? 'text-accent-yellow font-semibold' : 'text-white'
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <Icon size={20} />
-                            <span>{item.label}</span>
+                            <span className="text-sm md:text-base">{item.label}</span>
                           </div>
                           {isExpandable && (
                             isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />
@@ -204,23 +192,23 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
                     );
                   })}
                   {sectionIndex < menuSections.length - 1 && (
-                    <div className="h-px bg-gray-200 mx-6 my-2" />
+                    <div className="h-px bg-white/20 mx-4 md:mx-6 my-2" />
                   )}
                 </div>
               ))}
             </div>
 
             {/* Bottom Buttons */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200 bg-white space-y-3">
+            <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 border-t border-white/20 bg-primary-black space-y-3">
               <button
                 onClick={handleLoginButtonClick}
-                className="w-full px-6 py-3 border-2 border-primary-black rounded-lg font-semibold text-primary-black hover:bg-primary-black hover:text-white transition-all"
+                className="w-full px-4 md:px-6 py-2.5 md:py-3 border-2 border-accent-yellow rounded-lg font-semibold text-accent-yellow hover:bg-accent-yellow hover:text-primary-black transition-all text-sm md:text-base"
               >
                 Log In
               </button>
               <button
-                onClick={handleSignUpClick}
-                className="w-full px-6 py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all"
+                onClick={handleSignUpButtonClick}
+                className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all text-sm md:text-base"
               >
                 Sign Up
               </button>
@@ -235,40 +223,40 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setShowLoginPrompt(false)}
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999998]"
                   />
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="fixed inset-0 flex items-center justify-center z-[70] p-4"
+                    className="fixed inset-0 flex items-center justify-center z-[9999999] p-4"
                   >
-                    <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full p-6 text-center">
+                    <div className="bg-primary-black rounded-lg shadow-2xl max-w-sm w-full p-5 md:p-6 text-center border border-white/20">
                       <div className="mb-4">
-                        <User size={48} className="mx-auto text-primary-black mb-3" />
-                        <h3 className="text-xl font-semibold text-primary-black mb-2">
+                        <User size={48} className="mx-auto text-accent-yellow mb-3" />
+                        <h3 className="text-lg md:text-xl font-semibold text-white mb-2">
                           Login Required
                         </h3>
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-white/70 text-sm">
                           Please log in or sign up to access your account.
                         </p>
                       </div>
                       <div className="space-y-3">
                         <button
                           onClick={handleLoginButtonClick}
-                          className="w-full px-6 py-3 border-2 border-primary-black rounded-lg font-semibold text-primary-black hover:bg-primary-black hover:text-white transition-all"
+                          className="w-full px-4 md:px-6 py-2.5 md:py-3 border-2 border-accent-yellow rounded-lg font-semibold text-accent-yellow hover:bg-accent-yellow hover:text-primary-black transition-all text-sm md:text-base"
                         >
                           Log In
                         </button>
                         <button
-                          onClick={handleSignUpClick}
-                          className="w-full px-6 py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all"
+                          onClick={handleSignUpButtonClick}
+                          className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all text-sm md:text-base"
                         >
                           Sign Up
                         </button>
                         <button
                           onClick={() => setShowLoginPrompt(false)}
-                          className="w-full px-6 py-3 text-gray-600 hover:text-primary-black transition-colors text-sm"
+                          className="w-full px-4 md:px-6 py-2.5 md:py-3 text-white/60 hover:text-white transition-colors text-sm"
                         >
                           Cancel
                         </button>

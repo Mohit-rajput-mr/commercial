@@ -238,7 +238,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[99999]">
+        <div className="fixed inset-0 z-[9999999]">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
