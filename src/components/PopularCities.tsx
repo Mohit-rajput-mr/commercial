@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
-// Top 7 US cities for real estate
+// Top US cities for real estate
 const cities = [
   {
     name: 'New York City',
@@ -47,6 +47,21 @@ const cities = [
     name: 'Miami',
     state: 'FL',
     imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
+  },
+  {
+    name: 'Las Vegas',
+    state: 'NV',
+    imageUrl: 'https://images.unsplash.com/photo-1605833556294-ea5c7a74f57d?w=800&q=80',
+  },
+  {
+    name: 'Austin',
+    state: 'TX',
+    imageUrl: 'https://images.unsplash.com/photo-1531218150217-54595bc2b934?w=800&q=80',
+  },
+  {
+    name: 'San Francisco',
+    state: 'CA',
+    imageUrl: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=800&q=80',
   },
 ];
 
@@ -99,6 +114,9 @@ export default function PopularCities() {
       'Philadelphia': 'philadelphia',
       'San Antonio': 'san-antonio',
       'Miami': 'miami',
+      'Las Vegas': 'las-vegas',
+      'Austin': 'austin',
+      'San Francisco': 'san-francisco',
     };
     
     const slug = citySlugMap[city.name];
@@ -155,16 +173,11 @@ export default function PopularCities() {
             onScroll={checkScrollPosition}
           >
             <div className="flex gap-3 md:gap-6 pb-4 min-w-max">
-              {cities.map((city, index) => (
-                <motion.div
+              {cities.map((city) => (
+                <div
                   key={city.name}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  whileHover={{ y: -10, scale: 1.02 }}
                   onClick={() => handleCityClick(city)}
-                  className="relative w-[calc(50vw-1.5rem)] md:w-80 h-48 md:h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer group flex-shrink-0"
+                  className="relative w-[calc(50vw-1.5rem)] md:w-80 h-48 md:h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] transition-all duration-300 cursor-pointer group flex-shrink-0"
                 >
                   <div className="absolute inset-0">
                     <Image
@@ -185,7 +198,7 @@ export default function PopularCities() {
                     <h3 className="text-2xl font-bold text-white">{city.name}</h3>
                     <p className="text-white/80 text-sm mt-1">{city.state}</p>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>

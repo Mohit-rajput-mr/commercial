@@ -4,7 +4,7 @@ import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import BackToHomeButton from "@/components/BackToHomeButton";
 import AIAssistantIcon from "@/components/AIAssistantIcon";
-import WhatsAppButton from "@/components/WhatsAppButton";
+// import WhatsAppButton from "@/components/WhatsAppButton"; // Hidden for now
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -41,7 +41,8 @@ export default function RootLayout({
         <LayoutWrapper>{children}</LayoutWrapper>
         <BackToHomeButton />
         <AIAssistantIcon />
-        <WhatsAppButton />
+        {/* WhatsApp button hidden for now */}
+        {/* <WhatsAppButton /> */}
       </body>
     </html>
   );

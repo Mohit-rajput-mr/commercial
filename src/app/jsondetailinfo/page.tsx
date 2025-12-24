@@ -272,7 +272,7 @@ function JsonDetailContent() {
         // Came from unified-search
         router.push(`/unified-search?location=${encodeURIComponent(file)}&status=${sourceInfo.folder === 'lease' ? 'ForRent' : 'ForSale'}`);
       } else {
-        router.push(`/jsoncards?folder=${sourceInfo.folder}&file=${encodeURIComponent(file)}`);
+        router.push(`/unified-search?location=${encodeURIComponent(file)}&status=${sourceInfo.folder === 'lease' ? 'ForRent' : 'ForSale'}`);
       }
     } else {
       router.push('/');

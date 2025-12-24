@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { Menu, Database, Phone, Heart, Bell, Settings, ChevronDown, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNavbarScroll } from '@/hooks/useNavbarScroll';
-import logoRE from '../../assets/logoRE.png';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -107,7 +106,7 @@ export default function Navigation() {
             className="relative w-full h-full flex items-center"
           >
             <Image
-              src={logoRE}
+              src="/assets/logoRE.png"
               alt="Cap Rate"
               width={112}
               height={28}

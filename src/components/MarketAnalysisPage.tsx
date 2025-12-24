@@ -142,7 +142,7 @@ export default function MarketAnalysisPage({ cityData }: MarketAnalysisPageProps
 
   const handleViewProperties = () => {
     const location = `${cityData.name}`;
-    router.push(`/unified-search?location=${encodeURIComponent(location)}&status=ForSale`);
+    router.push(`/commercial-search?location=${encodeURIComponent(location)}&status=ForSale`);
   };
 
   // Prepare chart data

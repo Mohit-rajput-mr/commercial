@@ -311,12 +311,7 @@ function JsonDetailContent() {
     } else if (sourceInfo) {
       // If coming from unified-search, go back there
       const file = sourceInfo.file || '';
-      if (file.includes('_')) {
-        // Came from unified-search
-        router.push(`/unified-search?location=${encodeURIComponent(file)}&status=${sourceInfo.folder === 'lease' ? 'ForRent' : 'ForSale'}`);
-      } else {
-        router.push(`/jsoncards?folder=${sourceInfo.folder}&file=${encodeURIComponent(file)}`);
-      }
+      router.push(`/unified-search?location=${encodeURIComponent(file)}&status=${sourceInfo.folder === 'lease' ? 'ForRent' : 'ForSale'}`);
     } else {
       router.push('/');
     }

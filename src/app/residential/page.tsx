@@ -552,9 +552,9 @@ function ResidentialSearchPageContent() {
             <div>
               <h1 className="text-xl md:text-2xl font-extrabold text-primary-black">
                 {location ? (
-                  <>Properties in <span className="text-accent-yellow">{location}</span></>
+                  <><span className="text-blue-600">Residential</span> Properties in <span className="text-accent-yellow">{location}</span></>
                 ) : (
-                  'Search Results'
+                  <><span className="text-blue-600">Residential</span> Properties</>
                 )}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-1">
