@@ -203,7 +203,7 @@ function JsonDetailContent() {
         }
 
         // PRIMARY: Load from dataset using bit number (works in new tabs)
-        if (bit !== undefined && !isNaN(bit) && bit > 0) {
+        if (bit !== undefined && !isNaN(bit) && bit >= 0) {
           const { loadResidentialPropertyByBit } = await import('@/lib/property-loader');
           const property = await loadResidentialPropertyByBit(bit);
           

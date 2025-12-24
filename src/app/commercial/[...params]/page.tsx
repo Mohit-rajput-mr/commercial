@@ -42,6 +42,108 @@ interface CommercialProperty {
   [key: string]: any;
 }
 
+// Helper to extract state string from object or string
+function extractStateString(state: any): string {
+  if (!state) return '';
+  if (typeof state === 'string') return state;
+  if (typeof state === 'object') {
+    return state.code || state.name || '';
+  }
+  return '';
+}
+
+// Transform raw property data to CommercialProperty format
+function transformCommercialProperty(rawProperty: any, fallbackId: string): CommercialProperty {
+  // Handle various property formats from different data sources
+  const location = rawProperty.locations?.[0] || rawProperty.location || {};
+  
+  // Get images from various possible fields
+  let images: string[] = [];
+  if (rawProperty.images && Array.isArray(rawProperty.images)) {
+    images = rawProperty.images.map((img: any) => {
+      if (typeof img === 'string') return img;
+      if (typeof img === 'object' && img !== null) {
+        return img.url || img.imageUrl || img.src || img.href || '';
+      }
+      return '';
+    }).filter((url: string) => url && url.length > 0);
+  } else if (rawProperty.image) {
+    images = [rawProperty.image];
+  } else if (rawProperty.imgSrc) {
+    images = [rawProperty.imgSrc];
+  } else if (rawProperty.photos && Array.isArray(rawProperty.photos)) {
+    images = rawProperty.photos.map((p: any) => p.url || p.src || p).filter(Boolean);
+  }
+
+  // Determine address
+  const address = rawProperty.address || 
+                  location.formattedAddress || 
+                  location.address || 
+                  rawProperty.streetAddress ||
+                  rawProperty.name ||
+                  '';
+
+  // Determine city, state, zip
+  const city = rawProperty.city || location.city || '';
+  const state = extractStateString(rawProperty.state || location.state);
+  const zip = rawProperty.zip || rawProperty.zipCode || location.postalCode || location.zip || '';
+  const country = rawProperty.country || location.country || 'United States';
+
+  // Get price info
+  let price = rawProperty.price || null;
+  let priceNumeric = rawProperty.priceNumeric || null;
+  if (rawProperty.askingPrice) {
+    price = rawProperty.askingPrice;
+  }
+  if (typeof price === 'number') {
+    priceNumeric = price;
+    price = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(price);
+  }
+
+  // Get square footage from various fields
+  const squareFootage = rawProperty.squareFootage || 
+                        rawProperty.sqft || 
+                        rawProperty.buildingSize || 
+                        rawProperty.size ||
+                        rawProperty.area ||
+                        null;
+
+  // Transform to CommercialProperty
+  return {
+    propertyId: rawProperty.propertyId || rawProperty.id || rawProperty.zpid || fallbackId,
+    listingType: rawProperty.listingType || rawProperty.type || rawProperty.transactionType || '',
+    propertyType: rawProperty.propertyType || rawProperty.propertySubType || '',
+    city: city,
+    state: state,
+    zip: zip,
+    country: country,
+    address: address,
+    description: rawProperty.description || rawProperty.summary || '',
+    listingUrl: rawProperty.listingUrl || rawProperty.url || rawProperty.detailUrl || '',
+    images: images,
+    dataPoints: rawProperty.dataPoints || [],
+    price: price,
+    priceNumeric: priceNumeric,
+    priceCurrency: rawProperty.priceCurrency || 'USD',
+    isAuction: rawProperty.isAuction || false,
+    auctionEndDate: rawProperty.auctionEndDate || null,
+    squareFootage: squareFootage,
+    buildingSize: rawProperty.buildingSize || null,
+    numberOfUnits: rawProperty.numberOfUnits || rawProperty.units || null,
+    brokerName: rawProperty.brokerName || rawProperty.broker?.name || null,
+    brokerCompany: rawProperty.brokerCompany || rawProperty.broker?.company || null,
+    propertyTypeDetailed: rawProperty.propertyTypeDetailed || null,
+    capRate: rawProperty.capRate || null,
+    position: rawProperty.position || 0,
+    availability: rawProperty.availability || null,
+    com: rawProperty.com,
+  };
+}
+
 function CommercialDetailContent() {
   const params = useParams();
   const router = useRouter();
@@ -55,32 +157,18 @@ function CommercialDetailContent() {
       ? params.params 
       : [];
   
-  let bitNumber: number | undefined;
+  let comNumber: number | undefined;
   let propertyId: string = '';
   
-  if (paramsArray.length === 2) {
-    const firstParam = paramsArray[0];
-    if (firstParam.startsWith('bit')) {
-      // Format: /commercial/bit123/crexi-1728502
-      const bitStr = firstParam.replace('bit', '');
-      bitNumber = parseInt(bitStr);
-      propertyId = decodeURIComponent(paramsArray[1]);
-    } else {
-      // Two params but first isn't 'bit' - treat both as property ID (shouldn't happen)
-      propertyId = decodeURIComponent(paramsArray.join('/'));
-    }
+  if (paramsArray.length === 2 && paramsArray[0].startsWith('com')) {
+    // New format: /commercial/com123/crexi-1728502
+    const comStr = paramsArray[0].replace('com', '');
+    comNumber = parseInt(comStr);
+    propertyId = decodeURIComponent(paramsArray[1]);
   } else if (paramsArray.length === 1) {
-    // Single param: property ID
-    const singleParam = paramsArray[0];
-    
-    if (singleParam.startsWith('bit')) {
-      // Format: /commercial/bit123 - bit only, no property ID
-      const bitStr = singleParam.replace('bit', '');
-      bitNumber = parseInt(bitStr);
-    } else {
-      // Treat as property ID
-      propertyId = decodeURIComponent(singleParam);
-    }
+    // Single param: always treat as property ID
+    // This handles both numeric IDs like "38763600" and string IDs like "crexi-1728502"
+    propertyId = decodeURIComponent(paramsArray[0]);
   }
   
   const [property, setProperty] = useState<CommercialProperty | null>(null);
@@ -91,146 +179,78 @@ function CommercialDetailContent() {
 
   useEffect(() => {
     const loadProperty = async () => {
-      if (!propertyId && !bitNumber) {
+      if (!propertyId && comNumber === undefined) {
         setLoading(false);
         return;
       }
 
       setLoading(true);
+      console.log(`🔍 Commercial property loading - propertyId: "${propertyId}", comNumber: ${comNumber}`);
 
-      // PRIORITY 1: Load by bit number (most reliable for shareable links)
-      if (bitNumber && !isNaN(bitNumber) && bitNumber > 0) {
-        try {
-          const { loadCommercialPropertyByBit } = await import('@/lib/property-loader');
-          const property = await loadCommercialPropertyByBit(bitNumber);
-          
-          if (property) {
-            setProperty(property);
+      // PRIORITY 1: Try sessionStorage first (fastest, for same-tab navigation)
+      if (propertyId) {
+        const storedProperty = sessionStorage.getItem(`commercial_property_${propertyId}`);
+        if (storedProperty) {
+          try {
+            const parsed = JSON.parse(storedProperty);
+            console.log(`✅ Loaded from sessionStorage:`, parsed.propertyId || parsed.id);
+            const transformedProperty = transformCommercialProperty(parsed, propertyId);
+            setProperty(transformedProperty);
             setLoading(false);
             return;
+          } catch (e) {
+            console.warn('Failed to parse stored property:', e);
           }
-        } catch (err) {
-          console.warn('Error loading by bit:', err);
         }
       }
 
-      // PRIORITY 2: Load from dataset by propertyId (works in new tabs - do this FIRST for shareability)
+      // PRIORITY 2: Load from dataset by propertyId (works in new tabs - for shareable links)
       if (propertyId) {
-        console.log(`🔍 Loading commercial property by ID: ${propertyId}`);
+        console.log(`🔍 Searching datasets for property ID: ${propertyId}`);
         try {
           const { loadCommercialPropertyFromDataset } = await import('@/lib/property-loader');
           const loadedProperty = await loadCommercialPropertyFromDataset(propertyId);
           
           if (loadedProperty) {
-            console.log(`✅ Found property:`, loadedProperty.propertyId || loadedProperty.id);
-            
-            // Helper to extract state string from object or string
-            const extractState = (state: any): string => {
-              if (!state) return '';
-              if (typeof state === 'string') return state;
-              if (typeof state === 'object') {
-                return state.code || state.name || '';
-              }
-              return '';
-            };
-
-            // Extract images from Crexi media array - handle multiple formats
-            let extractedImages: string[] = [];
-            if (loadedProperty.images && Array.isArray(loadedProperty.images)) {
-              // Already transformed images array
-              extractedImages = loadedProperty.images.filter((img: any) => typeof img === 'string' && img.startsWith('http'));
-            } else if (loadedProperty.media && Array.isArray(loadedProperty.media)) {
-              // Extract from media array (Crexi format)
-              extractedImages = loadedProperty.media
-                .filter((m: any) => {
-                  // Filter for Image type and check for URL fields
-                  if (m.type === 'Image' || m.type === 'image') {
-                    return m.imageUrl || m.url || m.src;
-                  }
-                  // Also include if it has a URL field (some formats)
-                  return m.url || m.imageUrl || m.src;
-                })
-                .map((m: any) => m.imageUrl || m.url || m.src)
-                .filter((url: any): url is string => typeof url === 'string' && url.startsWith('http'));
-            }
-            
-            // Fallback to thumbnailUrl
-            if (extractedImages.length === 0 && loadedProperty.thumbnailUrl) {
-              extractedImages = [loadedProperty.thumbnailUrl];
-            }
-
-            // Transform property to ensure all fields are properly set
-            const transformedProperty: CommercialProperty = {
-              propertyId: loadedProperty.propertyId || loadedProperty.zpid || loadedProperty.id || propertyId,
-              listingType: loadedProperty.listingType || loadedProperty.status || 'For Sale',
-              propertyType: loadedProperty.propertyType || loadedProperty.types?.[0] || 'Commercial',
-              city: loadedProperty.city || loadedProperty.locations?.[0]?.city || loadedProperty.location?.city || '',
-              state: extractState(loadedProperty.state) || extractState(loadedProperty.locations?.[0]?.state) || extractState(loadedProperty.location?.state) || '',
-              zip: loadedProperty.zip || loadedProperty.locations?.[0]?.zip || loadedProperty.location?.zip || '',
-              address: loadedProperty.address || loadedProperty.locations?.[0]?.address || loadedProperty.location?.address || '',
-              description: loadedProperty.description || loadedProperty.name || '',
-              images: extractedImages,
-              price: loadedProperty.price || (loadedProperty.askingPrice ? `$${loadedProperty.askingPrice.toLocaleString()}` : null),
-              priceNumeric: loadedProperty.priceNumeric || loadedProperty.askingPrice || null,
-              squareFootage: loadedProperty.squareFootage || loadedProperty.rentableSqftMin || loadedProperty.rentableSqftMax || null,
-              brokerCompany: loadedProperty.brokerCompany || loadedProperty.brokerageName || null,
-              propertyTypeDetailed: loadedProperty.propertyTypeDetailed || loadedProperty.types?.join(', ') || null,
-              capRate: loadedProperty.capRate || null,
-              numberOfUnits: loadedProperty.numberOfUnits || loadedProperty.numberOfSuites || null,
-              availability: loadedProperty.availability || loadedProperty.status || null,
-            };
-            
+            console.log(`✅ Found property in dataset:`, loadedProperty.propertyId || loadedProperty.id);
+            const transformedProperty = transformCommercialProperty(loadedProperty, propertyId);
             setProperty(transformedProperty);
             setLoading(false);
             return;
           } else {
-            console.warn(`❌ Property not found with ID: ${propertyId}`);
+            console.warn(`❌ Property not found in datasets with ID: ${propertyId}`);
           }
         } catch (err) {
           console.error('Error loading commercial property from dataset:', err);
         }
       }
 
-      // PRIORITY 3: Fallback to sessionStorage (for same-tab navigation)
-      if (propertyId) {
-        const storedProperty = sessionStorage.getItem(`commercial_property_${propertyId}`);
-        if (storedProperty) {
-          try {
-            const parsed = JSON.parse(storedProperty);
-            // Transform stored property to ensure state is a string
-            const extractState = (state: any): string => {
-              if (!state) return '';
-              if (typeof state === 'string') return state;
-              if (typeof state === 'object') {
-                return state.code || state.name || '';
-              }
-              return '';
-            };
-            
-            const transformedStored: CommercialProperty = {
-              ...parsed,
-              state: extractState(parsed.state),
-            };
-            
-            setProperty(transformedStored);
+      // PRIORITY 3: Load by com number (if available)
+      if (comNumber !== undefined && !isNaN(comNumber) && comNumber >= 0) {
+        try {
+          console.log(`🔍 Searching by com number: ${comNumber}`);
+          const { loadCommercialPropertyByCom } = await import('@/lib/property-loader');
+          const property = await loadCommercialPropertyByCom(comNumber);
+          
+          if (property) {
+            console.log(`✅ Found property by com:`, property.propertyId || property.id);
+            const transformedProperty = transformCommercialProperty(property, propertyId || `com-${comNumber}`);
+            setProperty(transformedProperty);
             setLoading(false);
             return;
-          } catch (e) {
-            console.error('Failed to parse stored property:', e);
           }
+        } catch (err) {
+          console.warn('Error loading by com:', err);
         }
       }
 
-      if (!property) {
-        console.error(`❌ Failed to load commercial property. propertyId=${propertyId}, bitNumber=${bitNumber}`);
-      }
-      
+      console.error(`❌ Failed to load commercial property. propertyId="${propertyId}", comNumber=${comNumber}`);
       setLoading(false);
     };
 
     loadProperty();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertyId, bitNumber]); // Removed router from dependencies to prevent unnecessary re-renders
+  }, [propertyId, comNumber]);
 
   const goBack = () => {
     if (window.history.length > 1) {

@@ -99,3 +99,5 @@ If properties don't load correctly:
 - Commercial and residential properties share the same bit number space
 - The system gracefully handles missing `bit` fields (falls back to index)
 
+
+

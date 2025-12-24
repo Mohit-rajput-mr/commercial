@@ -26,7 +26,7 @@ export function parsePropertyId(propertyId: string): PropertyIdParts | null {
     }
 
     const bit = parseInt(lastUnderscoreMatch[1]);
-    if (isNaN(bit) || bit <= 0) {
+    if (isNaN(bit) || bit < 0) {
       console.error(`Invalid bit: ${lastUnderscoreMatch[1]}`);
       return null;
     }
@@ -279,9 +279,20 @@ export async function loadCommercialPropertyFromDataset(propertyId: string): Pro
     let crexiId: string | null = null;
     
     if (isCrexiId) {
-      // Extract everything after 'crexi-' (e.g., "crexi-1408852" -> "1408852")
-      crexiId = propertyId.replace(/^crexi-/, '');
+      // Handle different Crexi formats:
+      // - "crexi-1408852" -> "1408852"
+      // - "crexi-sale-1897627" -> "1897627"
+      // - "crexi-lease-1897627" -> "1897627"
+      if (propertyId.startsWith('crexi-sale-')) {
+        crexiId = propertyId.replace(/^crexi-sale-/, '');
+      } else if (propertyId.startsWith('crexi-lease-')) {
+        crexiId = propertyId.replace(/^crexi-lease-/, '');
+      } else {
+        // Standard crexi- format
+        crexiId = propertyId.replace(/^crexi-/, '');
+      }
       searchId = crexiId;
+      console.log(`🔍 Parsed Crexi ID: ${propertyId} -> ${crexiId}`);
     }
 
     // All commercial files to search
@@ -318,10 +329,16 @@ export async function loadCommercialPropertyFromDataset(propertyId: string): Pro
     ];
 
     // Search through commercial files
+    console.log(`🔍 Searching ${commercialFiles.length} commercial files for propertyId: "${propertyId}", searchId: "${searchId}"`);
+    
     for (const filename of commercialFiles) {
       try {
-        const response = await fetch(`/${filename}`);
-        if (!response.ok) continue;
+        const filePath = `/${filename}`;
+        const response = await fetch(filePath);
+        if (!response.ok) {
+          console.warn(`⚠️ Failed to fetch ${filePath}: ${response.status}`);
+          continue;
+        }
 
         const data = await response.json();
         const propertiesArray = Array.isArray(data) ? data : data.properties || [];
@@ -331,22 +348,30 @@ export async function loadCommercialPropertyFromDataset(propertyId: string): Pro
           const propId = prop.propertyId || prop.zpid || prop.id || '';
           const idString = propId.toString();
           
-          // Match exact ID
+          // Match exact ID (most common case)
           if (idString === propertyId || idString === searchId) {
             return true;
           }
           
           // Match Crexi format variations
           if (isCrexiId && crexiId) {
-            // For crexi-1408852, match prop.id === 1408852
+            // For crexi-1408852 or crexi-sale-1897627, match prop.id === extracted ID
             if (prop.id && prop.id.toString() === crexiId) {
               return true;
             }
-            // Also match if propertyId is already in crexi format
-            if (idString === crexiId || 
-                idString === `crexi-${crexiId}` ||
+            // Match numeric ID directly
+            if (idString === crexiId) {
+              return true;
+            }
+            // Match various Crexi format variations
+            if (idString === `crexi-${crexiId}` ||
                 idString === `crexi-sale-${crexiId}` ||
-                idString === `crexi-lease-${crexiId}`) {
+                idString === `crexi-lease-${crexiId}` ||
+                idString === propertyId) {
+              return true;
+            }
+            // Also check if propertyId field matches
+            if (prop.propertyId && prop.propertyId.toString() === propertyId) {
               return true;
             }
           }
@@ -355,10 +380,11 @@ export async function loadCommercialPropertyFromDataset(propertyId: string): Pro
         });
 
         if (property) {
+          console.log(`✅ Found property "${propertyId}" in ${filename}`);
           return property;
         }
       } catch (err) {
-        console.warn(`Failed to load /${filename}:`, err);
+        console.warn(`❌ Error loading ${filename}:`, err);
         continue;
       }
     }

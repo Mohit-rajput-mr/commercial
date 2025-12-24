@@ -117,3 +117,5 @@ console.log('   1. Review the updated JSON files');
 console.log('   2. Update property-loader.ts to use bit instead of index');
 console.log('   3. Update property link generation code');
 
+
+
