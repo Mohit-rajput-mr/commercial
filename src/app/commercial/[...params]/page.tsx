@@ -52,6 +52,24 @@ function extractStateString(state: any): string {
   return '';
 }
 
+// Helper to safely convert any value to a displayable string (prevents object rendering errors)
+function safeString(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value.toString();
+  if (typeof value === 'boolean') return value.toString();
+  if (typeof value === 'object') {
+    // Handle common object patterns
+    if (value.value) return String(value.value);
+    if (value.text) return String(value.text);
+    if (value.label) return String(value.label);
+    if (value.name) return String(value.name);
+    // Don't try to render complex objects
+    return null;
+  }
+  return String(value);
+}
+
 // Transform raw property data to CommercialProperty format
 function transformCommercialProperty(rawProperty: any, fallbackId: string): CommercialProperty {
   // Handle various property formats from different data sources
@@ -104,43 +122,76 @@ function transformCommercialProperty(rawProperty: any, fallbackId: string): Comm
     }).format(price);
   }
 
-  // Get square footage from various fields
-  const squareFootage = rawProperty.squareFootage || 
-                        rawProperty.sqft || 
-                        rawProperty.buildingSize || 
-                        rawProperty.size ||
-                        rawProperty.area ||
-                        null;
+  // Get square footage from various fields - check propertyFacts for fallback
+  const propertyFacts = rawProperty.propertyFacts || {};
+  let squareFootage = safeString(rawProperty.squareFootage) || 
+                      safeString(rawProperty.sqft) || 
+                      safeString(propertyFacts.TotalBuildingSize) ||
+                      safeString(rawProperty.size) ||
+                      safeString(rawProperty.area);
+  
+  // Get building size - might be in propertyFacts
+  let buildingSize = safeString(rawProperty.buildingSize) || 
+                     safeString(propertyFacts.TotalBuildingSize);
+  
+  // Get property type - might be in propertyFacts
+  let propertyType = safeString(rawProperty.propertyType) || 
+                     safeString(rawProperty.propertySubType) ||
+                     safeString(propertyFacts.PropertyType) || '';
+  
+  // Get cap rate - might be in propertyFacts
+  let capRate = safeString(rawProperty.capRate) || 
+                safeString(propertyFacts.CapRate);
+  
+  // Get description - might be in lotDetails
+  let description = safeString(rawProperty.description) || 
+                    safeString(rawProperty.summary) ||
+                    safeString(rawProperty.executiveSummary) || '';
+  
+  // Get broker info
+  let brokerName = safeString(rawProperty.brokerName) || 
+                   safeString(rawProperty.agent_fullName) ||
+                   safeString(rawProperty.broker?.name);
+  let brokerCompany = safeString(rawProperty.brokerCompany) || 
+                      safeString(rawProperty.Broker) ||
+                      safeString(rawProperty.broker?.company);
 
-  // Transform to CommercialProperty
+  // Safely get address string
+  let addressStr = safeString(address);
+  if (!addressStr && rawProperty.propertyFacts) {
+    // Try to construct from property facts
+    addressStr = '';
+  }
+
+  // Transform to CommercialProperty - all string fields use safeString
   return {
-    propertyId: rawProperty.propertyId || rawProperty.id || rawProperty.zpid || fallbackId,
-    listingType: rawProperty.listingType || rawProperty.type || rawProperty.transactionType || '',
-    propertyType: rawProperty.propertyType || rawProperty.propertySubType || '',
-    city: city,
+    propertyId: safeString(rawProperty.propertyId) || safeString(rawProperty.id) || safeString(rawProperty.zpid) || fallbackId,
+    listingType: safeString(rawProperty.listingType) || safeString(rawProperty.type) || safeString(rawProperty.transactionType) || '',
+    propertyType: propertyType,
+    city: safeString(city) || '',
     state: state,
-    zip: zip,
-    country: country,
-    address: address,
-    description: rawProperty.description || rawProperty.summary || '',
-    listingUrl: rawProperty.listingUrl || rawProperty.url || rawProperty.detailUrl || '',
+    zip: safeString(zip) || '',
+    country: safeString(country) || '',
+    address: addressStr || '',
+    description: description,
+    listingUrl: safeString(rawProperty.listingUrl) || safeString(rawProperty.url) || safeString(rawProperty.detailUrl) || '',
     images: images,
-    dataPoints: rawProperty.dataPoints || [],
-    price: price,
-    priceNumeric: priceNumeric,
-    priceCurrency: rawProperty.priceCurrency || 'USD',
+    dataPoints: Array.isArray(rawProperty.dataPoints) ? rawProperty.dataPoints.filter((dp: any) => typeof dp === 'string') : [],
+    price: safeString(price),
+    priceNumeric: typeof priceNumeric === 'number' ? priceNumeric : null,
+    priceCurrency: safeString(rawProperty.priceCurrency) || 'USD',
     isAuction: rawProperty.isAuction || false,
-    auctionEndDate: rawProperty.auctionEndDate || null,
+    auctionEndDate: safeString(rawProperty.auctionEndDate),
     squareFootage: squareFootage,
-    buildingSize: rawProperty.buildingSize || null,
-    numberOfUnits: rawProperty.numberOfUnits || rawProperty.units || null,
-    brokerName: rawProperty.brokerName || rawProperty.broker?.name || null,
-    brokerCompany: rawProperty.brokerCompany || rawProperty.broker?.company || null,
-    propertyTypeDetailed: rawProperty.propertyTypeDetailed || null,
-    capRate: rawProperty.capRate || null,
-    position: rawProperty.position || 0,
-    availability: rawProperty.availability || null,
-    com: rawProperty.com,
+    buildingSize: buildingSize,
+    numberOfUnits: typeof rawProperty.numberOfUnits === 'number' ? rawProperty.numberOfUnits : (typeof rawProperty.units === 'number' ? rawProperty.units : null),
+    brokerName: brokerName,
+    brokerCompany: brokerCompany,
+    propertyTypeDetailed: safeString(rawProperty.propertyTypeDetailed) || safeString(propertyFacts.PropertySubtype),
+    capRate: capRate,
+    position: typeof rawProperty.position === 'number' ? rawProperty.position : 0,
+    availability: safeString(rawProperty.availability),
+    com: typeof rawProperty.com === 'number' ? rawProperty.com : undefined,
   };
 }
 
