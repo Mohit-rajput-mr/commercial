@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronDown, ChevronUp, Bell, Settings, Search, Heart, FileText, User, Plus, Megaphone, HelpCircle } from 'lucide-react';
+import { X, Bell, Settings, Heart, FileText, HelpCircle, Phone, LogOut, Home, Building2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -14,8 +14,6 @@ interface SidebarMenuProps {
 }
 
 export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpClick }: SidebarMenuProps) {
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useRouter();
 
@@ -34,13 +32,21 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
   }, [isOpen]);
 
   const handleLoginButtonClick = () => {
-    setShowLoginPrompt(false);
-    onLoginClick(); // Use the prop callback to trigger login modal
+    onLoginClick();
+    onClose();
   };
 
   const handleSignUpButtonClick = () => {
-    setShowLoginPrompt(false);
-    onSignUpClick(); // Use the prop callback to trigger signup modal
+    onSignUpClick();
+    onClose();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setCurrentUser(null);
+    onClose();
+    router.push('/');
   };
 
   useEffect(() => {
@@ -54,62 +60,22 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
     };
   }, [isOpen]);
 
-  const toggleSection = (section: string) => {
-    setExpandedSection(expandedSection === section ? null : section);
-  };
-
-  const menuSections = [
-    {
-      title: 'User',
-      items: [
-        { icon: Bell, label: 'Notifications', href: '#' },
-        { icon: Settings, label: 'My Preferences', href: '#' },
-      ],
-    },
-    {
-      title: 'Search',
-      items: [
-        { icon: Search, label: 'Search For Sale', href: '/?tab=For Sale' },
-        { icon: Search, label: 'Search For Lease', href: '/?tab=For Lease' },
-        { icon: Search, label: 'Search Auctions', href: '/?tab=Auctions' },
-        { icon: Search, label: 'Search For Businesses', href: '#' },
-        { icon: Search, label: 'Find a Broker', href: '#' },
-      ],
-    },
-    {
-      title: 'Saved',
-      items: [
-        { icon: Heart, label: 'Saved Searches', href: '#' },
-        { icon: Heart, label: 'My Favorites', href: '#' },
-        { icon: FileText, label: 'My Reports', href: '#' },
-      ],
-    },
-    {
-      title: 'Account',
-      items: [
-        { icon: User, label: 'My Leads', href: '#' },
-        { icon: User, label: 'My Account', href: '#' },
-      ],
-    },
-    {
-      title: 'Tools',
-      items: [
-        { icon: HelpCircle, label: 'Help Center', href: '#' },
-      ],
-    },
+  // Simplified menu items with working links
+  const menuItems = [
+    { icon: Home, label: 'Home', href: '/' },
+    { icon: Building2, label: 'Commercial Properties', href: '/commercial-search' },
+    { icon: MapPin, label: 'Residential Properties', href: '/residential?location=Miami' },
+    { icon: Bell, label: 'Notifications', href: '/notifications' },
+    { icon: Settings, label: 'Preferences', href: '/preferences' },
+    { icon: Heart, label: 'My Favorites', href: '/favorites' },
+    { icon: FileText, label: 'Articles', href: '/articles' },
+    { icon: HelpCircle, label: 'CRE Explained', href: '/cre-explained' },
+    { icon: Phone, label: 'Contact Us', href: '/contact' },
   ];
 
-  const handleItemClick = (href: string, label: string) => {
-    // Check if "My Account" is clicked and user is not logged in
-    if (label === 'My Account' && !currentUser) {
-      setShowLoginPrompt(true);
-      return;
-    }
-    
-    if (href.startsWith('/')) {
-      router.push(href);
-      onClose();
-    }
+  const handleItemClick = (href: string) => {
+    router.push(href);
+    onClose();
   };
 
   return (
@@ -156,116 +122,82 @@ export default function SidebarMenu({ isOpen, onClose, onLoginClick, onSignUpCli
               </button>
             </div>
 
-            {/* Menu Sections */}
-            <div className="py-4">
-              {menuSections.map((section, sectionIndex) => (
-                <div key={section.title}>
-                  {section.items.map((item) => {
-                    const Icon = item.icon;
-                    const isExpandable = (item as any).expandable || false;
-                    const isExpanded = expandedSection === item.label;
-                    const isHighlight = (item as any).highlight || false;
-
-                    return (
-                      <div key={item.label}>
-                        <button
-                          onClick={() => {
-                            if (isExpandable) {
-                              toggleSection(item.label);
-                            } else {
-                              handleItemClick(item.href, item.label);
-                            }
-                          }}
-                          className={`w-full flex items-center justify-between px-4 md:px-6 py-3 md:py-4 hover:bg-white/10 transition-colors ${
-                            isHighlight ? 'text-accent-yellow font-semibold' : 'text-white'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Icon size={20} />
-                            <span className="text-sm md:text-base">{item.label}</span>
-                          </div>
-                          {isExpandable && (
-                            isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {sectionIndex < menuSections.length - 1 && (
-                    <div className="h-px bg-white/20 mx-4 md:mx-6 my-2" />
-                  )}
+            {/* User Info (if logged in) */}
+            {currentUser && (
+              <div className="px-4 md:px-6 py-4 border-b border-white/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent-yellow/20 flex items-center justify-center">
+                    <span className="text-accent-yellow font-semibold text-lg">
+                      {currentUser.name?.charAt(0)?.toUpperCase() || currentUser.email?.charAt(0)?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-white font-medium text-sm">
+                      {currentUser.name || 'User'}
+                    </p>
+                    <p className="text-white/60 text-xs">
+                      {currentUser.email || ''}
+                    </p>
+                  </div>
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Menu Items */}
+            <div className="py-4 pb-32">
+              {menuItems.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => handleItemClick(item.href)}
+                    className="w-full flex items-center gap-3 px-4 md:px-6 py-3 md:py-4 hover:bg-white/10 transition-colors text-white"
+                  >
+                    <Icon size={20} className="text-white/80" />
+                    <span className="text-sm md:text-base">{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Bottom Buttons */}
             <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 border-t border-white/20 bg-primary-black space-y-3">
-              <button
-                onClick={handleLoginButtonClick}
-                className="w-full px-4 md:px-6 py-2.5 md:py-3 border-2 border-accent-yellow rounded-lg font-semibold text-accent-yellow hover:bg-accent-yellow hover:text-primary-black transition-all text-sm md:text-base"
-              >
-                Log In
-              </button>
-              <button
-                onClick={handleSignUpButtonClick}
-                className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all text-sm md:text-base"
-              >
-                Sign Up
-              </button>
-            </div>
-            
-            {/* Login/Signup Prompt Modal */}
-            <AnimatePresence>
-              {showLoginPrompt && (
+              {currentUser ? (
                 <>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setShowLoginPrompt(false)}
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999998]"
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="fixed inset-0 flex items-center justify-center z-[9999999] p-4"
+                  {/* Logged in - Show Contact and Logout */}
+                  <button
+                    onClick={() => handleItemClick('/contact')}
+                    className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all text-sm md:text-base flex items-center justify-center gap-2"
                   >
-                    <div className="bg-primary-black rounded-lg shadow-2xl max-w-sm w-full p-5 md:p-6 text-center border border-white/20">
-                      <div className="mb-4">
-                        <User size={48} className="mx-auto text-accent-yellow mb-3" />
-                        <h3 className="text-lg md:text-xl font-semibold text-white mb-2">
-                          Login Required
-                        </h3>
-                        <p className="text-white/70 text-sm">
-                          Please log in or sign up to access your account.
-                        </p>
-                      </div>
-                      <div className="space-y-3">
-                        <button
-                          onClick={handleLoginButtonClick}
-                          className="w-full px-4 md:px-6 py-2.5 md:py-3 border-2 border-accent-yellow rounded-lg font-semibold text-accent-yellow hover:bg-accent-yellow hover:text-primary-black transition-all text-sm md:text-base"
-                        >
-                          Log In
-                        </button>
-                        <button
-                          onClick={handleSignUpButtonClick}
-                          className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all text-sm md:text-base"
-                        >
-                          Sign Up
-                        </button>
-                        <button
-                          onClick={() => setShowLoginPrompt(false)}
-                          className="w-full px-4 md:px-6 py-2.5 md:py-3 text-white/60 hover:text-white transition-colors text-sm"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
+                    <Phone size={18} />
+                    Contact Us
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-4 md:px-6 py-2.5 md:py-3 border-2 border-white/30 rounded-lg font-semibold text-white/80 hover:bg-white/10 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={18} />
+                    Log Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Not logged in - Show Login and Sign Up */}
+                  <button
+                    onClick={handleLoginButtonClick}
+                    className="w-full px-4 md:px-6 py-2.5 md:py-3 border-2 border-accent-yellow rounded-lg font-semibold text-accent-yellow hover:bg-accent-yellow hover:text-primary-black transition-all text-sm md:text-base"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={handleSignUpButtonClick}
+                    className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all text-sm md:text-base"
+                  >
+                    Sign Up
+                  </button>
                 </>
               )}
-            </AnimatePresence>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

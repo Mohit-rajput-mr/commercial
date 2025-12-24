@@ -29,7 +29,7 @@ export default function AIAssistantIcon() {
       {/* AI Assistant Icon Button */}
       <motion.div
         ref={iconRef}
-        className="fixed bottom-[10rem] sm:bottom-[11rem] md:bottom-[12rem] right-4 sm:right-5 md:right-6 w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 z-[60] cursor-pointer pointer-events-auto"
+        className="fixed bottom-[4rem] sm:bottom-[4.5rem] md:bottom-[5rem] right-4 sm:right-5 md:right-6 w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 z-[60] cursor-pointer pointer-events-auto"
         onClick={handleIconClick}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
