@@ -8,6 +8,7 @@ import {
   Info, User, Building, Copy, Check, ArrowRight
 } from 'lucide-react';
 import ShareButton from '@/components/ShareButton';
+import PropertyInquiryForm from '@/components/PropertyInquiryForm';
 
 // Commercial Property interface
 interface CommercialProperty {
@@ -739,6 +740,14 @@ function CommercialDetailContent() {
                 {property.country && <p className="text-gray-400 text-sm mt-1">{property.country}</p>}
               </div>
             </div>
+
+            {/* Property Inquiry Form */}
+            <PropertyInquiryForm
+              propertyAddress={`${cleanAddress(property.address) || ''}, ${property.city || ''}, ${getStateString(property.state)} ${property.zip || ''}`.trim()}
+              propertyId={property.propertyId}
+              formType="property_inquiry"
+              theme="light"
+            />
           </div>
         </div>
 

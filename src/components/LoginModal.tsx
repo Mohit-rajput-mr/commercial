@@ -6,6 +6,7 @@ import { X, Mail, Heart, User, Phone, Lock, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { setAdminAuthenticated } from '@/lib/admin-storage';
+import ReCaptcha from './ReCaptcha';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -23,11 +24,12 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string; name?: string; phone?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string; name?: string; phone?: string; recaptcha?: string }>({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -70,7 +72,6 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
   ];
 
   const validateEmail = (email: string) => {
-    // Allow "admin" as a special case for admin login
     if (email.trim().toLowerCase() === 'admin') {
       return true;
     }
@@ -83,10 +84,17 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
     return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
   };
 
+  const handleRecaptchaVerify = (token: string | null) => {
+    setRecaptchaToken(token);
+    if (errors.recaptcha) {
+      setErrors({ ...errors, recaptcha: undefined });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const newErrors: { email?: string; password?: string; name?: string; phone?: string; confirmPassword?: string } = {};
+    const newErrors: { email?: string; password?: string; name?: string; phone?: string; confirmPassword?: string; recaptcha?: string } = {};
 
     if (!email) {
       newErrors.email = 'Email is required';
@@ -97,11 +105,11 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (email.trim().toLowerCase() !== 'admin' && password.length < 6) {
-      // Allow admin password to be shorter (just "admin")
       newErrors.password = 'Password must be at least 6 characters';
     }
 
     if (!isLogin) {
+      // Signup validation
       if (!name) {
         newErrors.name = 'Name is required';
       } else if (name.length < 2) {
@@ -119,6 +127,11 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
       } else if (password !== confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
+
+      // reCAPTCHA validation for signup
+      if (!recaptchaToken) {
+        newErrors.recaptcha = 'Please complete the reCAPTCHA verification';
+      }
     }
 
     setErrors(newErrors);
@@ -130,7 +143,6 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
 
         // Check for admin login
         if (isLogin && trimmedEmail === 'admin' && trimmedPassword === 'admin') {
-          // Admin login via API
           const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -174,7 +186,24 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
             setErrors({ email: data.error || 'Login failed' });
           }
         } else {
-          // Signup
+          // Signup - verify reCAPTCHA first
+          if (recaptchaToken) {
+            const recaptchaResponse = await fetch('/api/verify-recaptcha', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: recaptchaToken }),
+            });
+
+            const recaptchaResult = await recaptchaResponse.json();
+
+            if (!recaptchaResult.success) {
+              setErrors({ recaptcha: 'reCAPTCHA verification failed. Please try again.' });
+              setLoading(false);
+              return;
+            }
+          }
+
+          // Proceed with signup
           const response = await fetch('/api/auth/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -184,6 +213,22 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
           const data = await response.json();
 
           if (response.ok && data.success) {
+            // Send registration email to admin
+            try {
+              await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  formType: 'registration',
+                  name,
+                  email,
+                  phone,
+                }),
+              });
+            } catch (emailErr) {
+              console.error('Failed to send registration email:', emailErr);
+            }
+
             // Auto-login after successful signup
             localStorage.setItem('user', JSON.stringify(data.user));
             setSuccessMessage('Account created successfully! You are now logged in.');
@@ -215,8 +260,6 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
     }
 
     try {
-      // TODO: Implement Supabase password reset
-      // const { error } = await supabase.auth.resetPasswordForEmail(email);
       alert(`Password reset link will be sent to ${email}. (This will be fully implemented with Supabase email service)`);
     } catch (error) {
       console.error('Password reset error:', error);
@@ -276,6 +319,7 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
                         setErrors({});
                         setPassword('');
                         setSuccessMessage('');
+                        setRecaptchaToken(null);
                         if (isLogin) {
                           setName('');
                           setPhone('');
@@ -530,6 +574,19 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
                       </div>
                     )}
 
+                    {/* reCAPTCHA for Signup */}
+                    {!isLogin && (
+                      <div className="flex flex-col items-center py-2">
+                        <ReCaptcha 
+                          onVerify={handleRecaptchaVerify}
+                          theme="light"
+                        />
+                        {errors.recaptcha && (
+                          <p className="text-red-500 text-xs mt-2">{errors.recaptcha}</p>
+                        )}
+                      </div>
+                    )}
+
                     {isLogin && (
                       <div className="flex justify-end">
                         <button
@@ -544,8 +601,12 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
 
                     <button
                       type="submit"
-                      disabled={loading}
-                      className="w-full px-6 py-3 md:py-4 bg-accent-yellow rounded-lg font-semibold text-primary-black hover:bg-yellow-400 transition-all min-h-[48px] text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={loading || (!isLogin && !recaptchaToken)}
+                      className={`w-full px-6 py-3 md:py-4 rounded-lg font-semibold text-primary-black min-h-[48px] text-base transition-all ${
+                        loading || (!isLogin && !recaptchaToken)
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-accent-yellow hover:bg-yellow-400'
+                      }`}
                     >
                       {loading ? 'Please wait...' : isLogin ? 'Log In' : 'Sign Up'}
                     </button>
@@ -565,4 +626,3 @@ export default function LoginModal({ isOpen, onClose, onSignUp, initialMode = 'l
     </AnimatePresence>
   );
 }
-

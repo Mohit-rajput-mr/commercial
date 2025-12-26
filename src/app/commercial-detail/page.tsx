@@ -10,6 +10,7 @@ import {
   Info, User, Building, Home, Copy, Check, Calendar, ArrowRight
 } from 'lucide-react';
 import ShareButton from '@/components/ShareButton';
+import PropertyInquiryForm from '@/components/PropertyInquiryForm';
 
 // Commercial Property interface
 interface CommercialProperty {
@@ -225,7 +226,7 @@ function CommercialDetailContent() {
       
       {/* Header Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-[40px] md:top-[68px] z-40">
-        <div className="max-w-7xl mx-auto px-3 md:px-4 py-2 md:py-4">
+        <div className="w-full px-3 md:px-6 lg:px-8 py-2 md:py-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
               <button
@@ -269,7 +270,7 @@ function CommercialDetailContent() {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-8">
+      <div className="w-full px-3 md:px-6 lg:px-8 py-4 md:py-8">
         {/* Image Gallery */}
         {images.length > 0 && (
           <div className="mb-4 md:mb-8">
@@ -460,7 +461,7 @@ function CommercialDetailContent() {
           </div>
 
           {/* Sidebar - Right Column */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:sticky lg:top-[80px] self-start">
             {/* Key Details Card */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-bold text-primary-black mb-4">Key Details</h3>
@@ -530,6 +531,14 @@ function CommercialDetailContent() {
                 {property.country && <p className="text-gray-400 text-sm mt-1">{property.country}</p>}
               </div>
             </div>
+
+            {/* Property Inquiry Form */}
+            <PropertyInquiryForm
+              propertyAddress={`${cleanAddress(property.address) || ''}, ${property.city || ''}, ${property.state || ''} ${property.zip || ''}`.trim()}
+              propertyId={property.propertyId}
+              formType="property_inquiry"
+              theme="light"
+            />
           </div>
         </div>
 

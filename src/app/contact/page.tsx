@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Mail, MapPin, Send, ArrowLeft } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Phone, Mail, MapPin, Send, Clock, User, MessageSquare, FileText } from 'lucide-react';
 import BackToHomeButton from '@/components/BackToHomeButton';
+import ReCaptcha from '@/components/ReCaptcha';
 
 export default function ContactPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -17,22 +16,73 @@ export default function ContactPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.name || !formData.email || !formData.message) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
     setIsSubmitting(true);
-    
-    // Simulate submission
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsSubmitting(false);
-    setSubmitted(true);
-    
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-      setSubmitted(false);
-    }, 3000);
+
+    try {
+      // Verify reCAPTCHA first
+      const recaptchaResponse = await fetch('/api/verify-recaptcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: recaptchaToken }),
+      });
+
+      const recaptchaResult = await recaptchaResponse.json();
+
+      if (!recaptchaResult.success) {
+        setError('reCAPTCHA verification failed. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Send email
+      const emailResponse = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formType: 'contact',
+          ...formData,
+        }),
+      });
+
+      const emailResult = await emailResponse.json();
+
+      if (emailResult.success) {
+        setSubmitted(true);
+        
+        // Reset form after 5 seconds
+        setTimeout(() => {
+          setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+          setSubmitted(false);
+          setRecaptchaToken(null);
+        }, 5000);
+      } else {
+        setError(emailResult.error || 'Failed to send message. Please try again.');
+      }
+    } catch (err) {
+      console.error('Form submission error:', err);
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -40,6 +90,12 @@ export default function ContactPage() {
       ...prev,
       [e.target.name]: e.target.value
     }));
+    setError(null);
+  };
+
+  const handleRecaptchaVerify = (token: string | null) => {
+    setRecaptchaToken(token);
+    setError(null);
   };
 
   return (
@@ -79,7 +135,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">Phone</h3>
-                    <p className="text-gray-300">+1 (555) 123-4567</p>
+                    <p className="text-gray-300">+1 (917) 209-6200</p>
                     <p className="text-gray-400 text-sm">Mon-Fri 9am-6pm EST</p>
                   </div>
                 </div>
@@ -90,8 +146,8 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">Email</h3>
-                    <p className="text-gray-300">support@caprate.com</p>
-                    <p className="text-gray-400 text-sm">We&apos;ll respond within 24 hours</p>
+                    <p className="text-gray-300">leojoemail@gmail.com</p>
+                    <p className="text-gray-400 text-sm">We&apos;ll respond within 0-4 hours</p>
                   </div>
                 </div>
 
@@ -125,6 +181,15 @@ export default function ContactPage() {
                 </div>
               </div>
             </div>
+
+            {/* Response Time Badge */}
+            <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4 flex items-center gap-3">
+              <Clock className="w-8 h-8 text-green-400" />
+              <div>
+                <p className="text-green-400 font-semibold">Quick Response Guaranteed</p>
+                <p className="text-green-300 text-sm">We respond within 0-4 hours</p>
+              </div>
+            </div>
           </motion.div>
 
           {/* Contact Form */}
@@ -146,7 +211,7 @@ export default function ContactPage() {
                     <Send className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
-                  <p className="text-gray-300">We&apos;ll get back to you soon.</p>
+                  <p className="text-gray-300">We&apos;ll get back to you within 0-4 hours.</p>
                 </motion.div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -154,86 +219,120 @@ export default function ContactPage() {
                     <label className="block text-white text-sm font-medium mb-2">
                       Full Name *
                     </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors"
-                      placeholder="John Doe"
-                    />
+                    <div className="relative">
+                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors"
+                        placeholder="John Doe"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-white text-sm font-medium mb-2">
                       Email Address *
                     </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors"
-                      placeholder="john@example.com"
-                    />
+                    <div className="relative">
+                      <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors"
+                        placeholder="john@example.com"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-white text-sm font-medium mb-2">
                       Phone Number
                     </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors"
-                      placeholder="+1 (555) 123-4567"
-                    />
+                    <div className="relative">
+                      <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors"
+                        placeholder="+1 (555) 123-4567"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-white text-sm font-medium mb-2">
                       Subject *
                     </label>
-                    <select
-                      name="subject"
-                      value={formData.subject}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-accent-yellow transition-colors"
-                    >
-                      <option value="" className="bg-primary-black">Select a subject</option>
-                      <option value="general" className="bg-primary-black">General Inquiry</option>
-                      <option value="property" className="bg-primary-black">Property Information</option>
-                      <option value="technical" className="bg-primary-black">Technical Support</option>
-                      <option value="partnership" className="bg-primary-black">Partnership Opportunities</option>
-                    </select>
+                    <div className="relative">
+                      <FileText size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <select
+                        name="subject"
+                        value={formData.subject}
+                        onChange={handleChange}
+                        required
+                        className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-accent-yellow transition-colors appearance-none"
+                      >
+                        <option value="" className="bg-primary-black">Select a subject</option>
+                        <option value="General Inquiry" className="bg-primary-black">General Inquiry</option>
+                        <option value="Property Information" className="bg-primary-black">Property Information</option>
+                        <option value="Technical Support" className="bg-primary-black">Technical Support</option>
+                        <option value="Partnership Opportunities" className="bg-primary-black">Partnership Opportunities</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-white text-sm font-medium mb-2">
                       Message *
                     </label>
-                    <textarea
-                      name="message"
-                      value={formData.message}
-                      onChange={handleChange}
-                      required
-                      rows={5}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors resize-none"
-                      placeholder="Tell us how we can help you..."
+                    <div className="relative">
+                      <MessageSquare size={18} className="absolute left-3 top-3 text-gray-400" />
+                      <textarea
+                        name="message"
+                        value={formData.message}
+                        onChange={handleChange}
+                        required
+                        rows={5}
+                        className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-yellow transition-colors resize-none"
+                        placeholder="Tell us how we can help you..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* reCAPTCHA */}
+                  <div className="flex justify-center py-2">
+                    <ReCaptcha 
+                      onVerify={handleRecaptchaVerify}
+                      theme="dark"
                     />
                   </div>
 
+                  {/* Error Message */}
+                  {error && (
+                    <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                      {error}
+                    </div>
+                  )}
+
                   <motion.button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !recaptchaToken}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full px-6 py-4 bg-accent-yellow text-primary-black rounded-lg font-bold text-lg flex items-center justify-center gap-2 hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full px-6 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
+                      isSubmitting || !recaptchaToken
+                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
+                        : 'bg-accent-yellow text-primary-black hover:bg-yellow-400'
+                    }`}
                   >
                     {isSubmitting ? (
                       <>
@@ -247,6 +346,10 @@ export default function ContactPage() {
                       </>
                     )}
                   </motion.button>
+
+                  <p className="text-xs text-gray-400 text-center">
+                    By submitting, you agree to our Terms of Service and Privacy Policy
+                  </p>
                 </form>
               )}
             </div>
@@ -256,4 +359,3 @@ export default function ContactPage() {
     </div>
   );
 }
-

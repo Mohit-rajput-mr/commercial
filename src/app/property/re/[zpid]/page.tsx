@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -12,26 +11,20 @@ import {
   ChevronRight,
   Heart,
   Share2,
-  Download,
-  Printer,
-  GitCompare,
   MapPin,
-  Check,
-  ExternalLink,
-  ArrowLeft,
   Bed,
   Bath,
   Square,
+  Building2,
   Calendar,
-  Copy,
-  Mail,
-  Phone,
+  Home,
+  Tag,
 } from 'lucide-react';
 import { getPropertyDetails, getPropertyImages, PropertyDetailsResponse, getAddressString, getCity, getState, getZipcode } from '@/lib/property-api';
 import Nav from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import PropertyDetailSkeleton from '@/components/PropertyDetailSkeleton';
-
+import PropertyInquiryForm from '@/components/PropertyInquiryForm';
 
 export default function ResidentialPropertyDetailPage() {
   const params = useParams();
@@ -41,10 +34,6 @@ export default function ResidentialPropertyDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Leo Jo contact info
-  const leoJoPhone = '+1 (917) 209-6200';
-  const leoJoEmail = 'leojoemail@gmail.com';
 
   useEffect(() => {
     if (params.zpid && typeof params.zpid === 'string') {
@@ -60,10 +49,8 @@ export default function ResidentialPropertyDetailPage() {
     setError(null);
 
     try {
-      // Fetch property details
       const details = await getPropertyDetails(params.zpid);
       
-      // Try to fetch images separately
       try {
         const images = await getPropertyImages(params.zpid);
         if (images && images.length > 0) {
@@ -75,7 +62,6 @@ export default function ResidentialPropertyDetailPage() {
 
       setProperty(details);
       
-      // Load favorite status
       const favorites = JSON.parse(localStorage.getItem('api-favorites') || '[]');
       setIsFavorite(favorites.includes(params.zpid));
     } catch (err) {
@@ -117,6 +103,7 @@ export default function ResidentialPropertyDetailPage() {
   const city = getCity(property);
   const state = getState(property);
   const zipcode = getZipcode(property);
+  const fullAddress = `${addressString}, ${city}, ${state} ${zipcode}`;
 
   const toggleFavorite = () => {
     const favorites = JSON.parse(localStorage.getItem('api-favorites') || '[]');
@@ -150,249 +137,265 @@ export default function ResidentialPropertyDetailPage() {
     }).format(numPrice);
   };
 
-  const copyPropertyId = () => {
-    navigator.clipboard.writeText(property.zpid);
-    alert('Property ID copied to clipboard!');
-  };
-
-  const shareProperty = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: `${addressString}, ${city}, ${state}`,
-        text: `Check out this property: ${addressString}`,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Property link copied to clipboard!');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white">
       <Nav />
       
-      <div className="pt-16 md:pt-20">
-        {/* Back Button */}
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-custom-gray hover:text-accent-yellow transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Back to Results</span>
-          </button>
-        </div>
+      {/* Navbar Spacer */}
+      <div className="h-[60px] w-full"></div>
 
-        {/* Image Gallery */}
-        <div className="relative w-full h-[400px] md:h-[600px] bg-gray-100">
+      {/* StreetEasy Style Split Layout */}
+      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-60px)]">
+        {/* LEFT SIDE - Image Gallery */}
+        <div className="w-full lg:w-1/2 2xl:w-3/5 bg-black relative lg:sticky lg:top-[60px] lg:h-[calc(100vh-60px)]">
           {images.length > 0 ? (
-            <>
+            <div className="relative w-full h-[350px] sm:h-[450px] lg:h-full">
               <Image
                 src={images[currentImageIndex]}
-                alt={`${addressString} - Image ${currentImageIndex + 1}`}
+                alt={addressString}
                 fill
                 className="object-cover"
                 priority
                 unoptimized
+                sizes="(max-width: 1024px) 100vw, 55vw"
               />
               
-              {/* Image Navigation */}
+              {/* Navigation Arrows */}
               {images.length > 1 && (
                 <>
                   <button
                     onClick={prevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all z-10"
                   >
-                    <ChevronLeft size={24} />
+                    <ChevronLeft size={24} className="text-gray-800" />
                   </button>
                   <button
                     onClick={nextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all z-10"
                   >
-                    <ChevronRight size={24} />
+                    <ChevronRight size={24} className="text-gray-800" />
                   </button>
-                  
-                  {/* Image Counter */}
-                  <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
-                    {currentImageIndex + 1} / {images.length}
-                  </div>
                 </>
               )}
-            </>
+
+              {/* Image Counter */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-medium">
+                {currentImageIndex + 1} / {images.length}
+              </div>
+
+              {/* Thumbnail Strip */}
+              {images.length > 1 && (
+                <div className="absolute bottom-16 left-0 right-0 px-4">
+                  <div className="flex gap-2 justify-center overflow-x-auto py-2">
+                    {images.slice(0, 6).map((img, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${
+                          index === currentImageIndex ? 'border-accent-yellow scale-105' : 'border-transparent opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <Image
+                          src={img}
+                          alt={`Thumbnail ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </button>
+                    ))}
+                    {images.length > 6 && (
+                      <div className="w-16 h-16 rounded-lg bg-black/50 flex items-center justify-center text-white text-sm font-medium">
+                        +{images.length - 6}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="absolute top-4 right-4 flex gap-2">
+                <button
+                  onClick={toggleFavorite}
+                  className={`p-3 rounded-full shadow-lg transition-all ${
+                    isFavorite
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white/90 hover:bg-white text-gray-700'
+                  }`}
+                >
+                  <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({ title: fullAddress, url: window.location.href });
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert('Link copied!');
+                    }
+                  }}
+                  className="p-3 bg-white/90 hover:bg-white rounded-full shadow-lg transition-all text-gray-700"
+                >
+                  <Share2 size={20} />
+                </button>
+              </div>
+            </div>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">
-              <div className="text-center">
-                <Square size={64} className="mx-auto mb-2" />
+            <div className="w-full h-[350px] lg:h-full flex items-center justify-center bg-gray-100">
+              <div className="text-center text-gray-400">
+                <Home size={64} className="mx-auto mb-4" />
                 <p>No images available</p>
               </div>
             </div>
           )}
-
-          {/* Action Buttons */}
-          <div className="absolute top-4 right-4 flex gap-2">
-            <button
-              onClick={toggleFavorite}
-              className={`p-3 rounded-full shadow-lg transition-all ${
-                isFavorite
-                  ? 'bg-red-500 text-white'
-                  : 'bg-white/90 hover:bg-white text-gray-700'
-              }`}
-            >
-              <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              onClick={shareProperty}
-              className="p-3 bg-white/90 hover:bg-white rounded-full shadow-lg transition-all"
-            >
-              <Share2 size={20} />
-            </button>
-          </div>
         </div>
 
-        {/* Property Details */}
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
-              {/* Header */}
-              <div className="mb-6">
-                <h1 className="text-3xl md:text-4xl font-bold text-primary-black mb-2">
-                  {addressString}
-                </h1>
-                <p className="text-xl text-custom-gray">
-                  {city}, {state} {zipcode}
-                </p>
-                <div className="flex items-center gap-4 mt-4">
-                  <span className="text-3xl font-bold text-accent-yellow">
-                    {formatPrice(property.price)}
-                  </span>
-                  {property.propertyType && (
-                    <span className="px-3 py-1 bg-accent-yellow/10 text-accent-yellow rounded-full text-sm font-semibold">
-                      {property.propertyType}
-                    </span>
-                  )}
-                </div>
-              </div>
+        {/* RIGHT SIDE - Property Information */}
+        <div className="w-full lg:w-1/2 2xl:w-2/5 overflow-y-auto">
+          <div className="p-6 lg:p-8 space-y-6">
+            {/* Property Title/Address */}
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+                {addressString}
+              </h1>
+              <p className="text-lg text-gray-600 flex items-center gap-2">
+                <MapPin size={18} className="text-accent-yellow" />
+                {city}, {state} {zipcode}
+              </p>
+            </div>
 
-              {/* Key Features */}
-              <div className="flex flex-wrap gap-6 mb-8 pb-8 border-b">
-                {property.bedrooms !== undefined && (
-                  <div className="flex items-center gap-2">
-                    <Bed size={24} className="text-accent-yellow" />
-                    <div>
-                      <p className="text-2xl font-bold">{property.bedrooms}</p>
-                      <p className="text-sm text-custom-gray">Bedrooms</p>
-                    </div>
-                  </div>
-                )}
-                {property.bathrooms !== undefined && (
-                  <div className="flex items-center gap-2">
-                    <Bath size={24} className="text-accent-yellow" />
-                    <div>
-                      <p className="text-2xl font-bold">{property.bathrooms}</p>
-                      <p className="text-sm text-custom-gray">Bathrooms</p>
-                    </div>
-                  </div>
-                )}
-                {property.livingArea && (
-                  <div className="flex items-center gap-2">
-                    <Square size={24} className="text-accent-yellow" />
-                    <div>
-                      <p className="text-2xl font-bold">{property.livingArea.toLocaleString()}</p>
-                      <p className="text-sm text-custom-gray">Sq Ft</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* Price */}
+            <div className="border-b border-gray-200 pb-6">
+              <p className="text-3xl lg:text-4xl font-bold text-accent-yellow">
+                {formatPrice(property.price)}
+              </p>
+              {property.status && (
+                <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${
+                  property.status === 'For Rent' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {property.status}
+                </span>
+              )}
+            </div>
 
-              {/* Description */}
-              {property.description && (
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">About This Property</h2>
-                  <p className="text-custom-gray leading-relaxed whitespace-pre-line">
-                    {property.description}
-                  </p>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-200 pb-6">
+              {property.bedrooms !== undefined && (
+                <div className="text-center p-3 bg-gray-50 rounded-lg">
+                  <Bed size={24} className="mx-auto text-accent-yellow mb-1" />
+                  <p className="text-xl font-bold text-gray-900">{property.bedrooms}</p>
+                  <p className="text-xs text-gray-500">Beds</p>
                 </div>
               )}
+              {property.bathrooms !== undefined && (
+                <div className="text-center p-3 bg-gray-50 rounded-lg">
+                  <Bath size={24} className="mx-auto text-accent-yellow mb-1" />
+                  <p className="text-xl font-bold text-gray-900">{property.bathrooms}</p>
+                  <p className="text-xs text-gray-500">Baths</p>
+                </div>
+              )}
+              {property.livingArea && (
+                <div className="text-center p-3 bg-gray-50 rounded-lg">
+                  <Square size={24} className="mx-auto text-accent-yellow mb-1" />
+                  <p className="text-xl font-bold text-gray-900">{property.livingArea.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">Sq Ft</p>
+                </div>
+              )}
+              {property.yearBuilt && (
+                <div className="text-center p-3 bg-gray-50 rounded-lg">
+                  <Calendar size={24} className="mx-auto text-accent-yellow mb-1" />
+                  <p className="text-xl font-bold text-gray-900">{property.yearBuilt}</p>
+                  <p className="text-xs text-gray-500">Built</p>
+                </div>
+              )}
+            </div>
 
-              {/* Location */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-4">Location</h2>
-                <div className="p-4 bg-light-gray rounded-lg">
-                  <p className="text-custom-gray flex items-center gap-2">
-                    <MapPin size={16} />
-                    {addressString}
-                  </p>
+            {/* Property Type Tags */}
+            <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-6">
+              {property.propertyType && (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
+                  <Building2 size={14} />
+                  {property.propertyType}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
+                <Tag size={14} />
+                Residential
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-accent-yellow/20 rounded-full text-sm font-medium text-accent-yellow">
+                <Home size={14} />
+                ID: {property.zpid}
+              </span>
+            </div>
+
+            {/* Key Details */}
+            <div className="border-b border-gray-200 pb-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Key Details</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Property Type</span>
+                  <span className="font-medium text-gray-900">{property.propertyType || 'Residential'}</span>
+                </div>
+                {property.lotSize && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Lot Size</span>
+                    <span className="font-medium text-gray-900">{property.lotSize.toLocaleString()} sqft</span>
+                  </div>
+                )}
+                {property.yearBuilt && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Year Built</span>
+                    <span className="font-medium text-gray-900">{property.yearBuilt}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Status</span>
+                  <span className="font-medium text-gray-900">{property.status || 'Active'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-24">
-                {/* Contact Card */}
-                <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-6">
-                  <h3 className="text-xl font-bold mb-4">Contact Agent</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="font-semibold text-lg">Leo Jo</p>
-                      <p className="text-sm text-custom-gray">Real Estate Professional</p>
-                    </div>
-                    
-                    <a
-                      href={`tel:${leoJoPhone}`}
-                      className="flex items-center gap-3 p-3 bg-accent-yellow hover:bg-yellow-400 rounded-lg transition-colors"
-                    >
-                      <Phone size={20} />
-                      <span className="font-semibold">{leoJoPhone}</span>
-                    </a>
-                    
-                    <a
-                      href={`mailto:${leoJoEmail}`}
-                      className="flex items-center gap-3 p-3 border-2 border-accent-yellow hover:bg-accent-yellow/10 rounded-lg transition-colors"
-                    >
-                      <Mail size={20} />
-                      <span className="font-semibold">Email Agent</span>
-                    </a>
-                  </div>
-                </div>
-
-                {/* Property Info */}
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-bold mb-4">Property Information</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-custom-gray">Property ID</span>
-                      <button
-                        onClick={copyPropertyId}
-                        className="font-semibold hover:text-accent-yellow flex items-center gap-1"
-                      >
-                        {property.zpid}
-                        <Copy size={14} />
-                      </button>
-                    </div>
-                    {property.yearBuilt && (
-                      <div className="flex justify-between">
-                        <span className="text-custom-gray">Year Built</span>
-                        <span className="font-semibold">{property.yearBuilt}</span>
-                      </div>
-                    )}
-                    {property.lotSize && (
-                      <div className="flex justify-between">
-                        <span className="text-custom-gray">Lot Size</span>
-                        <span className="font-semibold">{property.lotSize.toLocaleString()} sq ft</span>
-                      </div>
-                    )}
-                    {property.propertyType && (
-                      <div className="flex justify-between">
-                        <span className="text-custom-gray">Type</span>
-                        <span className="font-semibold">{property.propertyType}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {/* Description */}
+            {property.description && (
+              <div className="border-b border-gray-200 pb-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">About This Property</h2>
+                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+                  {property.description}
+                </p>
               </div>
+            )}
+
+            {/* Location with Map Icon */}
+            <div className="border-b border-gray-200 pb-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <MapPin size={20} className="text-accent-yellow" />
+                Location
+              </h2>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-gray-700 font-medium">{fullAddress}</p>
+                {property.latitude && property.longitude && (
+                  <a
+                    href={`https://www.google.com/maps?q=${property.latitude},${property.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-2 text-accent-yellow hover:underline text-sm"
+                  >
+                    View on Google Maps →
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Ask Additional Questions Form */}
+            <div className="pt-2">
+              <PropertyInquiryForm
+                propertyAddress={fullAddress}
+                propertyId={property.zpid}
+                formType="property_inquiry"
+                theme="light"
+              />
             </div>
           </div>
         </div>
@@ -402,7 +405,3 @@ export default function ResidentialPropertyDetailPage() {
     </div>
   );
 }
-
-
-
-

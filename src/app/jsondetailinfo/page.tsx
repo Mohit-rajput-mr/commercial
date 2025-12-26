@@ -32,6 +32,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import ShareButton from '@/components/ShareButton';
+import PropertyInquiryForm from '@/components/PropertyInquiryForm';
 
 // Property Feature Dropdown Component
 interface PropertyFeatureDropdownProps {
@@ -356,7 +357,7 @@ function JsonDetailContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 py-2 md:py-4">
+        <div className="w-full px-3 md:px-6 lg:px-8 py-2 md:py-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
               <motion.button
@@ -410,7 +411,7 @@ function JsonDetailContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 py-4 md:py-8">
+      <div className="w-full px-3 md:px-6 lg:px-8 py-4 md:py-8">
         {/* Image Gallery */}
         {photoUrls.length > 0 && (
           <div className="mb-4 md:mb-8">
@@ -491,159 +492,179 @@ function JsonDetailContent() {
           </div>
         )}
 
-        {/* Main Info Card */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Price & Address */}
-          <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-              <div>
-                <div className="text-3xl font-bold text-primary-black">
-                  {formatPrice(property.listPrice)}
-                  {folder === 'lease' && <span className="text-lg text-gray-500 font-normal">/month</span>}
+        {/* Main Content with Sidebar Layout */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* LEFT SIDE - Main Content */}
+          <div className="flex-1 min-w-0">
+            {/* Main Info Card */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+              {/* Price & Address */}
+              <div className="xl:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                  <div>
+                    <div className="text-3xl font-bold text-primary-black">
+                      {formatPrice(property.listPrice)}
+                      {folder === 'lease' && <span className="text-lg text-gray-500 font-normal">/month</span>}
+                    </div>
+                    {property.state && (
+                      <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${
+                        property.state === 'Lease' || folder === 'lease'
+                          ? 'bg-green-500 text-white' 
+                          : 'bg-orange-500 text-white'
+                      }`}>
+                        {property.state}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {property.state && (
-                  <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${
-                    property.state === 'Lease' || folder === 'lease'
-                      ? 'bg-green-500 text-white' 
-                      : 'bg-orange-500 text-white'
-                  }`}>
-                    {property.state}
-                  </span>
+
+                {/* Address */}
+                <div className="flex items-start gap-3 mb-4">
+                  <MapPin className="text-accent-yellow mt-1 flex-shrink-0" size={20} />
+                  <div>
+                    <div className="text-lg text-primary-black font-medium">{addr.street}</div>
+                    <div className="text-gray-500">{addr.city}, {addr.state} {addr.zip}</div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={copyAddress}
+                    className="ml-auto p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"
+                  >
+                    {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                  </motion.button>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100">
+                  {property.beds != null && (
+                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
+                      <Bed className="text-accent-yellow" size={18} />
+                      <span className="text-primary-black font-medium">{property.beds} Beds</span>
+                    </div>
+                  )}
+                  {property.baths != null && (
+                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
+                      <Bath className="text-accent-yellow" size={18} />
+                      <span className="text-primary-black font-medium">{property.baths} Baths</span>
+                    </div>
+                  )}
+                  {property.sqft != null && (
+                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
+                      <Square className="text-accent-yellow" size={18} />
+                      <span className="text-primary-black font-medium">{property.sqft.toLocaleString()} sqft</span>
+                    </div>
+                  )}
+                  {property.year_built && (
+                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
+                      <Calendar className="text-accent-yellow" size={18} />
+                      <span className="text-primary-black font-medium">Built {property.year_built}</span>
+                    </div>
+                  )}
+                  {property.lot_sqft && (
+                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
+                      <Trees className="text-green-500" size={18} />
+                      <span className="text-primary-black font-medium">{property.lot_sqft.toLocaleString()} sqft lot</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Location Map Placeholder */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h3 className="text-lg font-semibold text-primary-black mb-4 flex items-center gap-2">
+                  <Map className="text-accent-yellow" size={20} />
+                  Location
+                </h3>
+                {property.coordinates && (
+                  <div className="space-y-2 text-sm text-gray-500">
+                    <p>Latitude: {property.coordinates.latitude}</p>
+                    <p>Longitude: {property.coordinates.longitude}</p>
+                    <a
+                      href={`https://www.google.com/maps?q=${property.coordinates.latitude},${property.coordinates.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg transition-colors font-medium"
+                    >
+                      <ExternalLink size={16} />
+                      View on Google Maps
+                    </a>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Address */}
-            <div className="flex items-start gap-3 mb-4">
-              <MapPin className="text-accent-yellow mt-1 flex-shrink-0" size={20} />
-              <div>
-                <div className="text-lg text-primary-black font-medium">{addr.street}</div>
-                <div className="text-gray-500">{addr.city}, {addr.state} {addr.zip}</div>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={copyAddress}
-                className="ml-auto p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"
-              >
-                {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
-              </motion.button>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100">
-              {property.beds != null && (
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
-                  <Bed className="text-accent-yellow" size={18} />
-                  <span className="text-primary-black font-medium">{property.beds} Beds</span>
-                </div>
-              )}
-              {property.baths != null && (
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
-                  <Bath className="text-accent-yellow" size={18} />
-                  <span className="text-primary-black font-medium">{property.baths} Baths</span>
-                </div>
-              )}
-              {property.sqft != null && (
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
-                  <Square className="text-accent-yellow" size={18} />
-                  <span className="text-primary-black font-medium">{property.sqft.toLocaleString()} sqft</span>
-                </div>
-              )}
-              {property.year_built && (
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
-                  <Calendar className="text-accent-yellow" size={18} />
-                  <span className="text-primary-black font-medium">Built {property.year_built}</span>
-                </div>
-              )}
-              {property.lot_sqft && (
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
-                  <Trees className="text-green-500" size={18} />
-                  <span className="text-primary-black font-medium">{property.lot_sqft.toLocaleString()} sqft lot</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Location Map Placeholder */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-primary-black mb-4 flex items-center gap-2">
-              <Map className="text-accent-yellow" size={20} />
-              Location
-            </h3>
-            {property.coordinates && (
-              <div className="space-y-2 text-sm text-gray-500">
-                <p>Latitude: {property.coordinates.latitude}</p>
-                <p>Longitude: {property.coordinates.longitude}</p>
-                <a
-                  href={`https://www.google.com/maps?q=${property.coordinates.latitude},${property.coordinates.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-accent-yellow hover:bg-yellow-400 text-primary-black rounded-lg transition-colors font-medium"
-                >
-                  <ExternalLink size={16} />
-                  View on Google Maps
-                </a>
+            {/* Description */}
+            {property.listingDescription && (
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
+                <h3 className="text-lg font-semibold text-primary-black mb-4 flex items-center gap-2">
+                  <Info className="text-accent-yellow" size={20} />
+                  Description
+                </h3>
+                <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                  {property.listingDescription}
+                </p>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Description */}
-        {property.listingDescription && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
-            <h3 className="text-lg font-semibold text-primary-black mb-4 flex items-center gap-2">
-              <Info className="text-accent-yellow" size={20} />
-              Description
-            </h3>
-            <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
-              {property.listingDescription}
-            </p>
-          </div>
-        )}
-
-        {/* Property Details from 'details' array */}
-        {property.details && property.details.length > 0 && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
-            <h3 className="text-lg font-semibold text-primary-black mb-6 flex items-center gap-2">
-              <Building2 className="text-accent-yellow" size={20} />
-              Property Features
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {property.details.map((detail, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-accent-yellow font-medium mb-1">{detail.parent_category}</div>
-                  <div className="text-primary-black font-semibold mb-2">{detail.category}</div>
-                  <ul className="space-y-1">
-                    {detail.text.map((text, textIndex) => (
-                      <li key={textIndex} className="text-sm text-gray-500">• {text}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* All Property Data */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
-          <h3 className="text-lg font-semibold text-primary-black mb-6 flex items-center gap-2">
-            <FileJson className="text-accent-yellow" size={20} />
-            All Property Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {propertyKeys.map((key) => (
-              <div key={key} className="bg-gray-50 rounded-lg p-3">
-                <div className="text-xs text-accent-yellow font-medium mb-1 uppercase tracking-wider">
-                  {key.replace(/_/g, ' ')}
-                </div>
-                <div className="text-primary-black text-sm break-words">
-                  {renderSimpleValue(property[key])}
+            {/* Property Details from 'details' array */}
+            {property.details && property.details.length > 0 && (
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
+                <h3 className="text-lg font-semibold text-primary-black mb-6 flex items-center gap-2">
+                  <Building2 className="text-accent-yellow" size={20} />
+                  Property Features
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {property.details.map((detail, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-4">
+                      <div className="text-sm text-accent-yellow font-medium mb-1">{detail.parent_category}</div>
+                      <div className="text-primary-black font-semibold mb-2">{detail.category}</div>
+                      <ul className="space-y-1">
+                        {detail.text.map((text, textIndex) => (
+                          <li key={textIndex} className="text-sm text-gray-500">• {text}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* All Property Data */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
+              <h3 className="text-lg font-semibold text-primary-black mb-6 flex items-center gap-2">
+                <FileJson className="text-accent-yellow" size={20} />
+                All Property Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                {propertyKeys.map((key) => (
+                  <div key={key} className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-xs text-accent-yellow font-medium mb-1 uppercase tracking-wider">
+                      {key.replace(/_/g, ' ')}
+                    </div>
+                    <div className="text-primary-black text-sm break-words">
+                      {renderSimpleValue(property[key])}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT SIDE - Sticky Inquiry Form Sidebar */}
+          <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
+            <div className="lg:sticky lg:top-[80px]">
+              <PropertyInquiryForm
+                propertyAddress={addr.full}
+                propertyId={propertyId}
+                formType="property_inquiry"
+                theme="light"
+              />
+            </div>
           </div>
         </div>
+
+        {/* Additional Sections Below */}
 
         {/* Building Permits History */}
         {property.buildingPermitsHistory && property.buildingPermitsHistory.length > 0 && (
@@ -818,6 +839,16 @@ function JsonDetailContent() {
             )}
           />
         )}
+
+        {/* Property Inquiry Form */}
+        <div className="max-w-2xl mx-auto">
+          <PropertyInquiryForm
+            propertyAddress={addr.full}
+            propertyId={propertyId}
+            formType="property_inquiry"
+            theme="light"
+          />
+        </div>
       </div>
     </div>
   );
