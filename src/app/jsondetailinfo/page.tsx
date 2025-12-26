@@ -411,91 +411,115 @@ function JsonDetailContent() {
         </div>
       </div>
 
-      <div className="w-full px-3 md:px-6 lg:px-8 py-4 md:py-8">
-        {/* Image Gallery */}
-        {photoUrls.length > 0 && (
-          <div className="mb-4 md:mb-8">
-            <div className="relative h-[250px] sm:h-[350px] md:h-[500px] rounded-xl overflow-hidden bg-gray-200 group">
-              <Image
-                src={photoUrls[currentImageIndex]}
-                alt={`Property image ${currentImageIndex + 1}`}
-                fill
-                className="object-cover cursor-pointer"
-                unoptimized
-                sizes="100vw"
-                onClick={() => {
-                  window.open(photoUrls[currentImageIndex], '_blank');
-                }}
-              />
-              {/* Share Button Overlay */}
-              <div className="absolute top-4 right-4 z-10">
-                <ShareButton
-                  url={typeof window !== 'undefined' ? window.location.href : ''}
-                  title={`${addr.street}, ${addr.city}, ${addr.state}`}
-                  text={`Check out this property: ${addr.street}, ${addr.city}, ${addr.state}`}
-                  variant="icon"
-                  iconSize={20}
-                />
-              </div>
-              
-              {/* Image Navigation */}
-              {photoUrls.length > 1 && (
-                <>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setCurrentImageIndex(i => (i - 1 + photoUrls.length) % photoUrls.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 hover:bg-white rounded-full text-primary-black shadow-lg"
-                  >
-                    <ChevronLeft size={24} />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setCurrentImageIndex(i => (i + 1) % photoUrls.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 hover:bg-white rounded-full text-primary-black shadow-lg"
-                  >
-                    <ChevronRight size={24} />
-                  </motion.button>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/90 rounded-full text-primary-black text-sm font-medium">
-                    {currentImageIndex + 1} / {photoUrls.length}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Thumbnail Strip */}
-            {photoUrls.length > 1 && (
-              <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-                {photoUrls.slice(0, 10).map((photoUrl, index) => (
-                  <motion.button
-                    key={index}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 ${
-                      currentImageIndex === index ? 'border-accent-yellow' : 'border-transparent'
-                    }`}
-                  >
-                    <Image
-                      src={photoUrl}
-                      alt={`Thumbnail ${index + 1}`}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                      sizes="(max-width: 768px) 20vw, 80px"
+      <div className="w-full max-w-6xl mx-auto px-3 md:px-6 lg:px-8 py-4 md:py-6">
+        {/* TOP SECTION: Image Gallery | Ask Additional Questions (Fixed/Sticky) */}
+        <div className="flex flex-col lg:flex-row gap-4 mb-4 md:mb-6">
+          {/* LEFT - Image Gallery */}
+          <div className="w-full lg:flex-1">
+            {photoUrls.length > 0 ? (
+              <div>
+                <div className="relative aspect-[16/9] max-h-[280px] md:max-h-[350px] rounded-xl overflow-hidden bg-gray-200 group">
+                  <Image
+                    src={photoUrls[currentImageIndex]}
+                    alt={`Property image ${currentImageIndex + 1}`}
+                    fill
+                    className="object-contain bg-gray-100 cursor-pointer"
+                    unoptimized
+                    sizes="75vw"
+                    onClick={() => {
+                      window.open(photoUrls[currentImageIndex], '_blank');
+                    }}
+                  />
+                  {/* Share Button Overlay */}
+                  <div className="absolute top-4 right-4 z-10">
+                    <ShareButton
+                      url={typeof window !== 'undefined' ? window.location.href : ''}
+                      title={`${addr.street}, ${addr.city}, ${addr.state}`}
+                      text={`Check out this property: ${addr.street}, ${addr.city}, ${addr.state}`}
+                      variant="icon"
+                      iconSize={20}
                     />
-                  </motion.button>
-                ))}
+                  </div>
+                  
+                  {/* Image Navigation */}
+                  {photoUrls.length > 1 && (
+                    <>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setCurrentImageIndex(i => (i - 1 + photoUrls.length) % photoUrls.length)}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 hover:bg-white rounded-full text-primary-black shadow-lg"
+                      >
+                        <ChevronLeft size={24} />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setCurrentImageIndex(i => (i + 1) % photoUrls.length)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 hover:bg-white rounded-full text-primary-black shadow-lg"
+                      >
+                        <ChevronRight size={24} />
+                      </motion.button>
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/90 rounded-full text-primary-black text-sm font-medium">
+                        {currentImageIndex + 1} / {photoUrls.length}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Thumbnail Strip */}
+                {photoUrls.length > 1 && (
+                  <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+                    {photoUrls.slice(0, 8).map((photoUrl, index) => (
+                      <motion.button
+                        key={index}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`relative w-16 h-12 flex-shrink-0 rounded-lg overflow-hidden border-2 ${
+                          currentImageIndex === index ? 'border-accent-yellow' : 'border-transparent'
+                        }`}
+                      >
+                        <Image
+                          src={photoUrl}
+                          alt={`Thumbnail ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                          sizes="(max-width: 768px) 15vw, 64px"
+                        />
+                      </motion.button>
+                    ))}
+                    {photoUrls.length > 8 && (
+                      <div className="w-16 h-12 flex-shrink-0 rounded-lg bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-medium">
+                        +{photoUrls.length - 8}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="aspect-[16/10] bg-gray-200 rounded-xl flex items-center justify-center">
+                <Building2 size={60} className="md:w-20 md:h-20 text-gray-400" />
               </div>
             )}
           </div>
-        )}
 
-        {/* Main Content with Sidebar Layout */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* LEFT SIDE - Main Content */}
-          <div className="flex-1 min-w-0">
+          {/* RIGHT - Ask Additional Questions Form (Fixed/Sticky) */}
+          <div className="w-full lg:w-[280px] flex-shrink-0">
+            <div className="lg:sticky lg:top-[100px] lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto">
+              <PropertyInquiryForm
+                propertyAddress={addr.full}
+                propertyId={propertyId}
+                formType="property_inquiry"
+                theme="light"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Property Details Section - Below Image & Form */}
+        <div>
             {/* Main Info Card */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
               {/* Price & Address */}
@@ -649,19 +673,6 @@ function JsonDetailContent() {
                 ))}
               </div>
             </div>
-          </div>
-
-          {/* RIGHT SIDE - Sticky Inquiry Form Sidebar */}
-          <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
-            <div className="lg:sticky lg:top-[80px]">
-              <PropertyInquiryForm
-                propertyAddress={addr.full}
-                propertyId={propertyId}
-                formType="property_inquiry"
-                theme="light"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Additional Sections Below */}
@@ -840,15 +851,6 @@ function JsonDetailContent() {
           />
         )}
 
-        {/* Property Inquiry Form */}
-        <div className="max-w-2xl mx-auto">
-          <PropertyInquiryForm
-            propertyAddress={addr.full}
-            propertyId={propertyId}
-            formType="property_inquiry"
-            theme="light"
-          />
-        </div>
       </div>
     </div>
   );

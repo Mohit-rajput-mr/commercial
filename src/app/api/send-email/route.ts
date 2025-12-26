@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       message, 
       propertyAddress, 
       propertyId,
+      propertyUrl, // URL of the property page
       password // For registration
     } = body;
 
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
         <h3>Property Details:</h3>
         <p><strong>Property Address:</strong> ${propertyAddress || 'Not specified'}</p>
         <p><strong>Property ID:</strong> ${propertyId || 'Not specified'}</p>
+        ${propertyUrl ? `<p><strong>Property Link:</strong> <a href="${propertyUrl}" style="color: #f5c518; text-decoration: none;">${propertyUrl}</a></p>` : ''}
         <hr/>
         <h3>Contact Information:</h3>
         <p><strong>Name:</strong> ${name}</p>
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
         <p>${message || 'No message provided'}</p>
         <hr/>
         <p style="color: #666; font-size: 12px;">This inquiry was submitted from capratecompany.com property detail page</p>
+        ${propertyUrl ? `<p style="margin-top: 20px;"><a href="${propertyUrl}" style="display: inline-block; background-color: #f5c518; color: #1a1a1a; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Property</a></p>` : ''}
       `;
     }
 

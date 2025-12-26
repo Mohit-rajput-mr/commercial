@@ -18,6 +18,7 @@ export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [recaptchaResetKey, setRecaptchaResetKey] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +50,8 @@ export default function ContactPage() {
 
       if (!recaptchaResult.success) {
         setError('reCAPTCHA verification failed. Please try again.');
+        setRecaptchaResetKey(prev => prev + 1); // Reset reCAPTCHA to trigger new challenge
+        setRecaptchaToken(null);
         setIsSubmitting(false);
         return;
       }
@@ -76,10 +79,14 @@ export default function ContactPage() {
         }, 5000);
       } else {
         setError(emailResult.error || 'Failed to send message. Please try again.');
+        setRecaptchaResetKey(prev => prev + 1); // Reset reCAPTCHA on error
+        setRecaptchaToken(null);
       }
     } catch (err) {
       console.error('Form submission error:', err);
       setError('An error occurred. Please try again.');
+      setRecaptchaResetKey(prev => prev + 1); // Reset reCAPTCHA on error
+      setRecaptchaToken(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -117,86 +124,12 @@ export default function ContactPage() {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Contact Information */}
+        <div className="max-w-2xl mx-auto">
+          {/* Contact Form - Centered */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="space-y-6"
-          >
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-8 border border-white/10">
-              <h2 className="text-2xl font-bold text-white mb-6">Contact Information</h2>
-              
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-accent-yellow rounded-lg">
-                    <Phone className="w-6 h-6 text-primary-black" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">Phone</h3>
-                    <p className="text-gray-300">+1 (917) 209-6200</p>
-                    <p className="text-gray-400 text-sm">Mon-Fri 9am-6pm EST</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-accent-yellow rounded-lg">
-                    <Mail className="w-6 h-6 text-primary-black" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">Email</h3>
-                    <p className="text-gray-300">leojoemail@gmail.com</p>
-                    <p className="text-gray-400 text-sm">We&apos;ll respond within 0-4 hours</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-accent-yellow rounded-lg">
-                    <MapPin className="w-6 h-6 text-primary-black" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">Office</h3>
-                    <p className="text-gray-300">123 Real Estate Blvd</p>
-                    <p className="text-gray-300">Miami, FL 33131</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-8 border border-white/10">
-              <h3 className="text-xl font-bold text-white mb-4">Business Hours</h3>
-              <div className="space-y-2 text-gray-300">
-                <div className="flex justify-between">
-                  <span>Monday - Friday</span>
-                  <span className="text-accent-yellow">9:00 AM - 6:00 PM</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Saturday</span>
-                  <span className="text-accent-yellow">10:00 AM - 4:00 PM</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sunday</span>
-                  <span className="text-gray-500">Closed</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Response Time Badge */}
-            <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4 flex items-center gap-3">
-              <Clock className="w-8 h-8 text-green-400" />
-              <div>
-                <p className="text-green-400 font-semibold">Quick Response Guaranteed</p>
-                <p className="text-green-300 text-sm">We respond within 0-4 hours</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Contact Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
           >
             <div className="bg-white/5 backdrop-blur-md rounded-2xl p-8 border border-white/10">
               <h2 className="text-2xl font-bold text-white mb-6">Send Us a Message</h2>
@@ -313,6 +246,7 @@ export default function ContactPage() {
                     <ReCaptcha 
                       onVerify={handleRecaptchaVerify}
                       theme="dark"
+                      resetKey={recaptchaResetKey}
                     />
                   </div>
 

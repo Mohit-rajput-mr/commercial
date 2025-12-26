@@ -8,6 +8,7 @@ interface ReCaptchaProps {
   onVerify: (token: string | null) => void;
   onExpire?: () => void;
   theme?: 'light' | 'dark';
+  resetKey?: number; // Add reset key to force reset
 }
 
 declare global {
@@ -19,6 +20,8 @@ declare global {
         callback: (token: string) => void;
         'expired-callback': () => void;
         theme?: string;
+        size?: string;
+        'error-callback'?: () => void;
       }) => number;
       reset: (widgetId?: number) => void;
     };
@@ -26,7 +29,7 @@ declare global {
   }
 }
 
-export default function ReCaptcha({ onVerify, onExpire, theme = 'light' }: ReCaptchaProps) {
+export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKey = 0 }: ReCaptchaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<number | null>(null);
   const isLoadedRef = useRef(false);
@@ -52,6 +55,10 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light' }: ReCap
             callback: handleVerify,
             'expired-callback': handleExpire,
             theme: theme,
+            size: 'normal', // Explicitly set to normal size (shows checkbox)
+            'error-callback': () => {
+              onVerify(null);
+            },
           });
           isLoadedRef.current = true;
         } catch (error) {
@@ -71,6 +78,10 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light' }: ReCap
                 callback: handleVerify,
                 'expired-callback': handleExpire,
                 theme: theme,
+                size: 'normal', // Explicitly set to normal size (shows checkbox)
+                'error-callback': () => {
+                  onVerify(null);
+                },
               });
               isLoadedRef.current = true;
             } catch (error) {
@@ -95,6 +106,10 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light' }: ReCap
                 callback: handleVerify,
                 'expired-callback': handleExpire,
                 theme: theme,
+                size: 'normal', // Explicitly set to normal size (shows checkbox)
+                'error-callback': () => {
+                  onVerify(null);
+                },
               });
               isLoadedRef.current = true;
             } catch (error) {
@@ -114,7 +129,15 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light' }: ReCap
       // Cleanup on unmount
       isLoadedRef.current = false;
     };
-  }, [handleVerify, handleExpire, theme]);
+  }, [handleVerify, handleExpire, theme, onVerify]);
+
+  // Reset reCAPTCHA when resetKey changes
+  useEffect(() => {
+    if (widgetIdRef.current !== null && window.grecaptcha && window.grecaptcha.reset) {
+      window.grecaptcha.reset(widgetIdRef.current);
+      onVerify(null); // Clear the token when reset
+    }
+  }, [resetKey, onVerify]);
 
   return (
     <div 
