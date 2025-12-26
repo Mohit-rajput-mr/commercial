@@ -36,6 +36,8 @@ export default function PropertyInquiryForm({
   const [error, setError] = useState<string | null>(null);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [recaptchaResetKey, setRecaptchaResetKey] = useState(0);
+  const [showRecaptcha, setShowRecaptcha] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   const isDark = theme === 'dark';
 
@@ -50,21 +52,30 @@ export default function PropertyInquiryForm({
   const handleRecaptchaVerify = (token: string | null) => {
     setRecaptchaToken(token);
     setError(null);
+    // Auto-submit form once reCAPTCHA is verified
+    if (token && pendingSubmit) {
+      setPendingSubmit(false);
+      // Small delay to ensure state is updated
+      setTimeout(() => {
+        submitForm();
+      }, 100);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitForm = async () => {
     setError(null);
-
-    // Validate reCAPTCHA
-    if (!recaptchaToken) {
-      setError('Please complete the reCAPTCHA verification');
-      return;
-    }
 
     // Validate required fields
     if (!formData.name || !formData.email || !formData.phone) {
       setError('Please fill in all required fields');
+      setShowRecaptcha(false);
+      setPendingSubmit(false);
+      return;
+    }
+
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
       return;
     }
 
@@ -121,20 +132,46 @@ export default function PropertyInquiryForm({
           });
           setSubmitted(false);
           setRecaptchaToken(null);
+          setShowRecaptcha(false);
+          setRecaptchaResetKey(prev => prev + 1);
         }, 5000);
-          } else {
-            setError(emailResult.error || 'Failed to send message. Please try again.');
-            setRecaptchaResetKey(prev => prev + 1); // Reset reCAPTCHA on error
-            setRecaptchaToken(null);
-          }
-        } catch (err) {
-          console.error('Form submission error:', err);
-          setError('An error occurred. Please try again.');
-          setRecaptchaResetKey(prev => prev + 1); // Reset reCAPTCHA on error
-          setRecaptchaToken(null);
-        } finally {
-          setIsSubmitting(false);
-        }
+      } else {
+        setError(emailResult.error || 'Failed to send message. Please try again.');
+        setRecaptchaResetKey(prev => prev + 1); // Reset reCAPTCHA on error
+        setRecaptchaToken(null);
+        setShowRecaptcha(false);
+      }
+    } catch (err) {
+      console.error('Form submission error:', err);
+      setError('An error occurred. Please try again.');
+      setRecaptchaResetKey(prev => prev + 1); // Reset reCAPTCHA on error
+      setRecaptchaToken(null);
+      setShowRecaptcha(false);
+    } finally {
+      setIsSubmitting(false);
+      setPendingSubmit(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validate required fields first
+    if (!formData.name || !formData.email || !formData.phone) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // If reCAPTCHA is already verified, submit directly
+    if (recaptchaToken) {
+      await submitForm();
+      return;
+    }
+
+    // Show reCAPTCHA and wait for verification
+    setShowRecaptcha(true);
+    setPendingSubmit(true);
   };
 
   if (submitted) {
@@ -298,29 +335,36 @@ export default function PropertyInquiryForm({
           </div>
         </div>
 
-        {/* reCAPTCHA - Always visible, never disappears */}
-        <div className="flex flex-col items-center py-1 min-h-[90px]" style={{ minHeight: '90px' }}>
-          <div className="scale-90 origin-center relative w-full flex justify-center">
-            <ReCaptcha 
-              onVerify={handleRecaptchaVerify}
-              theme={isDark ? 'dark' : 'light'}
-              resetKey={recaptchaResetKey}
-              showVerificationStatus={true}
-            />
-          </div>
-          {recaptchaToken && (
-            <motion.div 
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-1 flex items-center gap-1 text-xs text-green-600 font-medium"
-            >
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>reCAPTCHA verification complete</span>
-            </motion.div>
-          )}
-        </div>
+        {/* reCAPTCHA - Only shows when submit button is clicked */}
+        {showRecaptcha && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex flex-col items-center py-2 min-h-[90px] overflow-hidden"
+          >
+            <div className="scale-90 origin-center relative w-full flex justify-center">
+              <ReCaptcha 
+                onVerify={handleRecaptchaVerify}
+                theme={isDark ? 'dark' : 'light'}
+                resetKey={recaptchaResetKey}
+                showVerificationStatus={true}
+              />
+            </div>
+            {recaptchaToken && (
+              <motion.div 
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-1 flex items-center gap-1 text-xs text-green-600 font-medium"
+              >
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>Verifying and submitting...</span>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
 
         {/* Error Message */}
         {error && (
@@ -332,11 +376,11 @@ export default function PropertyInquiryForm({
         {/* Submit Button */}
         <motion.button
           type="submit"
-          disabled={isSubmitting || !recaptchaToken}
+          disabled={isSubmitting}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className={`w-full py-2 rounded-md font-semibold text-sm flex items-center justify-center gap-1.5 transition-all ${
-            isSubmitting || !recaptchaToken
+            isSubmitting
               ? 'bg-gray-400 cursor-not-allowed text-gray-200'
               : 'bg-accent-yellow hover:bg-yellow-400 text-primary-black'
           }`}
@@ -344,7 +388,7 @@ export default function PropertyInquiryForm({
           {isSubmitting ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-black" />
-              Sending...
+              {showRecaptcha && !recaptchaToken ? 'Verifying...' : 'Sending...'}
             </>
           ) : (
             <>
