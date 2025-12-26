@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, memo, useState } from 'react';
 
 const RECAPTCHA_SITE_KEY = '6Le5oTcsAAAAANhvkAcwoh14IzR2K-whAkgYf2TO';
 
@@ -9,6 +9,7 @@ interface ReCaptchaProps {
   onExpire?: () => void;
   theme?: 'light' | 'dark';
   resetKey?: number; // Add reset key to force reset
+  showVerificationStatus?: boolean; // Show checkmark when verified
 }
 
 declare global {
@@ -29,51 +30,74 @@ declare global {
   }
 }
 
-export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKey = 0 }: ReCaptchaProps) {
+function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKey = 0, showVerificationStatus = true }: ReCaptchaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<number | null>(null);
   const isLoadedRef = useRef(false);
   const instanceIdRef = useRef<string>(`recaptcha-${Date.now()}-${Math.random()}`);
+  const [isVerified, setIsVerified] = useState(false);
 
-  const handleVerify = useCallback((token: string) => {
+  const handleVerify = useCallback((token: string | null) => {
+    setIsVerified(!!token);
     onVerify(token);
   }, [onVerify]);
 
   const handleExpire = useCallback(() => {
+    setIsVerified(false);
     onVerify(null);
     onExpire?.();
   }, [onVerify, onExpire]);
 
   useEffect(() => {
     const loadRecaptcha = () => {
-      if (isLoadedRef.current || !containerRef.current) return;
+      if (!containerRef.current) return;
+
+      // Check if container already has reCAPTCHA rendered - do this first
+      const hasRecaptcha = containerRef.current.querySelector('iframe[src*="recaptcha"]') ||
+                          containerRef.current.querySelector('#rc-imageselect-target') ||
+                          containerRef.current.querySelector('.g-recaptcha') ||
+                          containerRef.current.getAttribute('data-recaptcha-rendered') === 'true';
+
+      if (hasRecaptcha && isLoadedRef.current) {
+        // Already rendered and loaded, don't try again
+        return;
+      }
+
+      // If we have a widget ID but container was cleared, reset the state
+      if (hasRecaptcha && widgetIdRef.current === null) {
+        // reCAPTCHA exists but we lost track of widget ID - mark as loaded
+        isLoadedRef.current = true;
+        return;
+      }
+
+      if (isLoadedRef.current && !hasRecaptcha) {
+        // Was loaded but container was cleared - reset state
+        isLoadedRef.current = false;
+        widgetIdRef.current = null;
+      }
+
+      if (isLoadedRef.current) return;
 
       const renderRecaptcha = () => {
         if (!containerRef.current || !window.grecaptcha?.render) {
           return false;
         }
 
-        // Check if container already has reCAPTCHA rendered
-        const hasRecaptcha = containerRef.current.querySelector('iframe[src*="recaptcha"]') ||
-                            containerRef.current.querySelector('#rc-imageselect-target') ||
-                            containerRef.current.getAttribute('data-recaptcha-rendered') === 'true';
+        // Double-check before rendering
+        const stillHasRecaptcha = containerRef.current.querySelector('iframe[src*="recaptcha"]') ||
+                                  containerRef.current.querySelector('#rc-imageselect-target') ||
+                                  containerRef.current.querySelector('.g-recaptcha');
 
-        if (hasRecaptcha && isLoadedRef.current) {
-          // Already rendered, don't try again
+        if (stillHasRecaptcha) {
+          // reCAPTCHA already exists, just mark as loaded
+          isLoadedRef.current = true;
+          if (containerRef.current) {
+            containerRef.current.setAttribute('data-recaptcha-rendered', 'true');
+          }
           return true;
         }
 
         try {
-          // Clear container completely before rendering
-          if (containerRef.current) {
-            containerRef.current.innerHTML = '';
-            containerRef.current.removeAttribute('data-recaptcha-rendered');
-          }
-
-          // Clear any existing widget ID
-          widgetIdRef.current = null;
-          isLoadedRef.current = false;
-
           widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
             sitekey: RECAPTCHA_SITE_KEY,
             callback: handleVerify,
@@ -94,15 +118,28 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKe
           isLoadedRef.current = true;
           return true;
         } catch (error) {
-          console.error('Error rendering reCAPTCHA:', error);
-          // If error is about already rendered, don't retry - just mark as loaded
+          // If error is about already rendered, check if it actually exists
           if (error instanceof Error && error.message.includes('already been rendered')) {
-            // Container already has reCAPTCHA, mark as loaded
-            if (containerRef.current) {
-              containerRef.current.setAttribute('data-recaptcha-rendered', 'true');
+            const actuallyHasRecaptcha = containerRef.current?.querySelector('iframe[src*="recaptcha"]') ||
+                                        containerRef.current?.querySelector('#rc-imageselect-target');
+            
+            if (actuallyHasRecaptcha) {
+              // It actually exists, just mark as loaded
+              isLoadedRef.current = true;
+              if (containerRef.current) {
+                containerRef.current.setAttribute('data-recaptcha-rendered', 'true');
+              }
+              return true;
             }
-            isLoadedRef.current = true;
-            return true; // Return true to prevent further attempts
+            // Doesn't actually exist, clear and try to recover
+            if (containerRef.current) {
+              containerRef.current.innerHTML = '';
+              containerRef.current.removeAttribute('data-recaptcha-rendered');
+            }
+          }
+          // Don't log error if it's the "already rendered" case and we handled it
+          if (!(error instanceof Error && error.message.includes('already been rendered'))) {
+            console.error('Error rendering reCAPTCHA:', error);
           }
           return false;
         }
@@ -183,68 +220,85 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKe
 
     return () => {
       clearTimeout(timer);
-      // Cleanup on unmount - clear container and reset state
-      const container = containerRef.current;
-      if (container) {
-        container.innerHTML = '';
-      }
-      widgetIdRef.current = null;
-      isLoadedRef.current = false;
+      // Don't clear on unmount if component is just re-rendering
+      // Only reset the loaded flag, but keep the widget if it exists
+      // This prevents reCAPTCHA from disappearing during form interactions
     };
-  }, [handleVerify, handleExpire, theme, onVerify]);
+  }, [handleVerify, handleExpire, theme]);
 
   // Reset reCAPTCHA when resetKey changes
   useEffect(() => {
-    if (resetKey > 0) {
+    if (resetKey > 0 && containerRef.current) {
+      setIsVerified(false); // Clear verification status
+      // Only reset if we have a valid widget ID
       if (widgetIdRef.current !== null && window.grecaptcha?.reset) {
         try {
           window.grecaptcha.reset(widgetIdRef.current);
           onVerify(null); // Clear the token when reset
         } catch (error) {
-          console.error('Error resetting reCAPTCHA:', error);
-        }
-      }
-      // If reset fails or widget doesn't exist, clear container and re-render
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-        isLoadedRef.current = false;
-        widgetIdRef.current = null;
-        // Trigger re-render after clearing
-        setTimeout(() => {
-          if (containerRef.current && window.grecaptcha?.render) {
-            try {
-              widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
-                sitekey: RECAPTCHA_SITE_KEY,
-                callback: handleVerify,
-                'expired-callback': handleExpire,
-                theme: theme,
-                size: 'normal',
-                'error-callback': () => {
-                  onVerify(null);
-                },
-              });
-              isLoadedRef.current = true;
-            } catch (error) {
-              console.error('Error re-rendering reCAPTCHA after reset:', error);
-            }
+          // If reset fails, try to find the widget by checking the container
+          const hasRecaptcha = containerRef.current.querySelector('iframe[src*="recaptcha"]');
+          if (hasRecaptcha) {
+            // reCAPTCHA still exists, just clear the token
+            onVerify(null);
+          } else {
+            // reCAPTCHA was removed, need to re-render
+            isLoadedRef.current = false;
+            widgetIdRef.current = null;
+            containerRef.current.removeAttribute('data-recaptcha-rendered');
           }
-        }, 100);
+        }
+      } else {
+        // No widget ID but might have reCAPTCHA - check and reset if needed
+        const hasRecaptcha = containerRef.current.querySelector('iframe[src*="recaptcha"]');
+        if (hasRecaptcha) {
+          // Clear token but keep widget
+          onVerify(null);
+        }
       }
     }
   }, [resetKey, onVerify, handleVerify, handleExpire, theme]);
 
   return (
-    <div 
-      key={instanceIdRef.current}
-      ref={containerRef} 
-      className="recaptcha-container flex justify-center min-h-[78px]"
-      style={{ minHeight: '78px' }}
-      data-recaptcha-instance={instanceIdRef.current}
-    />
+    <div className="relative">
+      <div 
+        key={instanceIdRef.current}
+        ref={containerRef} 
+        className="recaptcha-container flex justify-center min-h-[78px]"
+        style={{ minHeight: '78px' }}
+        data-recaptcha-instance={instanceIdRef.current}
+      />
+      {showVerificationStatus && isVerified && (
+        <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1 shadow-lg" title="reCAPTCHA verified">
+          <svg 
+            className="w-4 h-4 text-white" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={3} 
+              d="M5 13l4 4L19 7" 
+            />
+          </svg>
+        </div>
+      )}
+    </div>
   );
 }
 
 // Export the site key for use in other components
 export { RECAPTCHA_SITE_KEY };
+
+// Memoize to prevent unnecessary re-renders that cause reCAPTCHA to disappear
+export default memo(ReCaptcha, (prevProps, nextProps) => {
+  // Only re-render if resetKey changes (for reset functionality)
+  // or theme changes (for theme switching)
+  // Don't re-render for onVerify/onExpire changes as they're callbacks
+  return prevProps.resetKey === nextProps.resetKey && 
+         prevProps.theme === nextProps.theme;
+});
 
 
