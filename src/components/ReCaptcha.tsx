@@ -33,6 +33,7 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKe
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<number | null>(null);
   const isLoadedRef = useRef(false);
+  const instanceIdRef = useRef<string>(`recaptcha-${Date.now()}-${Math.random()}`);
 
   const handleVerify = useCallback((token: string) => {
     onVerify(token);
@@ -52,10 +53,21 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKe
           return false;
         }
 
+        // Check if container already has reCAPTCHA rendered
+        const hasRecaptcha = containerRef.current.querySelector('iframe[src*="recaptcha"]') ||
+                            containerRef.current.querySelector('#rc-imageselect-target') ||
+                            containerRef.current.getAttribute('data-recaptcha-rendered') === 'true';
+
+        if (hasRecaptcha && isLoadedRef.current) {
+          // Already rendered, don't try again
+          return true;
+        }
+
         try {
           // Clear container completely before rendering
           if (containerRef.current) {
             containerRef.current.innerHTML = '';
+            containerRef.current.removeAttribute('data-recaptcha-rendered');
           }
 
           // Clear any existing widget ID
@@ -73,37 +85,24 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKe
               onVerify(null);
             },
           });
+          
+          // Mark as rendered
+          if (containerRef.current) {
+            containerRef.current.setAttribute('data-recaptcha-rendered', 'true');
+          }
+          
           isLoadedRef.current = true;
           return true;
         } catch (error) {
           console.error('Error rendering reCAPTCHA:', error);
-          // If error is about already rendered, clear and try again
+          // If error is about already rendered, don't retry - just mark as loaded
           if (error instanceof Error && error.message.includes('already been rendered')) {
+            // Container already has reCAPTCHA, mark as loaded
             if (containerRef.current) {
-              containerRef.current.innerHTML = '';
+              containerRef.current.setAttribute('data-recaptcha-rendered', 'true');
             }
-            widgetIdRef.current = null;
-            isLoadedRef.current = false;
-            // Try again after a short delay
-            setTimeout(() => {
-              if (containerRef.current && window.grecaptcha?.render) {
-                try {
-                  widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
-                    sitekey: RECAPTCHA_SITE_KEY,
-                    callback: handleVerify,
-                    'expired-callback': handleExpire,
-                    theme: theme,
-                    size: 'normal',
-                    'error-callback': () => {
-                      onVerify(null);
-                    },
-                  });
-                  isLoadedRef.current = true;
-                } catch (retryError) {
-                  console.error('Error retrying reCAPTCHA render:', retryError);
-                }
-              }
-            }, 100);
+            isLoadedRef.current = true;
+            return true; // Return true to prevent further attempts
           }
           return false;
         }
@@ -236,9 +235,11 @@ export default function ReCaptcha({ onVerify, onExpire, theme = 'light', resetKe
 
   return (
     <div 
+      key={instanceIdRef.current}
       ref={containerRef} 
       className="recaptcha-container flex justify-center min-h-[78px]"
       style={{ minHeight: '78px' }}
+      data-recaptcha-instance={instanceIdRef.current}
     />
   );
 }
