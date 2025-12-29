@@ -241,6 +241,21 @@ body {
 
 .recharts-label {
   font-size: 14px !important;
+  fill: #111827 !important;
+  font-weight: 500 !important;
+}
+
+/* Ensure Pie chart labels are visible */
+.recharts-pie-label-text {
+  fill: #111827 !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+}
+
+/* Ensure axis labels are visible */
+.recharts-cartesian-axis-tick-value {
+  fill: #374151 !important;
+  font-size: 12px !important;
 }
 
 /* Ensure charts are visible and properly sized */
