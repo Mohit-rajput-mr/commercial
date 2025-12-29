@@ -143,8 +143,8 @@ export default function ContactPage() {
                   <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Send className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
-                  <p className="text-gray-300">We&apos;ll get back to you within 0-4 hours.</p>
+                  <h3 className="text-2xl font-bold text-white mb-2">Your request has been submitted successfully.</h3>
+                  <p className="text-gray-300">Our team will contact you as soon as possible. Thank you for your request!</p>
                 </motion.div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">

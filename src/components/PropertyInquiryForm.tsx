@@ -185,10 +185,10 @@ export default function PropertyInquiryForm({
           <Send className="w-6 h-6 text-white" />
         </div>
         <h3 className={`text-base font-bold mb-1.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Message Sent Successfully!
+          Your request has been submitted successfully.
         </h3>
         <p className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-          We&apos;ll get back to you within 0-4 hours.
+          Our team will contact you as soon as possible. Thank you for your request!
         </p>
       </motion.div>
     );
