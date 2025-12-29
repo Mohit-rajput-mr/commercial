@@ -16,11 +16,13 @@ import {
   Menu,
   X,
   ChevronRight,
+  BarChart3,
 } from 'lucide-react';
 import { isAdminAuthenticated, setAdminAuthenticated, getAdminProfile } from '@/lib/admin-storage';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+  { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'Properties', href: '/admin/properties', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
@@ -56,6 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const getBreadcrumbs = () => {
     const path = pathname.replace('/admin/', '');
     if (path === 'dashboard') return 'Dashboard';
+    if (path === 'analytics') return 'Analytics';
     if (path === 'properties') return 'Properties Management';
     if (path === 'users') return 'User Management';
     if (path === 'settings') return 'Settings';

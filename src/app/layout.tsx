@@ -4,6 +4,7 @@ import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import BackToHomeButton from "@/components/BackToHomeButton";
 import AIAssistantIcon from "@/components/AIAssistantIcon";
+import VisitorTracker from "@/components/VisitorTracker";
 // import WhatsAppButton from "@/components/WhatsAppButton"; // Hidden for now
 
 const outfit = Outfit({
@@ -38,6 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={outfit.variable}>
       <body className="overflow-x-hidden max-w-full">
+        <VisitorTracker />
         <LayoutWrapper>{children}</LayoutWrapper>
         <BackToHomeButton />
         <AIAssistantIcon />
