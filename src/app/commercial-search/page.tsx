@@ -942,13 +942,20 @@ function CommercialSearchPageContent() {
       });
     }
 
-    // Filter by search query (city, address, zip, state, street names, etc.)
+    // Filter by search query (city, address, zip, state, street names, neighborhoods, etc.)
     if (normalizedSearch) {
       console.log(`🔍 Filtering by search query: "${normalizedSearch}"`);
       const beforeFilter = filtered.length;
       
       // Extract state information from search query
       const stateInfo = extractStateFromQuery(normalizedSearch);
+      
+      // Extract neighborhood name if present (format: "Neighborhood, City, State" or "Neighborhood, City")
+      // Get the first part before the first comma
+      const searchParts = normalizedSearch.split(',').map(p => p.trim());
+      const potentialNeighborhood = searchParts.length > 1 ? searchParts[0] : null;
+      const potentialCity = searchParts.length > 1 ? searchParts[1] : null;
+      const isNeighborhoodSearch = potentialNeighborhood && potentialCity;
       
       filtered = filtered.filter(p => {
         const city = (p.city || '').toLowerCase();
@@ -971,8 +978,30 @@ function CommercialSearchPageContent() {
           stateStr = stateCode.toLowerCase() || stateName;
         }
         
-        // 1. City matching (enhanced) - HIGHEST PRIORITY
-        if (cityMatchesSearch(city, normalizedSearch)) {
+        // 0. Neighborhood matching - HIGHEST PRIORITY (if neighborhood is detected in search)
+        // If search format is "Neighborhood, City, State", prioritize neighborhood matching
+        // IMPORTANT: If this is a neighborhood search, ONLY match on neighborhood, don't fall through to city matching
+        if (isNeighborhoodSearch && potentialNeighborhood && potentialCity) {
+          // Verify the city matches first (to avoid false matches across cities)
+          const cityMatches = cityMatchesSearch(city, potentialCity) || city.includes(potentialCity) || potentialCity.includes(city);
+          
+          if (cityMatches) {
+            // Check if the potential neighborhood matches the address (neighborhoods often appear in addresses)
+            if (address.includes(potentialNeighborhood)) {
+              return true;
+            }
+            // Also check description for neighborhood mentions
+            if (description.includes(potentialNeighborhood)) {
+              return true;
+            }
+          }
+          
+          // If it's a neighborhood search but doesn't match, return false (don't fall through to city matching)
+          return false;
+        }
+        
+        // 1. City matching (enhanced) - HIGH PRIORITY (only if NOT a neighborhood search)
+        if (!isNeighborhoodSearch && cityMatchesSearch(city, normalizedSearch)) {
           return true;
         }
         

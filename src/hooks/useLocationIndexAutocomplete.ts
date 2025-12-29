@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 
 export interface LocationIndexSuggestion {
-  type: 'state' | 'city' | 'postal_code' | 'address';
+  type: 'state' | 'city' | 'neighborhood' | 'postal_code' | 'address';
   name: string;
   state?: string;
   stateCode?: string;
@@ -24,7 +24,12 @@ interface LocationIndexData {
     state: string;
     stateCode: string;
   }>;
-  neighborhoods: any[];
+  neighborhoods: Array<{
+    name: string;
+    city: string;
+    state: string;
+    stateCode: string;
+  }>;
   counties: any[];
   postalCodes: Array<{
     postalCode: string;
@@ -75,6 +80,7 @@ async function loadLocationIndex(): Promise<LocationIndexData> {
       console.log('✅ Location index loaded:', {
         states: data.states?.length || 0,
         cities: data.cities?.length || 0,
+        neighborhoods: data.neighborhoods?.length || 0,
         postalCodes: data.postalCodes?.length || 0,
         addresses: data.addresses?.length || 0,
       });
@@ -156,22 +162,36 @@ function searchLocationIndex(
   const results: Array<{ suggestion: LocationIndexSuggestion; score: number }> = [];
 
   // Helper function to calculate match score
-  const calculateScore = (text: string, query: string): number => {
+  const calculateScore = (text: string, query: string, isCity: boolean = false): number => {
     const textLower = text.toLowerCase();
-    if (textLower === query) return 1000; // Exact match
-    if (textLower.startsWith(query)) return 500; // Starts with
-    if (textLower.includes(query)) return 100; // Contains
+    const queryLower = query.toLowerCase();
+    
+    // Exact match - highest priority, especially for cities
+    if (textLower === queryLower) {
+      return isCity ? 10000 : 5000; // Cities get much higher priority
+    }
+    
+    // Starts with - high priority
+    if (textLower.startsWith(queryLower)) {
+      return isCity ? 5000 : 2500; // Cities get higher priority
+    }
+    
+    // Contains - medium priority
+    if (textLower.includes(queryLower)) {
+      return isCity ? 2000 : 500; // Cities get higher priority
+    }
+    
     // Multi-word matching
     const textWords = textLower.split(/\s+/);
     let wordMatches = 0;
     queryWords.forEach(qw => {
-      if (textWords.some(tw => tw.startsWith(qw))) wordMatches += 50;
-      else if (textWords.some(tw => tw.includes(qw))) wordMatches += 20;
+      if (textWords.some(tw => tw.startsWith(qw))) wordMatches += isCity ? 200 : 50;
+      else if (textWords.some(tw => tw.includes(qw))) wordMatches += isCity ? 100 : 20;
     });
     return wordMatches;
   };
 
-  // Search states - prioritize exact matches
+  // Search states - prioritize exact matches (but lower than cities)
   if (data.states && data.states.length > 0) {
     data.states.forEach((stateCode) => {
       const stateName = getStateName(stateCode);
@@ -179,7 +199,12 @@ function searchLocationIndex(
       const stateCodeLower = stateCode.toLowerCase();
 
       if (stateNameLower.includes(queryLower) || stateCodeLower.includes(queryLower)) {
-        const score = calculateScore(stateName, queryLower) + (stateNameLower.startsWith(queryLower) ? 200 : 0);
+        let score = calculateScore(stateName, queryLower, false);
+        if (stateNameLower.startsWith(queryLower) || stateCodeLower.startsWith(queryLower)) {
+          score += 1000;
+        }
+        // States should rank below cities but above addresses/postal codes
+        score += 3000; // Base state priority
         results.push({
           suggestion: {
             type: 'state',
@@ -196,22 +221,98 @@ function searchLocationIndex(
     });
   }
 
-  // Search cities - prioritize matches
+  // Search neighborhoods FIRST - prioritize exact matches to appear at top
+  if (data.neighborhoods && data.neighborhoods.length > 0) {
+    data.neighborhoods.forEach((neighborhood) => {
+      const neighborhoodNameLower = neighborhood.name.toLowerCase();
+      const cityLower = neighborhood.city.toLowerCase();
+      const combinedLower = `${neighborhood.name} ${neighborhood.city}`.toLowerCase();
+      const fullLower = `${neighborhood.name}, ${neighborhood.city}, ${neighborhood.stateCode}`.toLowerCase();
+
+      // Match if neighborhood name contains the query (most flexible)
+      const matchesNeighborhoodName = neighborhoodNameLower.includes(queryLower);
+      const matchesCombined = combinedLower.includes(queryLower);
+      const matchesFull = fullLower.includes(queryLower);
+      
+      // Include if neighborhood name matches (prioritize neighborhood name matches)
+      if (matchesNeighborhoodName || matchesCombined || matchesFull) {
+        // Display just the neighborhood name
+        const displayText = neighborhood.name;
+        
+        // Calculate score with very high priority for neighborhoods
+        let score = calculateScore(neighborhood.name, queryLower, true);
+        
+        // Massive bonuses for exact neighborhood matches - should beat everything
+        if (neighborhoodNameLower === queryLower) {
+          score += 25000; // Very high bonus for exact neighborhood name match
+        } else if (neighborhoodNameLower.startsWith(queryLower)) {
+          score += 15000; // High bonus for neighborhood name starting with query
+        } else if (fullLower === queryLower) {
+          score += 20000; // High bonus for exact "Neighborhood, City, State" match
+        } else if (combinedLower.startsWith(queryLower)) {
+          score += 12000; // Bonus for "Neighborhood City" starting with query
+        } else if (matchesNeighborhoodName) {
+          score += 10000; // Bonus for neighborhood name containing query
+        }
+        
+        // Very high base priority for neighborhoods
+        score += 20000; // High base neighborhood priority
+        
+        results.push({
+          suggestion: {
+            type: 'neighborhood',
+            name: neighborhood.name,
+            city: neighborhood.city,
+            state: neighborhood.state,
+            stateCode: neighborhood.stateCode,
+            displayText: neighborhood.name, // Just show neighborhood name
+            fullAddress: `${neighborhood.city}, ${neighborhood.stateCode}`, // City, State only
+            highlightedText: highlightText(neighborhood.name, query),
+          },
+          score,
+        });
+      }
+    });
+  }
+
+  // Search cities - prioritize exact matches and ensure they appear first
   if (data.cities && data.cities.length > 0) {
     data.cities.forEach((city) => {
       const cityNameLower = city.name.toLowerCase();
       const cityStateLower = `${city.name}, ${city.stateCode}`.toLowerCase();
       const cityFullLower = `${city.name}, ${city.state}`.toLowerCase();
+      const cityWithStateLower = `${city.name} ${city.stateCode}`.toLowerCase();
+      const cityWithStateNameLower = `${city.name} ${city.state}`.toLowerCase();
 
-      if (
-        cityNameLower.includes(queryLower) ||
-        cityStateLower.includes(queryLower) ||
-        cityFullLower.includes(queryLower)
-      ) {
+      // Check if query matches city name (exact or partial)
+      const matchesCityName = cityNameLower === queryLower || 
+                             cityNameLower.startsWith(queryLower) ||
+                             cityNameLower.includes(queryLower) ||
+                             cityStateLower.includes(queryLower) ||
+                             cityFullLower.includes(queryLower) ||
+                             cityWithStateLower.includes(queryLower) ||
+                             cityWithStateNameLower.includes(queryLower);
+
+      if (matchesCityName) {
         const displayText = `${city.name}, ${city.stateCode}`;
-        const score = calculateScore(city.name, queryLower) + 
-                     (cityNameLower.startsWith(queryLower) ? 300 : 0) +
-                     80; // City priority bonus
+        
+        // Calculate base score with city priority
+        let score = calculateScore(city.name, queryLower, true);
+        
+        // Additional bonuses for exact matches
+        if (cityNameLower === queryLower) {
+          score += 5000; // Massive bonus for exact city name match
+        } else if (cityNameLower.startsWith(queryLower)) {
+          score += 2000; // High bonus for city name starting with query
+        } else if (cityStateLower === queryLower || cityFullLower === queryLower) {
+          score += 4000; // High bonus for exact "City, State" match
+        } else if (cityStateLower.startsWith(queryLower) || cityFullLower.startsWith(queryLower)) {
+          score += 1500; // Bonus for "City, State" starting with query
+        }
+        
+        // Ensure cities always have higher base score than other types
+        score += 10000; // Base city priority boost
+        
         results.push({
           suggestion: {
             type: 'city',
@@ -229,79 +330,26 @@ function searchLocationIndex(
     });
   }
 
-  // Search postal codes
-  if (data.postalCodes && data.postalCodes.length > 0) {
-    data.postalCodes.forEach((postal) => {
-      const postalLower = postal.postalCode.toLowerCase();
-      const cityLower = postal.city.toLowerCase();
-      const combinedLower = `${postal.postalCode} ${postal.city}`.toLowerCase();
+  // Skip postal codes and addresses - only search states, neighborhoods, and cities
 
-      if (
-        postalLower.includes(queryLower) ||
-        cityLower.includes(queryLower) ||
-        combinedLower.includes(queryLower)
-      ) {
-        const displayText = `${postal.postalCode} - ${postal.city}, ${postal.stateCode}`;
-        const score = calculateScore(postal.postalCode + ' ' + postal.city, queryLower) + 60;
-        results.push({
-          suggestion: {
-            type: 'postal_code',
-            name: postal.postalCode,
-            postalCode: postal.postalCode,
-            city: postal.city,
-            state: postal.state,
-            stateCode: postal.stateCode,
-            displayText,
-            fullAddress: `${postal.city}, ${postal.stateCode} ${postal.postalCode}`,
-            highlightedText: highlightText(displayText, query),
-          },
-          score,
-        });
-      }
-    });
-  }
-
-  // Search addresses (limit to prevent too many results)
-  if (data.addresses && data.addresses.length > 0) {
-    const addressMatches = data.addresses.filter((addr) => {
-      const addressLower = addr.address.toLowerCase();
-      const cityLower = addr.city.toLowerCase();
-      const zipLower = addr.zip.toLowerCase();
-      const combinedLower = `${addr.address} ${addr.city} ${addr.zip}`.toLowerCase();
-
-      return (
-        addressLower.includes(queryLower) ||
-        cityLower.includes(queryLower) ||
-        zipLower.includes(queryLower) ||
-        combinedLower.includes(queryLower)
-      );
-    });
-
-    // Limit address results and add with scoring
-    addressMatches.slice(0, 10).forEach((addr) => {
-      const displayText = `${addr.address}, ${addr.city}, ${addr.stateCode}`;
-      const score = calculateScore(addr.address + ' ' + addr.city, queryLower) + 40;
-      results.push({
-        suggestion: {
-          type: 'address',
-          name: addr.address,
-          address: addr.address,
-          city: addr.city,
-          state: addr.state,
-          stateCode: addr.stateCode,
-          zip: addr.zip,
-          propertyId: addr.propertyId,
-          displayText,
-          fullAddress: `${addr.address}, ${addr.city}, ${addr.stateCode} ${addr.zip}`,
-          highlightedText: highlightText(displayText, query),
-        },
-        score,
-      });
-    });
-  }
-
-  // Sort by score (descending)
-  results.sort((a, b) => b.score - a.score);
+  // Sort by score (descending), with type-based secondary sort to prioritize cities
+  results.sort((a, b) => {
+    // First sort by score
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    // If scores are equal, prioritize by type: neighborhood > city > state > postal_code > address
+    const typePriority: Record<string, number> = {
+      'neighborhood': 5,
+      'city': 4,
+      'state': 3,
+      'postal_code': 2,
+      'address': 1,
+    };
+    const aPriority = typePriority[a.suggestion.type] || 0;
+    const bPriority = typePriority[b.suggestion.type] || 0;
+    return bPriority - aPriority;
+  });
 
   // Remove duplicates based on displayText
   const seen = new Set<string>();
@@ -363,6 +411,7 @@ export function useLocationIndexAutocomplete(query: string) {
         // Check if data is actually loaded (not empty)
         const hasData = (data.states && data.states.length > 0) || 
                        (data.cities && data.cities.length > 0) ||
+                       (data.neighborhoods && data.neighborhoods.length > 0) ||
                        (data.postalCodes && data.postalCodes.length > 0) ||
                        (data.addresses && data.addresses.length > 0);
         setIsDataLoaded(hasData);

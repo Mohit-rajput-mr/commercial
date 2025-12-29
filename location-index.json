@@ -1,4 +1,6 @@
 {
+  "schemaVersion": "1.0",
+  "note": "Neighborhoods and sub-areas are commonly recognized, not legal boundaries. Street data is rule-based.",
   "states": [
     "AR",
     "AZ",
@@ -166,7 +168,58 @@
     {
       "name": "Los Angeles",
       "state": "CA",
-      "stateCode": "CA"
+      "stateCode": "CA",
+      "cityCode": "LA",
+      "county": {
+        "name": "Los Angeles County",
+        "code": "LAC"
+      },
+      "subCities": [
+        {
+          "name": "Hollywood",
+          "type": "District"
+        },
+        {
+          "name": "West Hollywood",
+          "type": "City"
+        },
+        {
+          "name": "Beverly Hills",
+          "type": "City"
+        },
+        {
+          "name": "Santa Monica",
+          "type": "City"
+        }
+      ],
+      "neighborhoods": [
+        "Downtown LA",
+        "Arts District",
+        "Chinatown",
+        "Koreatown",
+        "Echo Park",
+        "Silver Lake",
+        "Venice",
+        "Mar Vista",
+        "Westwood",
+        "Brentwood",
+        "Pacific Palisades",
+        "North Hollywood",
+        "Studio City",
+        "Sherman Oaks",
+        "Van Nuys"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Blvd",
+          "Rd",
+          "Dr",
+          "Pl",
+          "Way"
+        ]
+      }
     },
     {
       "name": "Manhattan Beach",
@@ -231,7 +284,31 @@
     {
       "name": "San Francisco",
       "state": "CA",
-      "stateCode": "CA"
+      "stateCode": "CA",
+      "cityCode": "SF",
+      "county": {
+        "name": "San Francisco County",
+        "code": "SFC"
+      },
+      "neighborhoods": [
+        "Financial District",
+        "SoMa",
+        "Mission District",
+        "Castro",
+        "Nob Hill",
+        "Russian Hill",
+        "Sunset",
+        "Richmond"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Blvd",
+          "Rd",
+          "Way"
+        ]
+      }
     },
     {
       "name": "San Pedro",
@@ -376,12 +453,133 @@
     {
       "name": "Miami",
       "state": "FL",
-      "stateCode": "FL"
+      "stateCode": "FL",
+      "cityCode": "MIA",
+      "county": {
+        "name": "Miami-Dade County",
+        "code": "MDC"
+      },
+      "subCities": [
+        {
+          "name": "Coral Gables",
+          "type": "City"
+        },
+        {
+          "name": "Coconut Grove",
+          "type": "Neighborhood-City"
+        },
+        {
+          "name": "Doral",
+          "type": "City"
+        },
+        {
+          "name": "Hialeah",
+          "type": "City"
+        },
+        {
+          "name": "Miami Gardens",
+          "type": "City"
+        },
+        {
+          "name": "North Miami",
+          "type": "City"
+        },
+        {
+          "name": "South Miami",
+          "type": "City"
+        },
+        {
+          "name": "Sweetwater",
+          "type": "City"
+        }
+      ],
+      "neighborhoods": [
+        "Brickell",
+        "Brickell Key",
+        "Downtown Miami",
+        "Edgewater",
+        "Midtown",
+        "Wynwood",
+        "Design District",
+        "Overtown",
+        "Little Havana",
+        "Little Haiti",
+        "Upper East Side",
+        "Morningside",
+        "Belle Meade",
+        "Allapattah",
+        "Flagami",
+        "West Flagler",
+        "Shenandoah",
+        "The Roads",
+        "Silver Bluff",
+        "Liberty City"
+      ],
+      "streetRules": {
+        "gridSystem": "Directional (NW, NE, SW, SE)",
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Blvd",
+          "Rd",
+          "Dr",
+          "Ct",
+          "Pl",
+          "Ter",
+          "Cir",
+          "Cswy"
+        ],
+        "directionals": [
+          "N",
+          "S",
+          "E",
+          "W",
+          "NW",
+          "NE",
+          "SW",
+          "SE"
+        ]
+      }
     },
     {
       "name": "Miami Beach",
       "state": "FL",
-      "stateCode": "FL"
+      "stateCode": "FL",
+      "cityCode": "MB",
+      "county": {
+        "name": "Miami-Dade County",
+        "code": "MDC"
+      },
+      "subCities": [
+        {
+          "name": "South Beach",
+          "type": "Zone"
+        },
+        {
+          "name": "Mid-Beach",
+          "type": "Zone"
+        },
+        {
+          "name": "North Beach",
+          "type": "Zone"
+        }
+      ],
+      "neighborhoods": [
+        "South of Fifth",
+        "Flamingo / West Avenue",
+        "Normandy Isles",
+        "La Gorce",
+        "Bayshore"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Dr",
+          "Way",
+          "Ct"
+        ]
+      }
     },
     {
       "name": "Miami Gardens",
@@ -426,7 +624,34 @@
     {
       "name": "Chicago",
       "state": "IL",
-      "stateCode": "IL"
+      "stateCode": "IL",
+      "cityCode": "CHI",
+      "county": {
+        "name": "Cook County",
+        "code": "COOK"
+      },
+      "neighborhoods": [
+        "The Loop",
+        "River North",
+        "River West",
+        "Lincoln Park",
+        "Lakeview",
+        "Wicker Park",
+        "Logan Square",
+        "Hyde Park",
+        "Bronzeville",
+        "Chinatown"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Blvd",
+          "Rd",
+          "Dr"
+        ],
+        "directionalGrid": true
+      }
     },
     {
       "name": "Cicero",
@@ -531,7 +756,44 @@
     {
       "name": "Las Vegas",
       "state": "NV",
-      "stateCode": "NV"
+      "stateCode": "NV",
+      "cityCode": "LV",
+      "county": {
+        "name": "Clark County",
+        "code": "CLK"
+      },
+      "subCities": [
+        {
+          "name": "North Las Vegas",
+          "type": "City"
+        },
+        {
+          "name": "Henderson",
+          "type": "City"
+        },
+        {
+          "name": "Paradise",
+          "type": "CDP"
+        }
+      ],
+      "neighborhoods": [
+        "The Strip",
+        "Downtown",
+        "Summerlin",
+        "Spring Valley",
+        "Enterprise",
+        "Sunrise Manor"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Blvd",
+          "Rd",
+          "Dr",
+          "Way"
+        ]
+      }
     },
     {
       "name": "Las Vegas Valley",
@@ -1741,7 +2003,58 @@
     {
       "name": "New York",
       "state": "NY",
-      "stateCode": "NY"
+      "stateCode": "NY",
+      "cityCode": "NYC",
+      "county": {
+        "note": "Each borough is a county"
+      },
+      "subCities": [
+        {
+          "name": "Manhattan",
+          "county": "New York County"
+        },
+        {
+          "name": "Brooklyn",
+          "county": "Kings County"
+        },
+        {
+          "name": "Queens",
+          "county": "Queens County"
+        },
+        {
+          "name": "Bronx",
+          "county": "Bronx County"
+        },
+        {
+          "name": "Staten Island",
+          "county": "Richmond County"
+        }
+      ],
+      "neighborhoods": [
+        "Midtown",
+        "Financial District",
+        "Harlem",
+        "Upper East Side",
+        "Upper West Side",
+        "SoHo",
+        "Tribeca",
+        "Chelsea",
+        "Williamsburg",
+        "Bushwick",
+        "Astoria",
+        "Long Island City",
+        "Flushing"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Blvd",
+          "Pl",
+          "Rd"
+        ],
+        "numberedGrid": true
+      }
     },
     {
       "name": "Newark",
@@ -2556,7 +2869,29 @@
     {
       "name": "Austin",
       "state": "TX",
-      "stateCode": "TX"
+      "stateCode": "TX",
+      "cityCode": "AUS",
+      "county": {
+        "name": "Travis County",
+        "code": "TRV"
+      },
+      "neighborhoods": [
+        "Downtown",
+        "South Congress",
+        "East Austin",
+        "Zilker",
+        "Hyde Park",
+        "Mueller"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Rd",
+          "Dr",
+          "Blvd"
+        ]
+      }
     },
     {
       "name": "Bexar County",
@@ -2631,7 +2966,31 @@
     {
       "name": "Houston",
       "state": "TX",
-      "stateCode": "TX"
+      "stateCode": "TX",
+      "cityCode": "HOU",
+      "county": {
+        "name": "Harris County",
+        "code": "HAR"
+      },
+      "neighborhoods": [
+        "Downtown",
+        "Midtown",
+        "Montrose",
+        "The Heights",
+        "Museum District",
+        "Galleria",
+        "Energy Corridor"
+      ],
+      "streetRules": {
+        "streetTypes": [
+          "St",
+          "Ave",
+          "Blvd",
+          "Rd",
+          "Dr",
+          "Way"
+        ]
+      }
     },
     {
       "name": "Huffman",
@@ -2769,7 +3128,548 @@
       "stateCode": "TX"
     }
   ],
-  "neighborhoods": [],
+  "neighborhoods": [
+    {
+      "name": "Brickell",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Brickell Key",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Downtown Miami",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Edgewater",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Midtown",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Wynwood",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Design District",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Overtown",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Little Havana",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Little Haiti",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Upper East Side",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Morningside",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Belle Meade",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Allapattah",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Flagami",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "West Flagler",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Shenandoah",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "The Roads",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Silver Bluff",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Liberty City",
+      "city": "Miami",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "South of Fifth",
+      "city": "Miami Beach",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Flamingo / West Avenue",
+      "city": "Miami Beach",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Normandy Isles",
+      "city": "Miami Beach",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "La Gorce",
+      "city": "Miami Beach",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Bayshore",
+      "city": "Miami Beach",
+      "state": "FL",
+      "stateCode": "FL"
+    },
+    {
+      "name": "Downtown LA",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Arts District",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Chinatown",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Koreatown",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Echo Park",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Silver Lake",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Venice",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Mar Vista",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Westwood",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Brentwood",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Pacific Palisades",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "North Hollywood",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Studio City",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Sherman Oaks",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Van Nuys",
+      "city": "Los Angeles",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "The Strip",
+      "city": "Las Vegas",
+      "state": "NV",
+      "stateCode": "NV"
+    },
+    {
+      "name": "Downtown",
+      "city": "Las Vegas",
+      "state": "NV",
+      "stateCode": "NV"
+    },
+    {
+      "name": "Summerlin",
+      "city": "Las Vegas",
+      "state": "NV",
+      "stateCode": "NV"
+    },
+    {
+      "name": "Spring Valley",
+      "city": "Las Vegas",
+      "state": "NV",
+      "stateCode": "NV"
+    },
+    {
+      "name": "Enterprise",
+      "city": "Las Vegas",
+      "state": "NV",
+      "stateCode": "NV"
+    },
+    {
+      "name": "Sunrise Manor",
+      "city": "Las Vegas",
+      "state": "NV",
+      "stateCode": "NV"
+    },
+    {
+      "name": "Midtown",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Financial District",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Harlem",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Upper East Side",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Upper West Side",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "SoHo",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Tribeca",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Chelsea",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Williamsburg",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Bushwick",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Astoria",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Long Island City",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "Flushing",
+      "city": "New York",
+      "state": "NY",
+      "stateCode": "NY"
+    },
+    {
+      "name": "The Loop",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "River North",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "River West",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Lincoln Park",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Lakeview",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Wicker Park",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Logan Square",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Hyde Park",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Bronzeville",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Chinatown",
+      "city": "Chicago",
+      "state": "IL",
+      "stateCode": "IL"
+    },
+    {
+      "name": "Downtown",
+      "city": "Houston",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Midtown",
+      "city": "Houston",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Montrose",
+      "city": "Houston",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "The Heights",
+      "city": "Houston",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Museum District",
+      "city": "Houston",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Galleria",
+      "city": "Houston",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Energy Corridor",
+      "city": "Houston",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Downtown",
+      "city": "Austin",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "South Congress",
+      "city": "Austin",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "East Austin",
+      "city": "Austin",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Zilker",
+      "city": "Austin",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Hyde Park",
+      "city": "Austin",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Mueller",
+      "city": "Austin",
+      "state": "TX",
+      "stateCode": "TX"
+    },
+    {
+      "name": "Financial District",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "SoMa",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Mission District",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Castro",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Nob Hill",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Russian Hill",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Sunset",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    },
+    {
+      "name": "Richmond",
+      "city": "San Francisco",
+      "state": "CA",
+      "stateCode": "CA"
+    }
+  ],
   "counties": [],
   "postalCodes": [
     {

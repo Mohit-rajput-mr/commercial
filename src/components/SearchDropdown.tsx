@@ -96,7 +96,11 @@ export default function SearchDropdown({
                 let secondary = '';
                 
                 // Set secondary text based on type
-                if (s.type === 'city' && s.stateCode) {
+                if (s.type === 'neighborhood' && s.city && s.stateCode) {
+                  // For neighborhoods: show name as primary, city and state as secondary
+                  primary = s.name || s.displayText || '';
+                  secondary = `${s.city}, ${s.stateCode}`;
+                } else if (s.type === 'city' && s.stateCode) {
                   secondary = s.stateCode;
                 } else if (s.type === 'postal_code' && s.city) {
                   secondary = `${s.city}, ${s.stateCode || s.state || ''}`;

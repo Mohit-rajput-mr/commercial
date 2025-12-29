@@ -104,7 +104,14 @@ export default function Hero() {
   };
 
   const handleSelectSuggestion = (suggestion: LocationIndexSuggestion) => {
-    const location = suggestion.fullAddress || suggestion.displayText;
+    // For neighborhoods, use "Neighborhood, City, State" format
+    // For other types, use fullAddress or displayText
+    let location: string;
+    if (suggestion.type === 'neighborhood' && suggestion.city && suggestion.stateCode) {
+      location = `${suggestion.displayText}, ${suggestion.city}, ${suggestion.stateCode}`;
+    } else {
+      location = suggestion.fullAddress || suggestion.displayText;
+    }
     setSearchQuery(location);
     handleSearch(location);
   };
