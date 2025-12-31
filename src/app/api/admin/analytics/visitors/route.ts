@@ -37,11 +37,11 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin
       .from('visitors')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false });
+      .order('last_visit_at', { ascending: false }); // Sort by most recent visit time
 
-    // Apply filters
+    // Apply filters - filter by last visit time, not creation time
     if (dateFilter) {
-      query = query.gte('created_at', dateFilter.toISOString());
+      query = query.gte('last_visit_at', dateFilter.toISOString());
     }
 
     if (country) {

@@ -82,7 +82,10 @@ export default function Hero() {
     const params = new URLSearchParams();
     params.set('location', query);
     // Pass activeTab (Lease/Sale) to search
-    const status = activeTab === 'Sale' ? 'ForSale' : 'ForRent';
+    // Commercial uses 'ForLease', Residential uses 'ForRent'
+    const status = activeTab === 'Sale' 
+      ? 'ForSale' 
+      : (propertyTypeFilter === 'Commercial' ? 'ForLease' : 'ForRent');
     params.set('status', status);
     // Pass property type filter
     params.set('propertyType', propertyTypeFilter);

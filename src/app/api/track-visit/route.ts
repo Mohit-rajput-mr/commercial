@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { normalizeUrlServer } from '@/lib/url-normalizer';
 
 // Get visitor IP and location info (anonymized - city/region level only)
 async function getVisitorInfo(request: NextRequest) {
@@ -116,15 +117,19 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existingVisitor) {
+      // Normalize URLs before storing
+      const normalizedPageUrl = pageUrl ? normalizeUrlServer(pageUrl) : existingVisitor.page_url;
+      const normalizedReferrer = referrer ? normalizeUrlServer(referrer) : existingVisitor.referrer;
+      
       // Update existing visitor - increment visit count
       const { error } = await supabaseAdmin
         .from('visitors')
         .update({
           last_visit_at: new Date().toISOString(),
           visit_count: (existingVisitor.visit_count || 1) + 1,
-          page_url: pageUrl || existingVisitor.page_url,
+          page_url: normalizedPageUrl,
           page_title: pageTitle || existingVisitor.page_title,
-          referrer: referrer || existingVisitor.referrer,
+          referrer: normalizedReferrer,
           session_end_at: new Date().toISOString(),
         })
         .eq('id', existingVisitor.id);
@@ -136,6 +141,10 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ success: true, isNew: false });
     } else {
+      // Normalize URLs before storing
+      const normalizedPageUrl = normalizeUrlServer(pageUrl);
+      const normalizedReferrer = referrer ? normalizeUrlServer(referrer) : null;
+      
       // Create new visitor
       const { error } = await supabaseAdmin
         .from('visitors')
@@ -150,9 +159,9 @@ export async function POST(request: NextRequest) {
           device_type: deviceType,
           browser: browser,
           os: os,
-          page_url: pageUrl,
+          page_url: normalizedPageUrl,
           page_title: pageTitle,
-          referrer: referrer || null,
+          referrer: normalizedReferrer,
           language: language || 'en',
           screen_width: screenWidth || null,
           screen_height: screenHeight || null,

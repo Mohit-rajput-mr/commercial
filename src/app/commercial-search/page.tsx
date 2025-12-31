@@ -187,6 +187,19 @@ function CommercialSearchPageContent() {
     return { code: null, name: null };
   };
 
+  // Check if a search term is a known city
+  const isKnownCity = (searchTerm: string): boolean => {
+    const normalized = searchTerm.toLowerCase().trim();
+    const knownCities = [
+      'san francisco', 'sf', 'san fran',
+      'san antonio', 'las vegas', 'vegas',
+      'los angeles', 'la', 'new york', 'nyc',
+      'miami', 'chicago', 'houston',
+      'austin', 'phoenix', 'philadelphia', 'philly'
+    ];
+    return knownCities.includes(normalized);
+  };
+
   // Check if city matches search query (enhanced matching)
   const cityMatchesSearch = (city: string, search: string): boolean => {
     if (!city || !search) return false;
@@ -951,11 +964,28 @@ function CommercialSearchPageContent() {
       const stateInfo = extractStateFromQuery(normalizedSearch);
       
       // Extract neighborhood name if present (format: "Neighborhood, City, State" or "Neighborhood, City")
-      // Get the first part before the first comma
+      // IMPORTANT: Check if second part is a state abbreviation/name first (format: "City, State")
       const searchParts = normalizedSearch.split(',').map(p => p.trim());
-      const potentialNeighborhood = searchParts.length > 1 ? searchParts[0] : null;
-      const potentialCity = searchParts.length > 1 ? searchParts[1] : null;
-      const isNeighborhoodSearch = potentialNeighborhood && potentialCity;
+      let potentialNeighborhood: string | null = null;
+      let potentialCity: string | null = null;
+      let isNeighborhoodSearch = false;
+      
+      if (searchParts.length > 1) {
+        const secondPart = searchParts[1].toLowerCase();
+        const isStateAbbrev = secondPart.length === 2 && STATE_ABBREV[secondPart];
+        const isStateName = Object.values(STATE_ABBREV).some(name => secondPart === name.toLowerCase());
+        
+        if (isStateAbbrev || isStateName) {
+          // Format is "City, State" - treat first part as city
+          potentialCity = searchParts[0];
+          isNeighborhoodSearch = false;
+        } else {
+          // Format might be "Neighborhood, City" - treat first part as neighborhood
+          potentialNeighborhood = searchParts[0];
+          potentialCity = searchParts[1];
+          isNeighborhoodSearch = true;
+        }
+      }
       
       filtered = filtered.filter(p => {
         const city = (p.city || '').toLowerCase();
@@ -1001,20 +1031,22 @@ function CommercialSearchPageContent() {
         }
         
         // 1. City matching (enhanced) - HIGH PRIORITY (only if NOT a neighborhood search)
-        if (!isNeighborhoodSearch && cityMatchesSearch(city, normalizedSearch)) {
+        // If we extracted a city from "City, State" format, use that for matching
+        const cityToMatch = potentialCity && !isNeighborhoodSearch ? potentialCity : normalizedSearch;
+        if (!isNeighborhoodSearch && cityMatchesSearch(city, cityToMatch)) {
+          return true;
+        }
+        
+        // Also try matching with the full normalized search (for cases like "las vegas, nv" where city is "las vegas")
+        if (!isNeighborhoodSearch && normalizedSearch.includes(',') && cityMatchesSearch(city, searchParts[0])) {
           return true;
         }
         
         // 2. Address matching (full address and individual street names)
         // But be strict: if search is a known city name, don't match on partial words
-        const isKnownCitySearch = normalizedSearch === 'san francisco' || normalizedSearch === 'sf' || normalizedSearch === 'san fran' ||
-                                   normalizedSearch === 'san antonio' || normalizedSearch === 'las vegas' ||
-                                   normalizedSearch === 'vegas' || normalizedSearch === 'los angeles' ||
-                                   normalizedSearch === 'la' || normalizedSearch === 'new york' ||
-                                   normalizedSearch === 'nyc' || normalizedSearch === 'miami' ||
-                                   normalizedSearch === 'chicago' || normalizedSearch === 'houston' ||
-                                   normalizedSearch === 'austin' || normalizedSearch === 'phoenix' ||
-                                   normalizedSearch === 'philadelphia' || normalizedSearch === 'philly';
+        // Check both the full search and the extracted city (for "City, State" format)
+        const citySearchTerm = potentialCity && !isNeighborhoodSearch ? potentialCity.toLowerCase() : normalizedSearch;
+        const isKnownCitySearch = isKnownCity(normalizedSearch) || isKnownCity(citySearchTerm);
         
         // Full address match (always allowed)
         if (address.includes(normalizedSearch)) {

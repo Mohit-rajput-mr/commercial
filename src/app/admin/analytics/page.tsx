@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, 
-  CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList 
-} from 'recharts';
-import { Loader2, Globe, MapPin, Smartphone, Monitor, Tablet, Calendar, Filter } from 'lucide-react';
+  Users, Globe, MapPin, Smartphone, Monitor, Tablet, Calendar, 
+  TrendingUp, Activity, Eye, MousePointerClick, ChevronRight, X,
+  Clock, ExternalLink, Link as LinkIcon, FileText, Info
+} from 'lucide-react';
+import { normalizeUrl } from '@/lib/url-normalizer';
 
 interface Visitor {
   id: string;
@@ -20,6 +21,51 @@ interface Visitor {
   first_visit_at: string;
   last_visit_at: string;
   created_at: string;
+  page_url?: string;
+  page_title?: string;
+  referrer?: string;
+  language?: string;
+  screen_width?: number;
+  screen_height?: number;
+}
+
+interface VisitorDetail {
+  id: string;
+  session_id: string;
+  ip_address: string;
+  country: string;
+  city: string;
+  region: string;
+  device_type: string;
+  browser: string;
+  os: string;
+  visit_count: number;
+  first_visit_at: string;
+  last_visit_at: string;
+  created_at: string;
+  page_url: string;
+  page_title: string;
+  referrer: string;
+  language: string;
+  screen_width: number;
+  screen_height: number;
+  pageVisits: Array<{
+    id: string;
+    page_url: string;
+    page_title: string;
+    referrer: string;
+    time_spent_seconds: number;
+    visited_at: string;
+  }>;
+  linkClicks: Array<{
+    id: string;
+    link_url: string;
+    link_text: string;
+    clicked_at: string;
+  }>;
+  totalTimeSpent: number;
+  totalPagesVisited: number;
+  totalLinksClicked: number;
 }
 
 interface AnalyticsStats {
@@ -33,53 +79,21 @@ interface AnalyticsStats {
   timeSeries: Array<{ date: string; count: number }>;
 }
 
-const COLORS = ['#ffd700', '#ffed4e', '#ffc107', '#ff9800', '#ff5722', '#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5'];
-
-// Custom label renderer for Pie charts with dark, visible text
-const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }: any) => {
-  if (!percent || percent < 0.05) return null; // Don't show labels for very small slices
-  
-  const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-  return (
-    <text 
-      x={x} 
-      y={y} 
-      fill="#111827" 
-      textAnchor={x > cx ? 'start' : 'end'} 
-      dominantBaseline="central"
-      fontSize={14}
-      fontWeight={700}
-      style={{ 
-        textShadow: '0 0 4px rgba(255,255,255,1), 0 2px 4px rgba(0,0,0,0.3)',
-        zIndex: 100
-      }}
-    >
-      {`${name}: ${value} (${((percent || 0) * 100).toFixed(0)}%)`}
-    </text>
-  );
-};
-
 export default function AnalyticsPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('all');
-  const [deviceFilter, setDeviceFilter] = useState<string>('all');
-  const [countryFilter, setCountryFilter] = useState<string>('all');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [selectedVisitor, setSelectedVisitor] = useState<VisitorDetail | null>(null);
+  const [loadingVisitorDetail, setLoadingVisitorDetail] = useState(false);
+  const [showDropdowns, setShowDropdowns] = useState<Record<string, boolean>>({});
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load stats
       const statsResponse = await fetch(`/api/admin/analytics/stats?period=${period}`);
       
       if (!statsResponse.ok) {
@@ -87,15 +101,11 @@ export default function AnalyticsPage() {
       }
       
       const statsData = await statsResponse.json();
-      console.log('Stats API response:', statsData);
 
       if (statsData.success && statsData.stats) {
-        console.log('Setting stats:', statsData.stats);
         setStats(statsData.stats);
       } else {
-        console.warn('Stats API returned unsuccessful or no data:', statsData);
         setError(statsData.error || 'Failed to load analytics stats');
-        // Set empty stats to prevent crashes
         setStats({
           totalVisitors: 0,
           uniqueVisitors: 0,
@@ -108,36 +118,20 @@ export default function AnalyticsPage() {
         });
       }
 
-      // Load visitors list
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '50',
-        period,
-      });
-      if (deviceFilter !== 'all') params.append('deviceType', deviceFilter);
-      if (countryFilter !== 'all') params.append('country', countryFilter);
-
-      const visitorsResponse = await fetch(`/api/admin/analytics/visitors?${params.toString()}`);
+      const visitorsResponse = await fetch(`/api/admin/analytics/visitors?page=1&limit=50&period=${period}`);
       
       if (!visitorsResponse.ok) {
         throw new Error(`Visitors API error: ${visitorsResponse.status}`);
       }
       
       const visitorsData = await visitorsResponse.json();
-      console.log('Visitors API response:', visitorsData);
 
       if (visitorsData.success) {
         setVisitors(visitorsData.visitors || []);
-        setTotalPages(visitorsData.pagination?.totalPages || 1);
-      } else {
-        console.warn('Visitors API returned unsuccessful:', visitorsData);
-        setVisitors([]);
-        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
       setError(error instanceof Error ? error.message : 'Failed to load analytics data');
-      // Set empty stats to prevent crashes
       setStats({
         totalVisitors: 0,
         uniqueVisitors: 0,
@@ -156,709 +150,682 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, deviceFilter, countryFilter, page]);
+  }, [period]);
 
-  // Format device counts for pie chart
+  const handleVisitorClick = async (visitorId: string) => {
+    setLoadingVisitorDetail(true);
+    try {
+      const response = await fetch(`/api/admin/analytics/visitor/${visitorId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setSelectedVisitor(data.visitor);
+      } else {
+        alert('Failed to load visitor details');
+      }
+    } catch (error) {
+      console.error('Error loading visitor details:', error);
+      alert('Error loading visitor details');
+    } finally {
+      setLoadingVisitorDetail(false);
+    }
+  };
+
+  const toggleDropdown = (key: string) => {
+    setShowDropdowns(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const formatTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}m ${secs}s`;
+  };
+
   const deviceChartData = stats?.deviceCounts ? Object.entries(stats.deviceCounts).map(([device, count]) => ({
     name: device.charAt(0).toUpperCase() + device.slice(1),
     value: count,
   })) : [];
 
-  // Format browser data for bar chart
-  const browserChartData = stats?.browserCounts || [];
-
-  // Format OS data for bar chart
-  const osChartData = stats?.osCounts || [];
-
-  // Get unique countries for filter
-  const uniqueCountries = stats && stats.topCountries ? stats.topCountries.map((c) => c.country) : [];
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-accent-yellow" />
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading analytics...</p>
+        </div>
       </div>
     );
   }
 
+  const totalDevices = deviceChartData.reduce((sum, d) => sum + d.value, 0);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-primary-black">Visitor Analytics</h1>
-          <p className="text-gray-500 mt-1">Track and analyze website visitors</p>
+    <div className="min-h-screen bg-gray-100">
+      <div className="container mx-auto px-4 py-6">
+        {/* Header Section */}
+        <div className="mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                Analytics Dashboard
+              </h1>
+              <p className="text-sm text-gray-600">Comprehensive visitor insights and analytics</p>
+            </div>
+
+            {/* Period Selector */}
+            <div className="flex items-center gap-2 bg-white border border-gray-300 p-1">
+              <Calendar className="w-4 h-4 text-gray-600" />
+              <select
+                value={period}
+                onChange={(e) => {
+                  setPeriod(e.target.value as any);
+                }}
+                className="px-3 py-1 bg-white border-none outline-none text-gray-700 text-sm cursor-pointer"
+              >
+                <option value="today">Today</option>
+                <option value="week">Last 7 Days</option>
+                <option value="month">Last 30 Days</option>
+                <option value="year">Last Year</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-300 text-red-700 p-3 mb-4">
+              <p className="font-semibold text-sm">Error loading analytics:</p>
+              <p className="text-xs">{error}</p>
+            </div>
+          )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-gray-500" />
-            <select
-              value={period}
-              onChange={(e) => {
-                setPeriod(e.target.value as any);
-                setPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-yellow"
-            >
-              <option value="today">Today</option>
-              <option value="week">Last 7 Days</option>
-              <option value="month">Last 30 Days</option>
-              <option value="year">Last Year</option>
-              <option value="all">All Time</option>
-            </select>
-          </div>
+        {/* Stats Cards Grid */}
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-gray-200">
+                  <Users className="w-5 h-5 text-gray-700" />
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('totalVisitors')}
+                    className="p-1 hover:bg-gray-100"
+                  >
+                    <Info className="w-4 h-4 text-gray-500" />
+                  </button>
+                  {showDropdowns.totalVisitors && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600">Total page visits across all sessions</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-xs font-medium text-gray-600 mb-1">Total Visitors</h3>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalVisitors.toLocaleString()}</p>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <Smartphone size={18} className="text-gray-500" />
-            <select
-              value={deviceFilter}
-              onChange={(e) => {
-                setDeviceFilter(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-yellow"
-            >
-              <option value="all">All Devices</option>
-              <option value="desktop">Desktop</option>
-              <option value="mobile">Mobile</option>
-              <option value="tablet">Tablet</option>
-            </select>
-          </div>
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-gray-200">
+                  <Activity className="w-5 h-5 text-gray-700" />
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('uniqueVisitors')}
+                    className="p-1 hover:bg-gray-100"
+                  >
+                    <Info className="w-4 h-4 text-gray-500" />
+                  </button>
+                  {showDropdowns.uniqueVisitors && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600">Unique sessions (distinct visitors)</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-xs font-medium text-gray-600 mb-1">Unique Visitors</h3>
+              <p className="text-2xl font-bold text-gray-900">{stats.uniqueVisitors.toLocaleString()}</p>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <Globe size={18} className="text-gray-500" />
-            <select
-              value={countryFilter}
-              onChange={(e) => {
-                setCountryFilter(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-yellow"
-            >
-              <option value="all">All Countries</option>
-              {uniqueCountries.map((country) => (
-                <option key={country} value={country}>
-                  {country}
-                </option>
-              ))}
-            </select>
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-gray-200">
+                  <Globe className="w-5 h-5 text-gray-700" />
+                </div>
+                <MapPin className="w-4 h-4 text-gray-600" />
+              </div>
+              <h3 className="text-xs font-medium text-gray-600 mb-1">Top Country</h3>
+              <p className="text-lg font-bold text-gray-900">{stats.topCountries[0]?.country || 'N/A'}</p>
+              <p className="text-xs text-gray-500 mt-1">{stats.topCountries[0]?.count || 0} visitors</p>
+            </div>
+
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-gray-200">
+                  <Eye className="w-5 h-5 text-gray-700" />
+                </div>
+                <MousePointerClick className="w-4 h-4 text-gray-600" />
+              </div>
+              <h3 className="text-xs font-medium text-gray-600 mb-1">Avg. Visits</h3>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.totalVisitors > 0 && stats.uniqueVisitors > 0 ? (stats.totalVisitors / stats.uniqueVisitors).toFixed(1) : '0'}
+              </p>
+            </div>
           </div>
+        )}
+
+        {/* Lists Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Visitors Over Time List */}
+          {stats && stats.timeSeries.length > 0 && (
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gray-200">
+                    <TrendingUp className="w-4 h-4 text-gray-700" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Visitors Over Time</h2>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('timeSeries')}
+                    className="text-xs text-gray-600 font-medium hover:underline"
+                  >
+                    {stats.timeSeries.length} days
+                  </button>
+                  {showDropdowns.timeSeries && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600 mb-1">Total visitors: {stats.timeSeries.reduce((sum, d) => sum + d.count, 0)}</p>
+                      <p className="text-xs text-gray-600">Showing last 30 days</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1 max-h-96 overflow-y-auto">
+                {stats.timeSeries.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className="w-3 h-3 text-gray-600" />
+                      <span className="text-sm text-gray-700">{item.date}</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">{item.count} visitors</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Device Types List */}
+          {deviceChartData.length > 0 && (
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gray-200">
+                    <Smartphone className="w-4 h-4 text-gray-700" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Device Types</h2>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('devices')}
+                    className="text-xs text-gray-600 font-medium hover:underline"
+                  >
+                    {totalDevices} devices
+                  </button>
+                  {showDropdowns.devices && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600 mb-1">Total devices: {totalDevices}</p>
+                      <p className="text-xs text-gray-600">Unique device types: {deviceChartData.length}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
+                {deviceChartData.map((item, idx) => {
+                  const percentage = totalDevices > 0 ? ((item.value / totalDevices) * 100).toFixed(1) : '0';
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100">
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className="w-3 h-3 text-gray-600" />
+                        <span className="text-sm text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">({percentage}%)</span>
+                        <span className="text-sm font-bold text-gray-900">{item.value}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-          <p className="font-semibold">Error loading analytics:</p>
-          <p className="text-sm">{error}</p>
-          <p className="text-xs mt-2">Check the browser console for more details.</p>
+        {/* Countries and Cities Lists */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Top Countries List */}
+          {stats && stats.topCountries.length > 0 && (
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gray-200">
+                    <Globe className="w-4 h-4 text-gray-700" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Top Countries</h2>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('countries')}
+                    className="text-xs text-gray-600 font-medium hover:underline"
+                  >
+                    {stats.topCountries.length} countries
+                  </button>
+                  {showDropdowns.countries && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600 mb-1">Total visitors: {stats.topCountries.reduce((sum, c) => sum + c.count, 0)}</p>
+                      <p className="text-xs text-gray-600">Showing top {stats.topCountries.length} countries</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1 max-h-96 overflow-y-auto">
+                {stats.topCountries.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-400 w-5">{idx + 1}</span>
+                      <ChevronRight className="w-3 h-3 text-gray-600" />
+                      <span className="text-sm text-gray-700">{item.country}</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">{item.count} visitors</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top Cities List */}
+          {stats && stats.topCities.length > 0 && (
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gray-200">
+                    <MapPin className="w-4 h-4 text-gray-700" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Top Cities</h2>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('cities')}
+                    className="text-xs text-gray-600 font-medium hover:underline"
+                  >
+                    {stats.topCities.length} cities
+                  </button>
+                  {showDropdowns.cities && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600 mb-1">Total visitors: {stats.topCities.reduce((sum, c) => sum + c.count, 0)}</p>
+                      <p className="text-xs text-gray-600">Showing top {stats.topCities.length} cities</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1 max-h-96 overflow-y-auto">
+                {stats.topCities.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-400 w-5">{idx + 1}</span>
+                      <ChevronRight className="w-3 h-3 text-gray-600" />
+                      <span className="text-sm text-gray-700">{item.city}</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">{item.count} visitors</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Total Visitors</p>
-                <p className="text-3xl font-bold text-primary-black">{stats.totalVisitors.toLocaleString()}</p>
+        {/* Browsers and OS Lists */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Browsers List */}
+          {stats && stats.browserCounts.length > 0 && (
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gray-200">
+                    <Monitor className="w-4 h-4 text-gray-700" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Browsers</h2>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('browsers')}
+                    className="text-xs text-gray-600 font-medium hover:underline"
+                  >
+                    {stats.browserCounts.reduce((sum, b) => sum + b.count, 0)} users
+                  </button>
+                  {showDropdowns.browsers && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600 mb-1">Total users: {stats.browserCounts.reduce((sum, b) => sum + b.count, 0)}</p>
+                      <p className="text-xs text-gray-600">Unique browsers: {stats.browserCounts.length}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <Globe className="w-6 h-6 text-accent-yellow" />
+              <div className="space-y-1">
+                {stats.browserCounts.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className="w-3 h-3 text-gray-600" />
+                      <span className="text-sm text-gray-700">{item.browser}</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">{item.count} users</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Unique Visitors</p>
-                <p className="text-3xl font-bold text-primary-black">{stats.uniqueVisitors.toLocaleString()}</p>
+          {/* Operating Systems List */}
+          {stats && stats.osCounts.length > 0 && (
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gray-200">
+                    <Tablet className="w-4 h-4 text-gray-700" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Operating Systems</h2>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('os')}
+                    className="text-xs text-gray-600 font-medium hover:underline"
+                  >
+                    {stats.osCounts.reduce((sum, o) => sum + o.count, 0)} users
+                  </button>
+                  {showDropdowns.os && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600 mb-1">Total users: {stats.osCounts.reduce((sum, o) => sum + o.count, 0)}</p>
+                      <p className="text-xs text-gray-600">Unique OS: {stats.osCounts.length}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <MapPin className="w-6 h-6 text-blue-600" />
+              <div className="space-y-1">
+                {stats.osCounts.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100">
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className="w-3 h-3 text-gray-600" />
+                      <span className="text-sm text-gray-700">{item.os}</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">{item.count} users</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Top Country</p>
-                <p className="text-xl font-bold text-primary-black">
-                  {stats.topCountries[0]?.country || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {stats.topCountries[0]?.count || 0} visitors
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Globe className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
-      )}
 
-      {/* Charts Row 1: Visitors Over Time & Device Types */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Visitors Over Time */}
-        {stats && stats.timeSeries.length > 0 ? (
-          <div className="p-6 rounded-lg relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Visitors Over Time</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={stats.timeSeries} style={{ background: 'transparent' }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 13, fill: '#111827', fontWeight: 600 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <YAxis 
-                  tick={{ fontSize: 13, fill: '#111827', fontWeight: 600 }} 
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '2px solid #1f2937',
-                    color: '#1f2937',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
-                    zIndex: 1000,
-                    fontWeight: 'bold'
-                  }}
-                  labelStyle={{ color: '#1f2937', fontWeight: 'bold', fontSize: '14px' }}
-                  itemStyle={{ color: '#1f2937', fontWeight: '600', fontSize: '13px' }}
-                />
-                <Legend 
-                  wrapperStyle={{ color: '#111827', paddingTop: '20px', fontWeight: 600, fontSize: '14px', zIndex: 10 }}
-                  iconType="line"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="#ffd700" 
-                  strokeWidth={3}
-                  name="Visitors"
-                  dot={{ fill: '#ffd700', r: 4, strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-            {/* Complete Data Table */}
-            {stats.timeSeries.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-bold text-primary-black mb-4">Daily Breakdown</h3>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Visitors</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {stats.timeSeries.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.date}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary-black text-right">{item.count} visitors</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+        {/* Recent Visitors Table */}
+        <div className="bg-white border border-gray-300 p-4">
+          <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-gray-200">
+                <Users className="w-4 h-4 text-gray-700" />
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-6 rounded-lg relative z-10 border border-gray-200">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Visitors Over Time</h2>
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No visitor data available for the selected period</p>
+              <h2 className="text-lg font-bold text-gray-900">Recent Visitors</h2>
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => toggleDropdown('visitors')}
+                className="text-xs text-gray-600 font-medium hover:underline"
+              >
+                {visitors.length} visitors
+              </button>
+              {showDropdowns.visitors && (
+                <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                  <p className="text-xs text-gray-600 mb-1">Showing {visitors.length} recent visitors</p>
+                  <p className="text-xs text-gray-600">Click any row to view details</p>
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Device Types */}
-        {deviceChartData.length > 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Device Types</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart style={{ background: 'transparent' }}>
-                <Pie
-                  data={deviceChartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={renderCustomLabel}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {deviceChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '2px solid #1f2937',
-                    color: '#1f2937',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
-                    zIndex: 1000,
-                    fontWeight: 'bold'
-                  }}
-                  labelStyle={{ color: '#1f2937', fontWeight: 'bold', fontSize: '14px' }}
-                  itemStyle={{ color: '#1f2937', fontWeight: '600', fontSize: '13px' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Complete Data Table */}
-            {deviceChartData.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-bold text-primary-black mb-4">Device Breakdown</h3>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Device Type</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Count</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Percentage</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {deviceChartData.map((item, idx) => {
-                        const total = deviceChartData.reduce((sum, d) => sum + d.value, 0);
-                        const percentage = ((item.value / total) * 100).toFixed(1);
-                        return (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div 
-                                  className="w-4 h-4 rounded" 
-                                  style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                                />
-                                <span className="text-sm font-medium text-gray-900">{item.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-sm font-bold text-primary-black text-right">{item.value}</td>
-                            <td className="px-4 py-3 text-sm font-bold text-primary-black text-right">{percentage}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Device Types</h2>
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No device data available</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Charts Row 2: Top Countries & Top Cities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Countries */}
-        {stats && stats.topCountries.length > 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Top Countries</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.topCountries.slice(0, 10)} style={{ background: 'transparent' }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="country" 
-                  tick={{ fontSize: 12, fill: '#111827', fontWeight: 600 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <YAxis 
-                  tick={{ fontSize: 13, fill: '#111827', fontWeight: 600 }} 
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '2px solid #1f2937',
-                    color: '#1f2937',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
-                    zIndex: 1000,
-                    fontWeight: 'bold'
-                  }}
-                  labelStyle={{ color: '#1f2937', fontWeight: 'bold', fontSize: '14px' }}
-                  itemStyle={{ color: '#1f2937', fontWeight: '600', fontSize: '13px' }}
-                />
-                <Bar dataKey="count" fill="#ffd700" name="Visitors" />
-              </BarChart>
-            </ResponsiveContainer>
-            {/* Complete Data Table */}
-            {stats.topCountries.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-bold text-primary-black mb-4">Top Countries</h3>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rank</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Country</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Visitors</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {stats.topCountries.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-bold text-gray-900">{idx + 1}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.country}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary-black text-right">{item.count} visitors</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Top Countries</h2>
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No country data available</p>
-            </div>
-          </div>
-        )}
-
-        {/* Top Cities */}
-        {stats && stats.topCities.length > 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Top Cities</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.topCities.slice(0, 10)} style={{ background: 'transparent' }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="city" 
-                  tick={{ fontSize: 12, fill: '#111827', fontWeight: 600 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <YAxis 
-                  tick={{ fontSize: 13, fill: '#111827', fontWeight: 600 }} 
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '2px solid #1f2937',
-                    color: '#1f2937',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
-                    zIndex: 1000,
-                    fontWeight: 'bold'
-                  }}
-                  labelStyle={{ color: '#1f2937', fontWeight: 'bold', fontSize: '14px' }}
-                  itemStyle={{ color: '#1f2937', fontWeight: '600', fontSize: '13px' }}
-                />
-                <Bar dataKey="count" fill="#ffc107" name="Visitors" />
-              </BarChart>
-            </ResponsiveContainer>
-            {/* Complete Data Table */}
-            {stats.topCities.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-bold text-primary-black mb-4">Top Cities</h3>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rank</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">City</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Visitors</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {stats.topCities.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-bold text-gray-900">{idx + 1}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.city}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary-black text-right">{item.count} visitors</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Top Cities</h2>
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No city data available</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Charts Row 3: Browsers & Operating Systems */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Browsers */}
-        {browserChartData.length > 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Browsers</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={browserChartData} style={{ background: 'transparent' }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="browser" 
-                  tick={{ fontSize: 13, fill: '#111827', fontWeight: 600 }}
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <YAxis 
-                  tick={{ fontSize: 13, fill: '#111827', fontWeight: 600 }} 
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '2px solid #1f2937',
-                    color: '#1f2937',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
-                    zIndex: 1000,
-                    fontWeight: 'bold'
-                  }}
-                  labelStyle={{ color: '#1f2937', fontWeight: 'bold', fontSize: '14px' }}
-                  itemStyle={{ color: '#1f2937', fontWeight: '600', fontSize: '13px' }}
-                />
-                <Bar dataKey="count" fill="#673ab7" name="Users" />
-              </BarChart>
-            </ResponsiveContainer>
-            {/* Complete Data Table */}
-            {browserChartData.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-bold text-primary-black mb-4">Browser Breakdown</h3>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Browser</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Users</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {browserChartData.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.browser}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary-black text-right">{item.count} users</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Browsers</h2>
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No browser data available</p>
-            </div>
-          </div>
-        )}
-
-        {/* Operating Systems */}
-        {osChartData.length > 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Operating Systems</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={osChartData} style={{ background: 'transparent' }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="os" 
-                  tick={{ fontSize: 12, fill: '#111827', fontWeight: 600 }} 
-                  angle={-45} 
-                  textAnchor="end" 
-                  height={100}
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <YAxis 
-                  tick={{ fontSize: 13, fill: '#111827', fontWeight: 600 }} 
-                  stroke="#111827"
-                  strokeWidth={1.5}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    border: '2px solid #1f2937',
-                    color: '#1f2937',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
-                    zIndex: 1000,
-                    fontWeight: 'bold'
-                  }}
-                  labelStyle={{ color: '#1f2937', fontWeight: 'bold', fontSize: '14px' }}
-                  itemStyle={{ color: '#1f2937', fontWeight: '600', fontSize: '13px' }}
-                />
-                <Bar dataKey="count" fill="#3f51b5" name="Users" />
-              </BarChart>
-            </ResponsiveContainer>
-            {/* Complete Data Table */}
-            {osChartData.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-bold text-primary-black mb-4">Operating Systems Breakdown</h3>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Operating System</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Users</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {osChartData.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.os}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary-black text-right">{item.count} users</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative z-10">
-            <h2 className="text-xl font-bold text-primary-black mb-4">Operating Systems</h2>
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No OS data available</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Visitors Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-primary-black">Recent Visitors</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  IP Address
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Country
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  City
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Device
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Browser
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Visits
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Visit
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {visitors.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No visitors found
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100 border border-gray-300">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">IP Address</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Location</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Device</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Browser</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Visits</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Last Visit</th>
                 </tr>
-              ) : (
-                visitors.map((visitor) => (
-                  <tr key={visitor.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {visitor.ip_address}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {visitor.country || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {visitor.city || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                      {visitor.device_type || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {visitor.browser || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {visitor.visit_count || 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(visitor.last_visit_at).toLocaleString()}
+              </thead>
+              <tbody>
+                {visitors.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400 border border-gray-300">
+                      No visitors found
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              Page {page} of {totalPages}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
+                ) : (
+                  visitors.map((visitor) => (
+                    <tr 
+                      key={visitor.id} 
+                      onClick={() => handleVisitorClick(visitor.id)}
+                      className="hover:bg-gray-100 cursor-pointer border border-gray-300"
+                    >
+                      <td className="px-3 py-2 text-sm text-gray-900 border border-gray-300">{visitor.ip_address}</td>
+                      <td className="px-3 py-2 text-sm text-gray-700 border border-gray-300">
+                        {visitor.city && visitor.country ? `${visitor.city}, ${visitor.country}` : visitor.country || 'N/A'}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-700 capitalize border border-gray-300">{visitor.device_type || 'Unknown'}</td>
+                      <td className="px-3 py-2 text-sm text-gray-700 border border-gray-300">{visitor.browser || 'Unknown'}</td>
+                      <td className="px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300">{visitor.visit_count || 1}</td>
+                      <td className="px-3 py-2 text-sm text-gray-500 border border-gray-300">
+                        {new Date(visitor.last_visit_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Visitor Detail Modal */}
+      {selectedVisitor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-400 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+            <div className="sticky top-0 bg-gray-200 border-b border-gray-400 p-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Visitor Details</h2>
+              <button
+                onClick={() => setSelectedVisitor(null)}
+                className="p-1 hover:bg-gray-300 border border-gray-400"
+              >
+                <X className="w-5 h-5 text-gray-700" />
+              </button>
+            </div>
+
+            {loadingVisitorDetail ? (
+              <div className="p-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading visitor details...</p>
+              </div>
+            ) : (
+              <div className="p-4 space-y-4">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">IP Address</p>
+                    <p className="text-sm font-semibold text-gray-900">{selectedVisitor.ip_address}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Session ID</p>
+                    <p className="text-sm font-semibold text-gray-900 font-mono">{selectedVisitor.session_id}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Location</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {selectedVisitor.city && selectedVisitor.country 
+                        ? `${selectedVisitor.city}, ${selectedVisitor.region || ''} ${selectedVisitor.country}`.trim()
+                        : selectedVisitor.country || 'N/A'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Device Type</p>
+                    <p className="text-sm font-semibold text-gray-900 capitalize">{selectedVisitor.device_type}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Browser</p>
+                    <p className="text-sm font-semibold text-gray-900">{selectedVisitor.browser}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Operating System</p>
+                    <p className="text-sm font-semibold text-gray-900">{selectedVisitor.os}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Screen Resolution</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {selectedVisitor.screen_width && selectedVisitor.screen_height 
+                        ? `${selectedVisitor.screen_width}x${selectedVisitor.screen_height}`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Language</p>
+                    <p className="text-sm font-semibold text-gray-900">{selectedVisitor.language || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Visit Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="bg-gray-100 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Total Visits</p>
+                    <p className="text-xl font-bold text-gray-900">{selectedVisitor.visit_count}</p>
+                  </div>
+                  <div className="bg-gray-100 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Pages Visited</p>
+                    <p className="text-xl font-bold text-gray-900">{selectedVisitor.totalPagesVisited}</p>
+                  </div>
+                  <div className="bg-gray-100 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Links Clicked</p>
+                    <p className="text-xl font-bold text-gray-900">{selectedVisitor.totalLinksClicked}</p>
+                  </div>
+                  <div className="bg-gray-100 border border-gray-300 p-3">
+                    <p className="text-xs text-gray-600 mb-1">Time Spent</p>
+                    <p className="text-xl font-bold text-gray-900">{formatTime(selectedVisitor.totalTimeSpent)}</p>
+                  </div>
+                </div>
+
+                {/* Page Visits */}
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 mb-3 border-b border-gray-300 pb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-700" />
+                    Pages Visited ({selectedVisitor.pageVisits.length})
+                  </h3>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {selectedVisitor.pageVisits.length === 0 ? (
+                      <p className="text-sm text-gray-500 p-3 bg-gray-50 border border-gray-300">No page visits recorded</p>
+                    ) : (
+                      selectedVisitor.pageVisits.map((visit) => (
+                        <div key={visit.id} className="bg-gray-50 border border-gray-300 p-3 hover:bg-gray-100">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-gray-900 mb-1">{visit.page_title || normalizeUrl(visit.page_url)}</p>
+                              <p className="text-xs text-gray-600 mb-1">{normalizeUrl(visit.page_url)}</p>
+                              {visit.referrer && (
+                                <p className="text-xs text-gray-500">From: {normalizeUrl(visit.referrer)}</p>
+                              )}
+                            </div>
+                            <div className="text-right ml-4">
+                              <p className="text-xs text-gray-500 mb-1">
+                                {new Date(visit.visited_at).toLocaleString()}
+                              </p>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {formatTime(visit.time_spent_seconds)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Link Clicks */}
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 mb-3 border-b border-gray-300 pb-2 flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4 text-gray-700" />
+                    Links Clicked ({selectedVisitor.linkClicks.length})
+                  </h3>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {selectedVisitor.linkClicks.length === 0 ? (
+                      <p className="text-sm text-gray-500 p-3 bg-gray-50 border border-gray-300">No link clicks recorded</p>
+                    ) : (
+                      selectedVisitor.linkClicks.map((click) => {
+                        const normalizedLinkUrl = normalizeUrl(click.link_url);
+                        return (
+                        <div key={click.id} className="bg-gray-50 border border-gray-300 p-3 hover:bg-gray-100">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-gray-900 mb-1">
+                                {click.link_text || normalizedLinkUrl}
+                              </p>
+                              <a 
+                                href={normalizedLinkUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-gray-600 hover:underline flex items-center gap-1"
+                              >
+                                {normalizedLinkUrl}
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                            <p className="text-xs text-gray-500 ml-4">
+                              {new Date(click.clicked_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Visit Timeline */}
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 mb-3 border-b border-gray-300 pb-2 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-700" />
+                    Visit Timeline
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 border border-gray-300 p-3">
+                      <p className="text-xs text-gray-600 mb-1">First Visit</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {new Date(selectedVisitor.first_visit_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 border border-gray-300 p-3">
+                      <p className="text-xs text-gray-600 mb-1">Last Visit</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {new Date(selectedVisitor.last_visit_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
