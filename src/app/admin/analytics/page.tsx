@@ -27,6 +27,7 @@ interface Visitor {
   language?: string;
   screen_width?: number;
   screen_height?: number;
+  averageTimeSpent?: number;
 }
 
 interface VisitorDetail {
@@ -71,6 +72,7 @@ interface VisitorDetail {
 interface AnalyticsStats {
   totalVisitors: number;
   uniqueVisitors: number;
+  averageTimeSpent?: number;
   topCountries: Array<{ country: string; count: number; code: string }>;
   topCities: Array<{ city: string; count: number }>;
   deviceCounts: Record<string, number>;
@@ -81,20 +83,32 @@ interface AnalyticsStats {
 
 export default function AnalyticsPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [adminVisits, setAdminVisits] = useState<Visitor[]>([]);
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('all');
+  const [period, setPeriod] = useState<'today' | 'week' | 'month' | '90days' | 'year' | 'all' | 'custom'>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [selectedVisitor, setSelectedVisitor] = useState<VisitorDetail | null>(null);
   const [loadingVisitorDetail, setLoadingVisitorDetail] = useState(false);
   const [showDropdowns, setShowDropdowns] = useState<Record<string, boolean>>({});
+  const [updatingDevices, setUpdatingDevices] = useState(false);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const statsResponse = await fetch(`/api/admin/analytics/stats?period=${period}`);
+      let statsUrl = `/api/admin/analytics/stats?period=${period}`;
+      let visitorsUrl = `/api/admin/analytics/visitors?page=1&limit=50&period=${period}`;
+      
+      if (period === 'custom' && startDate && endDate) {
+        statsUrl += `&startDate=${startDate}&endDate=${endDate}`;
+        visitorsUrl += `&startDate=${startDate}&endDate=${endDate}`;
+      }
+
+      const statsResponse = await fetch(statsUrl);
       
       if (!statsResponse.ok) {
         throw new Error(`Stats API error: ${statsResponse.status}`);
@@ -109,6 +123,7 @@ export default function AnalyticsPage() {
         setStats({
           totalVisitors: 0,
           uniqueVisitors: 0,
+          averageTimeSpent: 0,
           topCountries: [],
           topCities: [],
           deviceCounts: {},
@@ -118,7 +133,7 @@ export default function AnalyticsPage() {
         });
       }
 
-      const visitorsResponse = await fetch(`/api/admin/analytics/visitors?page=1&limit=50&period=${period}`);
+      const visitorsResponse = await fetch(visitorsUrl);
       
       if (!visitorsResponse.ok) {
         throw new Error(`Visitors API error: ${visitorsResponse.status}`);
@@ -127,7 +142,26 @@ export default function AnalyticsPage() {
       const visitorsData = await visitorsResponse.json();
 
       if (visitorsData.success) {
-        setVisitors(visitorsData.visitors || []);
+        // Filter out admin visits from the list
+        const nonAdminVisitors = (visitorsData.visitors || []).filter((visitor: Visitor) => {
+          // Check if visitor has admin page visits
+          const pageUrl = visitor.page_url || '';
+          return !pageUrl.includes('/admin') && !pageUrl.includes('admin');
+        });
+        
+        setVisitors(nonAdminVisitors);
+        
+        // Load admin visits separately
+        const adminVisitsResponse = await fetch('/api/admin/visitors?excludeAdmin=true');
+        if (adminVisitsResponse.ok) {
+          const adminData = await adminVisitsResponse.json();
+          if (adminData.success) {
+            setAdminVisits(adminData.adminVisits || []);
+          }
+        }
+        
+        // Auto-update device types for visitors with small screen sizes
+        autoUpdateDeviceTypes();
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -135,6 +169,7 @@ export default function AnalyticsPage() {
       setStats({
         totalVisitors: 0,
         uniqueVisitors: 0,
+        averageTimeSpent: 0,
         topCountries: [],
         topCities: [],
         deviceCounts: {},
@@ -150,7 +185,8 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     loadData();
-  }, [period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, startDate, endDate]);
 
   const handleVisitorClick = async (visitorId: string) => {
     setLoadingVisitorDetail(true);
@@ -185,6 +221,64 @@ export default function AnalyticsPage() {
     return `${minutes}m ${secs}s`;
   };
 
+  const formatAverageTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (minutes < 60) {
+      return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  };
+
+  const handlePeriodChange = (newPeriod: typeof period) => {
+    setPeriod(newPeriod);
+    if (newPeriod !== 'custom') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  const handleRefresh = () => {
+    loadData();
+  };
+
+  const autoUpdateDeviceTypes = async () => {
+    try {
+      setUpdatingDevices(true);
+      const response = await fetch('/api/admin/analytics/visitors/update-devices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.updated > 0) {
+        // Reload visitors to show updated device types
+        let visitorsUrl = `/api/admin/analytics/visitors?page=1&limit=50&period=${period}`;
+        if (period === 'custom' && startDate && endDate) {
+          visitorsUrl += `&startDate=${startDate}&endDate=${endDate}`;
+        }
+        
+        const visitorsResponse = await fetch(visitorsUrl);
+        if (visitorsResponse.ok) {
+          const visitorsData = await visitorsResponse.json();
+          if (visitorsData.success) {
+            setVisitors(visitorsData.visitors || []);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-updating device types:', error);
+    } finally {
+      setUpdatingDevices(false);
+    }
+  };
+
   const deviceChartData = stats?.deviceCounts ? Object.entries(stats.deviceCounts).map(([device, count]) => ({
     name: device.charAt(0).toUpperCase() + device.slice(1),
     value: count,
@@ -211,28 +305,120 @@ export default function AnalyticsPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Analytics Dashboard
+                Visitor Analytics
               </h1>
-              <p className="text-sm text-gray-600">Comprehensive visitor insights and analytics</p>
+              <p className="text-sm text-gray-600">Track and analyze your website visitors</p>
             </div>
 
-            {/* Period Selector */}
-            <div className="flex items-center gap-2 bg-white border border-gray-300 p-1">
-              <Calendar className="w-4 h-4 text-gray-600" />
-              <select
-                value={period}
-                onChange={(e) => {
-                  setPeriod(e.target.value as any);
-                }}
-                className="px-3 py-1 bg-white border-none outline-none text-gray-700 text-sm cursor-pointer"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 border border-gray-300 text-gray-700 text-sm font-medium flex items-center gap-2"
               >
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-                <option value="year">Last Year</option>
-                <option value="all">All Time</option>
-              </select>
+                <Activity className="w-4 h-4" />
+                Refresh
+              </button>
             </div>
+          </div>
+
+          {/* Visitor Analytics Filter Section */}
+          <div className="bg-white border border-gray-300 p-4 mb-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Period:</h2>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                onClick={() => handlePeriodChange('today')}
+                className={`px-4 py-2 text-sm font-medium border ${
+                  period === 'today'
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => handlePeriodChange('week')}
+                className={`px-4 py-2 text-sm font-medium border ${
+                  period === 'week'
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                7 Days
+              </button>
+              <button
+                onClick={() => handlePeriodChange('month')}
+                className={`px-4 py-2 text-sm font-medium border ${
+                  period === 'month'
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                30 Days
+              </button>
+              <button
+                onClick={() => handlePeriodChange('90days')}
+                className={`px-4 py-2 text-sm font-medium border ${
+                  period === '90days'
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                90 Days
+              </button>
+              <button
+                onClick={() => handlePeriodChange('all')}
+                className={`px-4 py-2 text-sm font-medium border ${
+                  period === 'all'
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                All Time
+              </button>
+              <button
+                onClick={() => handlePeriodChange('custom')}
+                className={`px-4 py-2 text-sm font-medium border ${
+                  period === 'custom'
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Custom Range
+              </button>
+            </div>
+
+            {/* Custom Date Range Picker */}
+            {period === 'custom' && (
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center border-t border-gray-300 pt-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">From:</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">To:</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                    className="px-3 py-2 border border-gray-300 text-sm"
+                  />
+                </div>
+                {startDate && endDate && (
+                  <button
+                    onClick={handleRefresh}
+                    className="px-4 py-2 bg-gray-800 text-white text-sm font-medium hover:bg-gray-900"
+                  >
+                    Apply
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Error Message */}
@@ -246,7 +432,32 @@ export default function AnalyticsPage() {
 
         {/* Stats Cards Grid */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-gray-200">
+                  <Clock className="w-5 h-5 text-gray-700" />
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('avgTimeSpent')}
+                    className="p-1 hover:bg-gray-100"
+                  >
+                    <Info className="w-4 h-4 text-gray-500" />
+                  </button>
+                  {showDropdowns.avgTimeSpent && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600">Average time spent per visitor session</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-xs font-medium text-gray-600 mb-1">Avg. Time Spent</h3>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.averageTimeSpent !== undefined ? formatAverageTime(stats.averageTimeSpent) : '0s'}
+              </p>
+            </div>
+
             <div className="bg-white border border-gray-300 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 bg-gray-200">
@@ -571,71 +782,131 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* Recent Visitors Table */}
-        <div className="bg-white border border-gray-300 p-4">
-          <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-gray-200">
-                <Users className="w-4 h-4 text-gray-700" />
-              </div>
-              <h2 className="text-lg font-bold text-gray-900">Recent Visitors</h2>
-            </div>
-            <div className="relative">
-              <button
-                onClick={() => toggleDropdown('visitors')}
-                className="text-xs text-gray-600 font-medium hover:underline"
-              >
-                {visitors.length} visitors
-              </button>
-              {showDropdowns.visitors && (
-                <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
-                  <p className="text-xs text-gray-600 mb-1">Showing {visitors.length} recent visitors</p>
-                  <p className="text-xs text-gray-600">Click any row to view details</p>
+        {/* Recent Visitors Section with Split View (80/20) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          {/* Recent Visitors Table - 80% (4 columns) */}
+          <div className="lg:col-span-4 bg-white border border-gray-300 p-4">
+            <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-gray-200">
+                  <Users className="w-4 h-4 text-gray-700" />
                 </div>
-              )}
+                <h2 className="text-lg font-bold text-gray-900">Recent Visitors</h2>
+                <span className="text-xs text-gray-500">(Excluding Admin Visits)</span>
+                {updatingDevices && (
+                  <span className="text-xs text-gray-500 ml-2">Updating devices...</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={autoUpdateDeviceTypes}
+                  disabled={updatingDevices}
+                  className="px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 border border-gray-300 text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Auto-update device types for visitors with small screen sizes"
+                >
+                  {updatingDevices ? 'Updating...' : 'Auto-Update Devices'}
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('visitors')}
+                    className="text-xs text-gray-600 font-medium hover:underline"
+                  >
+                    {visitors.length} visitors
+                  </button>
+                  {showDropdowns.visitors && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 p-2 z-10 shadow-lg">
+                      <p className="text-xs text-gray-600 mb-1">Showing {visitors.length} recent visitors</p>
+                      <p className="text-xs text-gray-600">Click any row to view details</p>
+                      <p className="text-xs text-gray-500 mt-1">Device types auto-update on load</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100 border border-gray-300">
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">IP Address</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Location</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Device</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Browser</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Visits</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Last Visit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visitors.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400 border border-gray-300">
-                      No visitors found
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100 border border-gray-300">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">IP Address</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Location</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Device</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Browser</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Visits</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Avg. Time Spent</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border border-gray-300">Last Visit</th>
                   </tr>
-                ) : (
-                  visitors.map((visitor) => (
-                    <tr 
-                      key={visitor.id} 
-                      onClick={() => handleVisitorClick(visitor.id)}
-                      className="hover:bg-gray-100 cursor-pointer border border-gray-300"
-                    >
-                      <td className="px-3 py-2 text-sm text-gray-900 border border-gray-300">{visitor.ip_address}</td>
-                      <td className="px-3 py-2 text-sm text-gray-700 border border-gray-300">
-                        {visitor.city && visitor.country ? `${visitor.city}, ${visitor.country}` : visitor.country || 'N/A'}
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-700 capitalize border border-gray-300">{visitor.device_type || 'Unknown'}</td>
-                      <td className="px-3 py-2 text-sm text-gray-700 border border-gray-300">{visitor.browser || 'Unknown'}</td>
-                      <td className="px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300">{visitor.visit_count || 1}</td>
-                      <td className="px-3 py-2 text-sm text-gray-500 border border-gray-300">
-                        {new Date(visitor.last_visit_at).toLocaleString()}
+                </thead>
+                <tbody>
+                  {visitors.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400 border border-gray-300">
+                        No visitors found
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    visitors.map((visitor) => (
+                      <tr 
+                        key={visitor.id} 
+                        onClick={() => handleVisitorClick(visitor.id)}
+                        className="hover:bg-gray-100 cursor-pointer border border-gray-300"
+                      >
+                        <td className="px-3 py-2 text-sm text-gray-900 border border-gray-300">{visitor.ip_address}</td>
+                        <td className="px-3 py-2 text-sm text-gray-700 border border-gray-300">
+                          {visitor.city && visitor.country ? `${visitor.city}, ${visitor.country}` : visitor.country || 'N/A'}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-700 capitalize border border-gray-300">{visitor.device_type || 'Unknown'}</td>
+                        <td className="px-3 py-2 text-sm text-gray-700 border border-gray-300">{visitor.browser || 'Unknown'}</td>
+                        <td className="px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300">{visitor.visit_count || 1}</td>
+                        <td className="px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300">
+                          {visitor.averageTimeSpent !== undefined ? formatTime(visitor.averageTimeSpent) : '0s'}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-500 border border-gray-300">
+                          {new Date(visitor.last_visit_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Admin Visits - 20% (1 column) */}
+          <div className="lg:col-span-1 bg-white border border-gray-300 p-4">
+            <div className="flex items-center justify-between mb-4 border-b border-gray-300 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-gray-200">
+                  <Users className="w-4 h-4 text-gray-700" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900">Admin Visits</h2>
+              </div>
+              <span className="text-xs text-gray-600">{adminVisits.length}</span>
+            </div>
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {adminVisits.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No admin visits</p>
+              ) : (
+                adminVisits.map((visitor) => (
+                  <div 
+                    key={visitor.id}
+                    className="bg-gray-50 border border-gray-200 p-2 hover:bg-gray-100"
+                  >
+                    <div className="text-xs font-semibold text-gray-900 mb-1">
+                      {visitor.ip_address}
+                    </div>
+                    <div className="text-xs text-gray-600 mb-1">
+                      {visitor.city && visitor.country ? `${visitor.city}` : visitor.country || 'N/A'}
+                    </div>
+                    <div className="text-xs text-gray-500 capitalize">
+                      {visitor.device_type || 'Unknown'}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      {new Date(visitor.last_visit_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

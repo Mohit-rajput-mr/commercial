@@ -4,29 +4,44 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const period = searchParams.get('period') || 'all'; // 'today', 'week', 'month', 'year', 'all'
+    const period = searchParams.get('period') || 'all'; // 'today', 'week', 'month', '90days', 'year', 'all', 'custom'
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
     // Calculate date filter
     let dateFilter: Date | null = null;
+    let endDateFilter: Date | null = null;
     const now = new Date();
-    switch (period) {
-      case 'today':
-        dateFilter = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case 'week':
-        dateFilter = new Date(now);
-        dateFilter.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        dateFilter = new Date(now);
-        dateFilter.setMonth(now.getMonth() - 1);
-        break;
-      case 'year':
-        dateFilter = new Date(now);
-        dateFilter.setFullYear(now.getFullYear() - 1);
-        break;
-      default:
-        dateFilter = null;
+    
+    if (period === 'custom' && startDate && endDate) {
+      dateFilter = new Date(startDate);
+      endDateFilter = new Date(endDate);
+      // Set end date to end of day
+      endDateFilter.setHours(23, 59, 59, 999);
+    } else {
+      switch (period) {
+        case 'today':
+          dateFilter = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          dateFilter = new Date(now);
+          dateFilter.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          dateFilter = new Date(now);
+          dateFilter.setDate(now.getDate() - 30);
+          break;
+        case '90days':
+          dateFilter = new Date(now);
+          dateFilter.setDate(now.getDate() - 90);
+          break;
+        case 'year':
+          dateFilter = new Date(now);
+          dateFilter.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          dateFilter = null;
+      }
     }
 
     // Get total visitors count
@@ -36,6 +51,9 @@ export async function GET(request: NextRequest) {
     if (dateFilter) {
       totalVisitorsQuery = totalVisitorsQuery.gte('created_at', dateFilter.toISOString());
     }
+    if (endDateFilter) {
+      totalVisitorsQuery = totalVisitorsQuery.lte('created_at', endDateFilter.toISOString());
+    }
     const { count: totalVisitors } = await totalVisitorsQuery;
 
     // Get unique visitors (by session ID)
@@ -43,13 +61,42 @@ export async function GET(request: NextRequest) {
     if (dateFilter) {
       uniqueVisitorsQuery = uniqueVisitorsQuery.gte('created_at', dateFilter.toISOString());
     }
+    if (endDateFilter) {
+      uniqueVisitorsQuery = uniqueVisitorsQuery.lte('created_at', endDateFilter.toISOString());
+    }
     const { data: allVisitors } = await uniqueVisitorsQuery;
     const uniqueVisitors = new Set(allVisitors?.map(v => v.session_id)).size;
+
+    // Calculate average time spent (excluding admin visits)
+    let timeSpentQuery = supabaseAdmin
+      .from('visitor_page_visits')
+      .select('time_spent_seconds, visited_at, page_url');
+    
+    if (dateFilter) {
+      timeSpentQuery = timeSpentQuery.gte('visited_at', dateFilter.toISOString());
+    }
+    if (endDateFilter) {
+      timeSpentQuery = timeSpentQuery.lte('visited_at', endDateFilter.toISOString());
+    }
+    
+    const { data: pageVisits } = await timeSpentQuery;
+    
+    // Filter out admin page visits
+    const nonAdminVisits = pageVisits?.filter(visit => 
+      !visit.page_url?.includes('/admin') && !visit.page_url?.includes('admin')
+    ) || [];
+    
+    const totalTimeSpent = nonAdminVisits.reduce((sum, visit) => sum + (visit.time_spent_seconds || 0), 0);
+    const visitCount = nonAdminVisits.length;
+    const averageTimeSpent = visitCount > 0 ? Math.round(totalTimeSpent / visitCount) : 0;
 
     // Get stats by country
     let countryQuery = supabaseAdmin.from('visitors').select('country, country_code').not('country', 'is', null);
     if (dateFilter) {
       countryQuery = countryQuery.gte('created_at', dateFilter.toISOString());
+    }
+    if (endDateFilter) {
+      countryQuery = countryQuery.lte('created_at', endDateFilter.toISOString());
     }
     const { data: countryData } = await countryQuery;
 
@@ -67,6 +114,9 @@ export async function GET(request: NextRequest) {
     if (dateFilter) {
       cityQuery = cityQuery.gte('created_at', dateFilter.toISOString());
     }
+    if (endDateFilter) {
+      cityQuery = cityQuery.lte('created_at', endDateFilter.toISOString());
+    }
     const { data: cityData } = await cityQuery;
 
     const cityCounts: Record<string, number> = {};
@@ -79,6 +129,9 @@ export async function GET(request: NextRequest) {
     let deviceQuery = supabaseAdmin.from('visitors').select('device_type');
     if (dateFilter) {
       deviceQuery = deviceQuery.gte('created_at', dateFilter.toISOString());
+    }
+    if (endDateFilter) {
+      deviceQuery = deviceQuery.lte('created_at', endDateFilter.toISOString());
     }
     const { data: deviceData } = await deviceQuery;
 
@@ -93,6 +146,9 @@ export async function GET(request: NextRequest) {
     if (dateFilter) {
       browserQuery = browserQuery.gte('created_at', dateFilter.toISOString());
     }
+    if (endDateFilter) {
+      browserQuery = browserQuery.lte('created_at', endDateFilter.toISOString());
+    }
     const { data: browserData } = await browserQuery;
 
     const browserCounts: Record<string, number> = {};
@@ -105,6 +161,9 @@ export async function GET(request: NextRequest) {
     let osQuery = supabaseAdmin.from('visitors').select('os').not('os', 'is', null);
     if (dateFilter) {
       osQuery = osQuery.gte('created_at', dateFilter.toISOString());
+    }
+    if (endDateFilter) {
+      osQuery = osQuery.lte('created_at', endDateFilter.toISOString());
     }
     const { data: osData } = await osQuery;
 
@@ -162,6 +221,7 @@ export async function GET(request: NextRequest) {
       stats: {
         totalVisitors: totalVisitors || 0,
         uniqueVisitors,
+        averageTimeSpent,
         topCountries,
         topCities,
         deviceCounts,
